@@ -1,0 +1,149 @@
+{
+  "common": {
+    "title": "use-form-definition",
+    "subtitle": "Next.js i18n-exempel",
+    "backToHome": "← Tillbaka till startsidan",
+    "submit": "Skicka",
+    "sending": "Skickar...",
+    "submittedData": "Inskickad data",
+    "tagline": "Typsäkra formulärdefinitioner för React"
+  },
+  "home": {
+    "description": "Det här exemplet visar server-validering och internationalisering med next-intl.",
+    "examplesTitle": "Exempelformulär",
+    "serverAction": {
+      "title": "Feedbackformulär (Server Action)",
+      "description": "Server-validering med generateDataValidator och Next.js Server Actions"
+    },
+    "apiRoute": {
+      "title": "Kontaktformulär (API Route)",
+      "description": "Server-validering med generateDataValidator i en API-endpoint"
+    },
+    "asyncValidation": {
+      "title": "Registreringsformulär (Asynkron validering)",
+      "description": "Plugin-system med asynkron kontroll av användarnamn"
+    },
+    "featuresTitle": "Demonstrerade funktioner",
+    "features": {
+      "serverValidation": "Server-validering med generateDataValidator",
+      "serverActions": "Integration med Next.js Server Actions",
+      "apiRoutes": "API Route-validering",
+      "i18n": "Full internationalisering med next-intl",
+      "translatedLabels": "Översatta formuläretiketter och felmeddelanden"
+    }
+  },
+  "form": {
+    "labels": {
+      "name": "Ditt namn",
+      "email": "E-postadress",
+      "rating": "Hur skulle du betygsätta vår tjänst?",
+      "feedback": "Din feedback",
+      "contactMe": "Jag vill bli kontaktad angående min feedback",
+      "subject": "Ämne",
+      "message": "Meddelande",
+      "username": "Användarnamn",
+      "password": "Lösenord",
+      "confirmPassword": "Bekräfta lösenord",
+      "acceptTerms": "Jag accepterar villkoren"
+    },
+    "placeholders": {
+      "name": "Ange ditt namn",
+      "email": "Ange din e-post",
+      "rating": "Välj ett betyg...",
+      "feedback": "Berätta vad du tycker...",
+      "subject": "Välj ett ämne...",
+      "message": "Skriv ditt meddelande"
+    },
+    "options": {
+      "rating": {
+        "excellent": "Utmärkt (5)",
+        "good": "Bra (4)",
+        "average": "Genomsnittligt (3)",
+        "poor": "Dåligt (2)",
+        "veryPoor": "Mycket dåligt (1)"
+      },
+      "subject": {
+        "general": "Allmän förfrågan",
+        "support": "Teknisk support",
+        "sales": "Försäljningsfråga",
+        "feedback": "Feedback"
+      }
+    },
+    "validation": {
+      "required": "Detta fält är obligatoriskt",
+      "minLength": "Måste vara minst {count} tecken",
+      "maxLength": "Får vara högst {count} tecken",
+      "min": "Måste vara minst {count}",
+      "max": "Får vara högst {count}",
+      "pattern": "Ogiltigt format",
+      "matchValue": "Värdena matchar inte",
+      "mustBeTrue": "Detta måste vara ikryssat",
+      "mustBeFalse": "Detta får inte vara ikryssat",
+      "minRows": "Måste ha minst {count} rader",
+      "maxRows": "Får ha högst {count} rader",
+      "invalid": "Ogiltigt värde",
+      "invalidFormat": "Ogiltigt format",
+      "invalidSelection": "Vänligen välj ett alternativ",
+      "usernameAlreadyTaken": "Användarnamnet är redan upptaget"
+    }
+  },
+  "forms": {
+    "labels": {
+      "contactMe": "Jag vill bli kontaktad angående min feedback"
+    },
+    "placeholders": {
+      "selectRating": "Välj ett betyg...",
+      "selectSubject": "Välj ett ämne..."
+    },
+    "options": {
+      "rating": {
+        "excellent": "Utmärkt (5)",
+        "good": "Bra (4)",
+        "average": "Genomsnittligt (3)",
+        "poor": "Dåligt (2)",
+        "veryPoor": "Mycket dåligt (1)"
+      },
+      "subject": {
+        "general": "Allmän förfrågan",
+        "support": "Teknisk support",
+        "sales": "Försäljningsfråga",
+        "feedback": "Feedback"
+      }
+    },
+    "validation": {
+      "required": "Detta fält är obligatoriskt",
+      "minLength": "Måste vara minst {count} tecken",
+      "maxLength": "Får vara högst {count} tecken",
+      "pattern": "Ogiltigt format",
+      "email": "Ange en giltig e-postadress",
+      "Invalid format": "Ogiltigt format"
+    },
+    "success": {
+      "feedback": "Tack för din feedback! Vi uppskattar dina synpunkter och kommer att granska dem inom kort.",
+      "contact": "Meddelande skickat! Vi återkommer så snart som möjligt."
+    },
+    "error": {
+      "validation": "Vänligen åtgärda valideringsfelen nedan.",
+      "generic": "Något gick fel. Försök igen."
+    },
+    "submitAnother": "Skicka ett nytt svar",
+    "submit": "Skicka",
+    "submitting": "Skickar..."
+  },
+  "asyncValidation": {
+    "title": "Registreringsformulär (Asynkron validering)",
+    "description": "Detta formulär demonstrerar plugin-systemet med asynkron validering. Användarnamnet kontrolleras mot ett API innan formuläret skickas.",
+    "tryUsernames": "Prova dessa användarnamn:",
+    "alreadyTaken": "Redan upptaget",
+    "anyOther": "Alla andra användarnamn",
+    "available": "Tillgängligt"
+  },
+  "serverAction": {
+    "title": "Feedbackformulär",
+    "description": "Detta formulär demonstrerar server-validering med generateDataValidator() och Next.js Server Actions. Prova att skicka med ogiltiga data för att se server-valideringsfel."
+  },
+  "apiRoute": {
+    "title": "Kontaktformulär",
+    "description": "Detta formulär skickas till en API-route som validerar data på serversidan med generateDataValidator(). Samma formulärdefinition används på både klient och server."
+  }
+}

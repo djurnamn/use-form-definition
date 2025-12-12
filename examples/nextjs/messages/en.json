@@ -1,0 +1,149 @@
+{
+  "common": {
+    "title": "use-form-definition",
+    "subtitle": "Next.js i18n Example",
+    "backToHome": "← Back to home",
+    "submit": "Submit",
+    "sending": "Sending...",
+    "submittedData": "Submitted data",
+    "tagline": "Type-safe form definitions for React"
+  },
+  "home": {
+    "description": "This example demonstrates server-side validation and internationalization with next-intl.",
+    "examplesTitle": "Example Forms",
+    "serverAction": {
+      "title": "Feedback Form (Server Action)",
+      "description": "Server-side validation using generateDataValidator with Next.js Server Actions"
+    },
+    "apiRoute": {
+      "title": "Contact Form (API Route)",
+      "description": "Server-side validation using generateDataValidator in an API endpoint"
+    },
+    "asyncValidation": {
+      "title": "Registration Form (Async Validation)",
+      "description": "Plugin system with async username availability checking"
+    },
+    "featuresTitle": "Features Demonstrated",
+    "features": {
+      "serverValidation": "Server-side validation with generateDataValidator",
+      "serverActions": "Next.js Server Actions integration",
+      "apiRoutes": "API Route validation",
+      "i18n": "Full internationalization with next-intl",
+      "translatedLabels": "Translated form labels and error messages"
+    }
+  },
+  "form": {
+    "labels": {
+      "name": "Your Name",
+      "email": "Email Address",
+      "rating": "How would you rate our service?",
+      "feedback": "Your Feedback",
+      "contactMe": "I would like to be contacted about my feedback",
+      "subject": "Subject",
+      "message": "Message",
+      "username": "Username",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "acceptTerms": "I accept the terms and conditions"
+    },
+    "placeholders": {
+      "name": "Enter your name",
+      "email": "Enter your email",
+      "rating": "Select a rating...",
+      "feedback": "Tell us what you think...",
+      "subject": "Select a subject...",
+      "message": "Enter your message"
+    },
+    "options": {
+      "rating": {
+        "excellent": "Excellent (5)",
+        "good": "Good (4)",
+        "average": "Average (3)",
+        "poor": "Poor (2)",
+        "veryPoor": "Very Poor (1)"
+      },
+      "subject": {
+        "general": "General Inquiry",
+        "support": "Technical Support",
+        "sales": "Sales Question",
+        "feedback": "Feedback"
+      }
+    },
+    "validation": {
+      "required": "This field is required",
+      "minLength": "Must be at least {count} characters",
+      "maxLength": "Must be no more than {count} characters",
+      "min": "Must be at least {count}",
+      "max": "Must be no more than {count}",
+      "pattern": "Invalid format",
+      "matchValue": "Values do not match",
+      "mustBeTrue": "This must be checked",
+      "mustBeFalse": "This must not be checked",
+      "minRows": "Must have at least {count} rows",
+      "maxRows": "Must have no more than {count} rows",
+      "invalid": "Invalid value",
+      "invalidFormat": "Invalid format",
+      "invalidSelection": "Please select an option",
+      "usernameAlreadyTaken": "Username is already taken"
+    }
+  },
+  "forms": {
+    "labels": {
+      "contactMe": "I would like to be contacted about my feedback"
+    },
+    "placeholders": {
+      "selectRating": "Select a rating...",
+      "selectSubject": "Select a subject..."
+    },
+    "options": {
+      "rating": {
+        "excellent": "Excellent (5)",
+        "good": "Good (4)",
+        "average": "Average (3)",
+        "poor": "Poor (2)",
+        "veryPoor": "Very Poor (1)"
+      },
+      "subject": {
+        "general": "General Inquiry",
+        "support": "Technical Support",
+        "sales": "Sales Question",
+        "feedback": "Feedback"
+      }
+    },
+    "validation": {
+      "required": "This field is required",
+      "minLength": "Must be at least {count} characters",
+      "maxLength": "Must be no more than {count} characters",
+      "pattern": "Invalid format",
+      "email": "Please enter a valid email address",
+      "Invalid format": "Invalid format"
+    },
+    "success": {
+      "feedback": "Thank you for your feedback! We appreciate your input and will review it shortly.",
+      "contact": "Message sent! We'll get back to you as soon as possible."
+    },
+    "error": {
+      "validation": "Please fix the validation errors below.",
+      "generic": "Something went wrong. Please try again."
+    },
+    "submitAnother": "Submit another response",
+    "submit": "Submit",
+    "submitting": "Submitting..."
+  },
+  "serverAction": {
+    "title": "Feedback Form",
+    "description": "This form demonstrates server-side validation using generateDataValidator() with Next.js Server Actions. Try submitting with invalid data to see server-side validation errors."
+  },
+  "apiRoute": {
+    "title": "Contact Form",
+    "description": "This form submits to an API route that validates the data server-side using generateDataValidator(). The same form definition is used on both client and server."
+  },
+  "asyncValidation": {
+    "title": "Registration Form (Async Validation)",
+    "description": "This form demonstrates the plugin system with async validation. The username field checks availability via an API call before form submission.",
+    "tryUsernames": "Try these usernames:",
+    "alreadyTaken": "Already taken",
+    "anyOther": "Any other username",
+    "available": "Available"
+  }
+}

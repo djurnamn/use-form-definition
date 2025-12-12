@@ -1,0 +1,84 @@
+{
+  "name": "use-form-definition",
+  "version": "1.0.0",
+  "description": "A UI-agnostic React form library that generates forms from simple field definitions with Zod validation and React Hook Form integration",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "cli",
+    "src/components"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:ui": "vitest --ui",
+    "release": "./scripts/release.sh",
+    "publish:npm": "./scripts/publish.sh"
+  },
+  "bin": {
+    "use-form-definition": "./cli/copy-components.js"
+  },
+  "keywords": [
+    "react",
+    "forms",
+    "validation",
+    "zod",
+    "react-hook-form",
+    "ui-agnostic",
+    "typescript"
+  ],
+  "author": "Björn Djurnamn",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/djurnamn/use-form-definition.git"
+  },
+  "bugs": {
+    "url": "https://github.com/djurnamn/use-form-definition/issues"
+  },
+  "homepage": "https://github.com/djurnamn/use-form-definition#readme",
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-hook-form": ">=7.0.0",
+    "zod": ">=3.0.0 <4.0.0"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "@vitest/ui": "^1.0.0",
+    "jsdom": "^23.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.68.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0",
+    "zod": "^3.23.8"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.mjs",
+      "require": "./dist/server.js"
+    }
+  }
+}
