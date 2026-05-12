@@ -96,7 +96,7 @@ describe('Form Hook Integration Tests', () => {
       const useTestForm = createFormDefinitionHook({
         components,
         translation: {
-          t: translate
+          function: translate
         }
       });
 
@@ -353,7 +353,7 @@ describe('Form Hook Integration Tests', () => {
         useFormDefinition(simpleFormDefinition, {
           config: {
             // FormConfig properties can be customized here
-            // Note: showSubmitButton was a component-level prop, not FormConfig
+            // Note: showActions is a component-level prop on RenderedForm, not FormConfig
           }
         })
       );

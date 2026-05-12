@@ -59,7 +59,7 @@ export const useFormDefinition = createFormDefinitionHook({
     LayoutContainer: ShadcnLayoutContainer,
     LayoutItem: ShadcnLayoutItem,
 
-    // Custom submit button with loading state
-    SubmitButton: ShadcnSubmitButton,
+    // Custom Actions slot — renders the submit button with loading state
+    Actions: ShadcnSubmitButton,
   },
 });

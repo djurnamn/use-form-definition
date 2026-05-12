@@ -63,11 +63,11 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
         if (hasConditionalRequired) {
           baseSchema = baseSchema.refine(
             (val) => val === "" || pattern.pattern.test(val),
-            { message: "invalidFormat" }
+            { message: createMessage("invalidFormat") }
           );
         } else {
           baseSchema = (baseSchema as z.ZodString).regex(pattern.pattern, {
-            message: "invalidFormat",
+            message: createMessage("invalidFormat"),
           });
         }
       }
@@ -261,7 +261,7 @@ export const createNumberFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   // Handle required validation
   if (field.validation?.required) {
     numberSchema = numberSchema.refine((val) => val !== undefined, {
-      message: "Required",
+      message: createMessage("required"),
     });
   }
 
@@ -306,7 +306,7 @@ export const createSelectFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
     );
 
     selectSchema = z.enum(allowedValues as [string, ...string[]], {
-      message: "invalidSelection",
+      message: createMessage("invalidSelection"),
     });
   } else {
     selectSchema = z.string();
@@ -342,7 +342,7 @@ export const createMultiselectFieldSchema = (field: FormFieldDefinition): z.ZodT
       (values: string[]) =>
         values?.every((value: string) => allowedValues.includes(value)),
       {
-        message: `Contains invalid selection(s)`,
+        message: createMessage("invalidSelections"),
       }
     );
   }

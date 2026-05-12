@@ -16,8 +16,6 @@ const defaultLocalePaths = {
 export interface NormalizedTranslationConfig {
   /** The resolved translation function (from hook or runtime function) */
   function?: TranslationFunction;
-  /** @deprecated Use `function` instead */
-  t?: TranslationFunction;
   labels: {
     enabled: boolean;
     alwaysInclude: boolean;
@@ -53,8 +51,7 @@ export const normalizeTranslationConfig = (config?: TranslationConfig): Normaliz
   // Handle boolean shorthand: `translation: true` enables all categories
   const configObj = config === true ? {} : config;
 
-  // Support both 'function' and deprecated 't', with 'function' taking precedence
-  const translationFn = configObj?.function ?? configObj?.t;
+  const translationFn = configObj?.function;
 
   // If hook or function is provided, implicitly enable all categories (like translation: true)
   // This allows minimal config: { hook: useTranslations } or { function: t }
@@ -70,7 +67,6 @@ export const normalizeTranslationConfig = (config?: TranslationConfig): Normaliz
 
   return {
     function: translationFn,
-    t: translationFn, // Keep for backward compatibility
     labels: {
       enabled: configObj?.labels?.enabled ?? isEnabled(configObj?.labels),
       alwaysInclude: configObj?.labels?.alwaysInclude ?? true, // When enabled, include by default
@@ -94,52 +90,45 @@ export const normalizeTranslationConfig = (config?: TranslationConfig): Normaliz
 };
 
 /**
- * Resolve a translatable field value (label, placeholder)
+ * Resolve a translatable field value (label, placeholder).
  *
- * @param value - The value from the field definition (undefined, true, false, or string)
- * @param fieldKey - The field key (used for default localePath)
- * @param categoryConfig - The translation category config (labels, placeholders)
- * @param t - The translation function
- * @returns The resolved string value, or undefined if no value
+ * Accepts `"auto"` to mean "use the default localePath for this fieldKey",
+ * `"none"` to mean "explicit opt-out", `undefined` to defer to
+ * `categoryConfig.alwaysInclude`, or any other string as a literal label or
+ * translation key.
  */
 export const resolveTranslatableValue = (
-  value: string | boolean | undefined,
+  value: string | undefined,
   fieldKey: string,
   categoryConfig: NormalizedTranslationConfig['labels'], // Same shape for all categories
   t?: (key: string, options?: Record<string, any>) => string
 ): string | undefined => {
-  // Explicitly false = no value
-  if (value === false) {
+  // Explicit opt-out
+  if (value === 'none') {
     return undefined;
   }
 
-  // If translation not enabled for this category
+  // If translation not enabled for this category, only literal strings pass through
   if (!categoryConfig.enabled) {
-    // Return string values as-is (literal), ignore true/undefined
-    return typeof value === 'string' ? value : undefined;
+    return value === 'auto' ? undefined : value;
   }
 
-  // Translation IS enabled
+  // Translation IS enabled, but no translator function available
   if (!t) {
-    // No t function, can't translate - return string as-is or undefined
-    return typeof value === 'string' ? value : undefined;
+    return value === 'auto' ? undefined : value;
   }
 
   // Determine the translation key
   let translationKey: string | undefined;
 
-  if (typeof value === 'string') {
-    // String value = use as translation key directly
-    translationKey = value;
-  } else if (value === true) {
-    // Explicit true = use default localePath
+  if (value === 'auto') {
     translationKey = categoryConfig.localePath(fieldKey);
+  } else if (typeof value === 'string') {
+    translationKey = value;
   } else if (value === undefined && categoryConfig.alwaysInclude) {
-    // Undefined + alwaysInclude = use default localePath
     translationKey = categoryConfig.localePath(fieldKey);
   }
 
-  // If we have a key, translate it
   if (translationKey) {
     return t(translationKey);
   }

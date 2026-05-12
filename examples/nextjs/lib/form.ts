@@ -8,6 +8,10 @@ import { Input, Select, TextArea, Checkbox, Field } from "@/components/form";
  * Base hook configuration shared by all form hooks
  */
 const baseConfig = {
+  // Let react-hook-form / the server action be the validators — keep the browser's built-in
+  // HTML5 constraint bubbles (e.g. on <input type="email">) out of the way.
+  noValidate: true,
+
   // Map field types to components
   components: {
     text: Input,
@@ -18,7 +22,7 @@ const baseConfig = {
     "datetime-local": Input,
     select: {
       component: Select,
-      additionalProps: ["options", "optionsCallback", "placeholder"],
+      additionalProps: ["options", "placeholder"],
     },
     textarea: TextArea,
     checkbox: {
@@ -43,7 +47,7 @@ const baseConfig = {
  * When `hook` is provided, all translation categories are enabled by default:
  * - labels: enabled, alwaysInclude: true (omitted labels auto-generate keys)
  * - options: enabled, alwaysInclude: true (option labels are translation keys)
- * - placeholders: enabled, alwaysInclude: false (must opt-in with `placeholder: true`)
+ * - placeholders: enabled, alwaysInclude: false (must opt-in with `placeholder: "auto"` or a literal string)
  * - validation: enabled (already default)
  *
  * @example Zero-config usage (translation just works!)

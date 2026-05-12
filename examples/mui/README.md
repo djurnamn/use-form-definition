@@ -210,8 +210,8 @@ export const useFormDefinition = createFormDefinitionHook({
     // MUI Grid2 for responsive layout (xs, sm, md, lg, xl breakpoints)
     LayoutContainer: MuiLayoutContainer,
     LayoutItem: MuiLayoutItem,
-    // MUI Button for styled submit
-    SubmitButton: MuiSubmitButton,
+    // MUI Button registered in the Actions slot
+    Actions: MuiSubmitButton,
   },
 });
 ```
@@ -249,9 +249,9 @@ firstName: {
 
 This differs from the default library behavior where `label` goes to the Field wrapper. For MUI's floating label pattern, we want the label on the TextField itself.
 
-### Custom Submit Button
+### Custom Actions Slot
 
-Replace the library's default HTML button with MUI's styled Button:
+Register an MUI-styled button in the `Actions` slot to replace the library's default HTML submit button. The slot accepts any component, so you can also render a row of buttons (e.g. `[Cancel] [Save]`).
 
 ```typescript
 // MuiSubmitButton.tsx
@@ -265,7 +265,7 @@ export function MuiSubmitButton({ children = 'Submit', ...props }) {
 
 // Configure in formComponents
 formComponents: {
-  SubmitButton: MuiSubmitButton,
+  Actions: MuiSubmitButton,
 }
 ```
 

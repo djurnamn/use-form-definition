@@ -1,13 +1,25 @@
-import { FieldError, FieldValues, UseFormProps } from "react-hook-form";
+import { FieldError, FieldValues } from "react-hook-form";
 import { ReactNode } from "react";
+import type { PluginRegistry } from "./plugin-system";
 
 // Generic form action types (suitable for Next.js server actions and similar patterns)
 export interface FormActionResult<T extends FieldValues = FieldValues> {
   success?: boolean;
   message?: string;
+  /** Parsed/validated data (typically present on success). */
   data?: T;
+  /**
+   * Field validation errors, keyed by field name. Values are display-ready strings
+   * (already translated, if you're doing i18n) — `<RenderedForm>` shows them as-is.
+   */
   errors?: Record<string, string | string[]>;
   redirectUrl?: string;
+  /**
+   * Raw submitted values (e.g. `Object.fromEntries(formData.entries())`). When present on a
+   * failed result, `<RenderedForm>` re-populates the fields from this on a no-JS
+   * validation-error round-trip.
+   */
+  values?: Record<string, unknown>;
 }
 
 export type FormAction<T extends FieldValues = FieldValues> = (
@@ -55,12 +67,29 @@ export type SelectOption = {
 export type SelectOptions = SelectOption[];
 
 // Field definition types
-export interface BaseValidationRules {
+
+/**
+ * Validation rules shared by every field type.
+ * Field-specific validation rule types extend this.
+ */
+export interface CommonValidationRules {
   required?: ValidationRule<boolean>;
   requiredWhen?: {
     field: string;
     value: string | number | boolean;
   };
+}
+
+/**
+ * Permissive umbrella type for `FormFieldDefinition.validation`.
+ *
+ * Every rule from every field-specific type is optional here, so a definition
+ * with a generic `type: string` still type-checks. For strict per-type
+ * validation (e.g. only allowing `mustBeTrue` on checkbox fields), use the
+ * `createField<T>()` helper or pick the specific rule type
+ * (`StringValidationRules`, `NumberValidationRules`, etc.) directly.
+ */
+export interface BaseValidationRules extends CommonValidationRules {
   minLength?: ValidationRule<number>;
   maxLength?: ValidationRule<number>;
   pattern?: ValidationRule<RegExp | PatternKey>;
@@ -89,25 +118,36 @@ export interface BaseValidationRules {
 
 export interface FormFieldDefinition {
   type: string; // Made extensible - no longer hardcoded union
+  /**
+   * The form field's HTML `name` attribute.
+   *
+   * When omitted, the library uses the key of this entry in the parent
+   * `FormDefinition` object as the field's name (e.g. `{ email: { type: 'text' } }`
+   * yields `name: 'email'`). Set this explicitly only when the form field
+   * should have a different `name` from the definition key — e.g. nesting
+   * inside a flat HTML name like `user[email]`.
+   */
   name?: string;
   /**
-   * Field label - can be:
-   * - `undefined`: Use default localePath when translation.labels.alwaysInclude is true, otherwise no label
-   * - `true`: Explicitly use default localePath for translation
-   * - `false`: Explicitly no label
-   * - `string`: Use as translation key (when translation enabled) or literal value
+   * Field label. Accepts:
+   * - `undefined`: use the default localePath when `translation.labels.alwaysInclude` is true; otherwise no label
+   * - `"auto"`: explicitly use the default localePath for translation (was `true` in v1)
+   * - `"none"`: explicitly hide the label (was `false` in v1)
+   * - any other string: use as the translation key (when translation enabled) or as a literal label
+   *
+   * Note: the special strings `"auto"` and `"none"` are reserved — a literal label of
+   * `"auto"` or `"none"` is not supported. Use a different literal or a translation key.
    */
-  label?: string | boolean;
+  label?: string | "auto" | "none";
   /**
-   * Placeholder text - can be:
-   * - `undefined`: Use default localePath when translation.placeholders.alwaysInclude is true, otherwise no placeholder
-   * - `true`: Explicitly use default localePath for translation
-   * - `false`: Explicitly no placeholder
-   * - `string`: Use as translation key (when translation enabled) or literal value
+   * Placeholder text. Accepts:
+   * - `undefined`: use the default localePath when `translation.placeholders.alwaysInclude` is true; otherwise no placeholder
+   * - `"auto"`: explicitly use the default localePath for translation (was `true` in v1)
+   * - `"none"`: explicitly hide the placeholder (was `false` in v1)
+   * - any other string: use as the translation key (when translation enabled) or as a literal placeholder
    */
-  placeholder?: string | boolean;
+  placeholder?: string | "auto" | "none";
   options?: SelectOptions;
-  optionsCallback?: () => Promise<SelectOptions>;
   readOnly?: boolean;
   defaultValue?: string | number | boolean | any[];
   validation?: BaseValidationRules;
@@ -128,18 +168,6 @@ export type FormDefinition = {
   [key: string]: FormFieldDefinition;
 };
 
-// Form options type
-export type FormOptions<T extends FieldValues> = UseFormProps<T>;
-
-// Component interface types
-export interface FieldComponent<T = any> {
-  name: string;
-  value: T;
-  onChange: (value: T) => void;
-  error?: FieldError;
-  [key: string]: any; // Additional props
-}
-
 // Enhanced component configuration for internal use
 export interface ProcessedComponentConfig {
   component: React.ComponentType<any>;
@@ -147,6 +175,61 @@ export interface ProcessedComponentConfig {
   additionalProps: string[];
   /** If true, the component receives the full form config for rendering nested fields */
   injectFormConfig?: boolean;
+}
+
+/**
+ * Nested field renderer function type
+ *
+ * Provided to components that need to render a nested field by name (e.g. Repeater
+ * rendering each row's fields). Injected by useFormDefinition via the
+ * `injectFormConfig` mechanism on a field type's `ProcessedComponentConfig`.
+ */
+export type NestedFieldRenderer = (
+  fieldKey: string,
+  fieldDefinition: FormFieldDefinition,
+  value: unknown,
+  onChange: (value: unknown) => void,
+  error?: FieldError,
+  namePrefix?: string
+) => ReactNode;
+
+/**
+ * Internal props injected by `useFormDefinition` into a field component when its
+ * `ProcessedComponentConfig` has `injectFormConfig: true`.
+ *
+ * These are how complex field components (e.g. Repeater) access the surrounding
+ * form's config — so nested fields render with the same registered components,
+ * translation, and defaults as the parent form.
+ *
+ * The `__` prefix marks these as library-injected and not user-facing: end users
+ * never set them; they appear via the injection mechanism only. A custom complex
+ * field component that needs them should declare these props on its props
+ * interface (typically via `extends Partial<InternalComponentProps>`).
+ *
+ * @example
+ * ```ts
+ * interface MyComplexFieldProps extends Partial<InternalComponentProps> {
+ *   name: string;
+ *   // ... your own props
+ * }
+ * ```
+ *
+ * And register the component with `injectFormConfig: true`:
+ * ```ts
+ * myComplex: {
+ *   component: MyComplexField,
+ *   injectFormConfig: true,
+ *   // ...
+ * }
+ * ```
+ */
+export interface InternalComponentProps {
+  /** The full form config, for resolving nested field types and translation. */
+  __formConfig: FormConfig;
+  /** Renderer that emits a nested field with the same setup as the parent form. */
+  __renderNestedField: NestedFieldRenderer;
+  /** Default-value resolver, for seeding new rows / nested instances. */
+  __getDefaultValueForField: (field: { type: string; defaultValue?: unknown }) => unknown;
 }
 
 // Translation configuration types
@@ -201,11 +284,6 @@ export interface TranslationConfigObject {
   function?: TranslationFunction;
 
   /**
-   * @deprecated Use `function` instead. Will be removed in next major version.
-   */
-  t?: TranslationFunction;
-
-  /**
    * Label translation config
    * - enabled: false by default
    * - alwaysInclude: true by default (when enabled, labels are auto-generated unless explicitly false)
@@ -224,7 +302,7 @@ export interface TranslationConfigObject {
   /**
    * Placeholder translation config
    * - enabled: false by default
-   * - alwaysInclude: false by default (placeholders require explicit `placeholder: true` or string)
+   * - alwaysInclude: false by default (placeholders require explicit `placeholder: "auto"` or a string)
    * - localePath: (key) => `form.placeholders.${key}` by default
    */
   placeholders?: TranslationCategoryConfig;
@@ -254,30 +332,31 @@ export interface FormConfig {
     Field?: React.ComponentType<any>;
     LayoutContainer?: React.ComponentType<any> | false;
     LayoutItem?: React.ComponentType<any> | false;
-    SubmitButton?: React.ComponentType<any> | false;
+    Actions?: React.ComponentType<any> | false;
   };
   translation?: TranslationConfig;
   /**
-   * Optional plugin registry for SSR-safe plugin management
-   * If not provided, the global plugin registry will be used
+   * Optional plugin registry for SSR-safe plugin management.
+   * If not provided, the global plugin registry is used.
    */
-  pluginRegistry?: any; // Using 'any' to avoid circular dependency with plugin-system.ts
+  pluginRegistry?: PluginRegistry;
+  /**
+   * Set `noValidate` on the rendered `<form>`, disabling the browser's built-in HTML5
+   * constraint validation (e.g. the `<input type="email">` bubble). Useful when you want
+   * react-hook-form / your server action to be the sole validators. Default: `false`.
+   * Overridable per form via `<RenderedForm noValidate>`.
+   */
+  noValidate?: boolean;
 }
 
-
-// Response helper types
-export interface Meta {
-  offset: number;
-  limit: number;
-  totalCount: number;
-}
 
 // Field-specific validation rule types
-export interface StringValidationRules {
-  required?: ValidationRule<boolean>;
+// Each extends CommonValidationRules to share required/requiredWhen.
+
+export interface StringValidationRules extends CommonValidationRules {
   minLength?: ValidationRule<number>;
   maxLength?: ValidationRule<number>;
-  pattern?: ValidationRule<RegExp | string>;
+  pattern?: ValidationRule<RegExp | PatternKey>;
   matchValue?: ValidationRule<string>;
   email?: boolean;
   // Advanced string validations
@@ -289,8 +368,7 @@ export interface StringValidationRules {
   lowercase?: ValidationRule<boolean>;
 }
 
-export interface NumberValidationRules {
-  required?: ValidationRule<boolean>;
+export interface NumberValidationRules extends CommonValidationRules {
   min?: ValidationRule<number>;
   max?: ValidationRule<number>;
   step?: ValidationRule<number>;
@@ -301,30 +379,21 @@ export interface NumberValidationRules {
   nonPositive?: boolean;
 }
 
-export interface DateValidationRules {
-  required?: ValidationRule<boolean>;
+export interface DateValidationRules extends CommonValidationRules {
   min?: ValidationRule<Date | string>;
   max?: ValidationRule<Date | string>;
-  requiredWhen?: {
-    field: string;
-    value: string | number | boolean;
-  };
 }
 
-export interface ArrayValidationRules {
-  required?: ValidationRule<boolean>;
+export interface ArrayValidationRules extends CommonValidationRules {
   minRows?: ValidationRule<number>;
   maxRows?: ValidationRule<number>;
   minLength?: ValidationRule<number>;
   maxLength?: ValidationRule<number>;
 }
 
-export interface SelectValidationRules {
-  required?: ValidationRule<boolean>;
-}
+export interface SelectValidationRules extends CommonValidationRules {}
 
-export interface BooleanValidationRules {
-  required?: ValidationRule<boolean>;
+export interface BooleanValidationRules extends CommonValidationRules {
   mustBeTrue?: boolean;
   mustBeFalse?: boolean;
 }

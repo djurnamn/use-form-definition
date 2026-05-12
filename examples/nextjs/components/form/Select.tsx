@@ -7,14 +7,16 @@ export interface SelectOption {
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   options?: SelectOption[];
+  /** Label for the empty "nothing selected yet" option (from the field's `placeholder`). */
+  placeholder?: string;
   error?: { message?: string };
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ options = [], error, ...props }, ref) => {
+  ({ options = [], placeholder, error, ...props }, ref) => {
     return (
       <select ref={ref} {...props}>
-        <option value="">Select...</option>
+        <option value="">{placeholder || "Select..."}</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

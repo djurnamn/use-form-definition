@@ -37,8 +37,8 @@ export const feedbackFormDefinition: FormDefinition = {
   // Since our messages use 'forms.options.rating.excellent', we provide explicit keys
   rating: {
     type: "select",
-    // placeholder: true → explicit opt-in to localePath('rating') for placeholder
-    placeholder: true,
+    // placeholder: "auto" → explicit opt-in to localePath('rating') for placeholder
+    placeholder: "auto",
     options: [
       // Option labels are translation keys when options.enabled: true
       { value: "5", label: "forms.options.rating.excellent" },
@@ -63,11 +63,11 @@ export const feedbackFormDefinition: FormDefinition = {
   },
 
   // Checkbox with inline label (label handled by component, not Field wrapper)
-  // label: false → no label from Field wrapper
+  // label: "none" → no label from Field wrapper
   // inlineLabel → translation key passed to Checkbox component
   contactMe: {
     type: "checkbox",
-    label: false,
+    label: "none",
     inlineLabel: "form.labels.contactMe",
   },
 };

@@ -3,7 +3,7 @@ export { default as Field } from "./Field";
 export { Form } from "./Form";
 export { LayoutContainer } from "./LayoutContainer";
 export { LayoutItem } from "./LayoutItem";
-export { SubmitButton } from "./SubmitButton";
+export { Actions } from "./Actions";
 
 // Copy-able field components
 export { default as TextInput } from "./TextInput";
@@ -19,7 +19,7 @@ export type { FormProps } from "./Form";
 export type { LayoutContainerProps } from "./LayoutContainer";
 export type { LayoutItemProps } from "./LayoutItem";
 export type { FieldProps } from "./Field";
-export type { SubmitButtonProps } from "./SubmitButton";
+export type { ActionsProps } from "./Actions";
 export type { TextInputProps } from "./TextInput";
 export type { SelectProps, SelectOption } from "./Select";
 export type { TextareaProps } from "./Textarea";

@@ -17,14 +17,14 @@ import { FormAction } from "../core/types";
  *
  * @example Custom field rendering with Form component
  * ```tsx
- * const { form, RenderedField, Form, SubmitButton } = useFormDefinition(definition);
+ * const { form, RenderedField, Form, Actions } = useFormDefinition(definition);
  *
  * return (
  *   <Form onSubmit={form.handleSubmit(onSubmit)}>
  *     <div className="grid grid-cols-2 gap-4">
  *       <RenderedField name="firstName" />
  *       <RenderedField name="lastName" />
- *       <SubmitButton>Save</SubmitButton>
+ *       <Actions>Save</Actions>
  *     </div>
  *   </Form>
  * );

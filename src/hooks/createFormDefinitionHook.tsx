@@ -1,6 +1,6 @@
 import React from "react";
 import { FieldValues, UseFormReturn } from "react-hook-form";
-import { FormDefinition, FormConfig, ProcessedComponentConfig } from "../core/types";
+import { FormDefinition, FormConfig, ProcessedComponentConfig, FormAction } from "../core/types";
 import { useFormDefinition, type UseFormDefinitionReturn } from "./useFormDefinition";
 import { createFormConfig, getFormConfigWithDefaultFieldTypes } from "../configuration/createFormConfig";
 import type { PluginRegistry } from "../core/plugin-system";
@@ -43,6 +43,13 @@ export interface FormDefinitionHookConfig {
   components?: Record<string, ComponentConfig>;
   formComponents?: FormConfig['components'];
   translation?: FormConfig['translation'];
+  /**
+   * Set `noValidate` on every rendered `<form>`, disabling the browser's built-in HTML5
+   * constraint validation (e.g. the `<input type="email">` bubble) so react-hook-form / your
+   * server action are the sole validators. Default: `false`. Overridable per form via
+   * `<RenderedForm noValidate>`.
+   */
+  noValidate?: boolean;
   /**
    * Optional plugin registry for SSR-safe plugin management
    * If not provided, uses the global plugin registry (client-side safe)
@@ -96,6 +103,15 @@ export interface FormDefinitionHookOptions<T extends FieldValues = FieldValues> 
    */
   form?: UseFormReturn<T>;
   config?: Partial<FormConfig>;
+  /**
+   * Server action for the form (e.g. a Next.js Server Action).
+   *
+   * When provided, the form becomes progressive-enhancement-capable: `<RenderedForm>`
+   * wires it via `<form action={...}>` (submits + validates server-side without JS), and
+   * the hook returns `actionState` / `isPending`. See `useFormDefinition`'s `serverAction`
+   * option for details.
+   */
+  serverAction?: FormAction<T>;
 }
 
 export type FormDefinitionHook = <T extends FormDefinition>(
@@ -191,6 +207,7 @@ export const createFormDefinitionHook = (
     },
     translation: hookConfig.translation,
     pluginRegistry: hookConfig.pluginRegistry,
+    noValidate: hookConfig.noValidate,
   });
 
   // Return the configured hook function
@@ -232,8 +249,7 @@ export const createFormDefinitionHook = (
       const baseObj = baseTranslation === true ? {} : baseTranslation;
       return {
         hook: runtimeTranslation.hook ?? baseObj?.hook,
-        // Support both 'function' and deprecated 't', with 'function' taking precedence
-        function: runtimeTranslation.function ?? runtimeTranslation.t ?? baseObj?.function ?? baseObj?.t,
+        function: runtimeTranslation.function ?? baseObj?.function,
         labels: {
           ...baseObj?.labels,
           ...runtimeTranslation.labels,
@@ -285,12 +301,14 @@ export const createFormDefinitionHook = (
       },
       translation: resolvedTranslation,
       pluginRegistry: options.config?.pluginRegistry || baseConfig.pluginRegistry,
+      noValidate: options.config?.noValidate ?? baseConfig.noValidate,
     };
 
     // Use the existing useFormDefinition hook with merged config
     return useFormDefinition(definition, {
       form: options.form,
       config: finalConfig,
+      serverAction: options.serverAction,
     });
   };
 };

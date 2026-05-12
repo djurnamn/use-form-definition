@@ -9,13 +9,15 @@ export interface CheckboxProps
 }
 
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ inlineLabel, error, ...props }, ref) => {
+  ({ inlineLabel, error, value, ...props }, ref) => {
     const t = useTranslations();
 
+    // react-hook-form's Controller passes the field state as `value` (a boolean here, or the
+    // string "on" after a no-JS round-trip); a checkbox needs `checked`, not `value`.
     return (
       <div>
         <label>
-          <input ref={ref} type="checkbox" {...props} />
+          <input ref={ref} type="checkbox" checked={!!value} {...props} />
           {inlineLabel && <span>{t(inlineLabel)}</span>}
         </label>
         {error?.message && (

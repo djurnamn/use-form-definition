@@ -156,7 +156,7 @@ export const useFormDefinition = createFormDefinitionHook({
     Field: ShadcnField,
     LayoutContainer: ShadcnLayoutContainer,
     LayoutItem: ShadcnLayoutItem,
-    SubmitButton: ShadcnSubmitButton
+    Actions: ShadcnSubmitButton
   }
 });
 ```

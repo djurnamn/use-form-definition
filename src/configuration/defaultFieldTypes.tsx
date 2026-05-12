@@ -7,14 +7,20 @@ import NumberInput from "../components/NumberInput";
 import Repeater from "../components/Repeater";
 
 import { ComponentType } from "react";
+import { ProcessedComponentConfig } from "../core/types";
 
 /**
- * Default field type mappings for built-in HTML5 form elements
+ * Default field type mappings for built-in HTML5 form elements.
  *
- * These provide sensible defaults that work out-of-the-box, but can be
- * overridden by users who want custom components.
+ * Entries can be either a bare `ComponentType` (for the common case) or a
+ * `ProcessedComponentConfig` object (when a field type needs `additionalProps`,
+ * `ignoreFieldWrapper`, or `injectFormConfig`). `createFormConfig` normalises
+ * both shapes to `ProcessedComponentConfig` via `toProcessedComponentConfig`.
+ *
+ * Users override these by passing their own `components: { ... }` to the hook;
+ * the override is merged into the default map.
  */
-export const getDefaultFieldTypes = (): Record<string, ComponentType<any> | any> => ({
+export const getDefaultFieldTypes = (): Record<string, ComponentType<any> | ProcessedComponentConfig> => ({
   // Basic text inputs
   text: TextInput,
   email: (props: TextInputProps) => <TextInput {...props} type="email" />,
@@ -41,7 +47,7 @@ export const getDefaultFieldTypes = (): Record<string, ComponentType<any> | any>
   select: {
     component: Select,
     ignoreFieldWrapper: false,
-    additionalProps: ['options', 'optionsCallback', 'placeholder']
+    additionalProps: ['options', 'placeholder']
   },
   checkbox: {
     component: Checkbox,

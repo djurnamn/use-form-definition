@@ -65,7 +65,7 @@ export const useFormDefinition = createFormDefinitionHook({
     // This enables MUI's responsive breakpoint props (xs, sm, md, lg, xl)
     LayoutContainer: MuiLayoutContainer,
     LayoutItem: MuiLayoutItem,
-    // Use MUI Button for submit instead of plain HTML button
-    SubmitButton: MuiSubmitButton,
+    // Render the Actions slot with an MUI Button instead of a plain HTML button
+    Actions: MuiSubmitButton,
   },
 });

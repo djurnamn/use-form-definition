@@ -46,7 +46,7 @@ export const registrationFormDefinition: FormDefinition = {
 
   acceptTerms: {
     type: "checkbox",
-    label: false,
+    label: "none",
     inlineLabel: "form.labels.acceptTerms",
     validation: {
       mustBeTrue: true,

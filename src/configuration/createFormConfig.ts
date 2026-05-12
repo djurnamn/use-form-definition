@@ -3,7 +3,7 @@ import { FormConfig, ProcessedComponentConfig } from "../core/types";
 import { getDefaultFieldTypes } from "./defaultFieldTypes";
 import { LayoutContainer } from "../components/LayoutContainer";
 import { LayoutItem } from "../components/LayoutItem";
-import { SubmitButton } from "../components/SubmitButton";
+import { Actions } from "../components/Actions";
 
 // Basic default configuration with layout components
 // Translation defaults are handled in normalizeTranslationConfig
@@ -12,7 +12,7 @@ export const defaultFormConfig: FormConfig = {
   components: {
     LayoutContainer: LayoutContainer,
     LayoutItem: LayoutItem,
-    SubmitButton: SubmitButton,
+    Actions: Actions,
   },
   translation: {
     // All translation defaults are handled by normalizeTranslationConfig in utilities.ts
@@ -80,5 +80,6 @@ export const createFormConfig = (config: Partial<FormConfig> = {}): FormConfig =
       ...(config.components || {}),
     },
     translation: mergeTranslationConfig(defaultFormConfig.translation, config.translation),
+    noValidate: config.noValidate,
   };
 };

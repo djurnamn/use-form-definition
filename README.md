@@ -1,17 +1,21 @@
 # use-form-definition
 
-A powerful, UI-agnostic React form library that generates type-safe forms from simple field definitions with Zod validation and React Hook Form integration.
+A UI-agnostic React form library. You write one field definition; it generates the Zod schema, manages React Hook Form state, renders the form, and exposes the same definition for server-side validation.
 
-## Features
+## When this saves you time
 
-- **Definition-driven**: Generate forms from simple field definitions
-- **UI-agnostic**: Works with any React component library
-- **Type-safe**: Full TypeScript support with automatic type inference
-- **React 19 Compatible**: Built-in support for server actions
-- **Plugin Architecture**: Extensible async validation and custom field types
-- **Repeater Fields**: Dynamic lists with recursive field definitions
-- **Translation-ready**: Pluggable i18n support
-- **Copy-and-Customize**: Own your components completely
+If you already reach for **React Hook Form + Zod** on most forms and end up repeating the same field metadata across the schema, the RHF setup, the JSX, and a server-side validator, this library bundles those four into one place.
+
+If you only need one or two of those — for example, a single small form where writing a Zod schema by hand isn't a chore — the abstraction may not pay for itself. RHF or Zod on their own is usually enough in that case.
+
+## What it does
+
+- One field definition drives the schema, form state, rendering, and server-side validation
+- Works with any UI library (shadcn, MUI, Ant Design, your own components)
+- Types are inferred from the definition; no manual sync between schema and form
+- Same definition validates client-side and server-side (Next.js server actions, API routes)
+- Built-in support for nested/repeater fields, `requiredWhen` conditional rules, translation, and an async-validation plugin point
+- Reference components can be copied into your project via a CLI if you'd rather own them than import them
 
 ## Installation
 
@@ -88,6 +92,28 @@ export function UserForm() {
 }
 ```
 
+## Conditional Visibility
+
+When a field's visibility depends on the form's current state (e.g. show "Please specify" only when "Other" is selected), drop down from `<RenderedForm />` to manual rendering with `<Form>` and `<RenderedField>`, and use `form.watch()`:
+
+```tsx
+const { form, Form, RenderedField, Actions } = useFormDefinition(contactDefinition);
+const subject = form.watch('subject');
+
+return (
+  <Form onSubmit={form.handleSubmit(onSubmit)}>
+    <RenderedField name="name" />
+    <RenderedField name="email" />
+    <RenderedField name="subject" />
+    {subject === 'other' && <RenderedField name="customSubject" />}
+    <RenderedField name="message" />
+    <Actions />
+  </Form>
+);
+```
+
+The same pattern applies to per-field runtime props like `disabled` or `options` — pass them as props on `<RenderedField>` and the prop wins over the definition default. See [examples/basic-react/src/pages/ContactPage.tsx](./examples/basic-react/src/pages/ContactPage.tsx) for a working example.
+
 ## Copy-and-Customize Components
 
 Use the CLI to copy reference components to your project:
@@ -122,31 +148,49 @@ See the [examples](./examples) directory for complete implementations:
 
 ## Server Actions (Next.js)
 
-```typescript
-// Server action
-'use server';
-import { generateDataValidator } from 'use-form-definition/server';
+Pass a server action to `useFormDefinition` and the form works with or without JavaScript: with JS it intercepts on submit, runs client-side validation, and dispatches the action; without JS the `<form>` posts natively to the server action, and the server's field errors render server-side. Render the result view from the returned `actionState`.
 
-export async function createUser(prevState: any, formData: FormData) {
-  const validator = generateDataValidator(userFormDefinition);
-  const result = validator(formData);
+```typescript
+// app/users/actions.ts
+'use server';
+import { generateDataValidator, parseValidationErrors } from 'use-form-definition/server';
+import { userFormDefinition } from './definition';
+
+export async function createUser(prevState: unknown, formData: FormData) {
+  const result = generateDataValidator(userFormDefinition)(formData);
 
   if (!result.success) {
-    return { success: false, errors: result.errors };
+    return {
+      success: false as const,
+      errors: parseValidationErrors(result.error.issues),
+      values: Object.fromEntries(formData.entries()), // so fields repopulate without JS
+    };
   }
 
-  // Process valid data...
-  return { success: true, data: result.data };
+  // ...persist result.data...
+  return { success: true as const, data: result.data };
 }
 ```
 
 ```tsx
-// Client component
-<RenderedForm
-  action={createUser}
-  onSuccess={(result) => console.log('Success:', result)}
-/>
+// app/users/new-user-form.tsx
+'use client';
+import { useFormDefinition } from '@/lib/form';
+import { userFormDefinition } from './definition';
+import { createUser } from './actions';
+
+export function NewUserForm() {
+  const { RenderedForm, actionState, isPending } = useFormDefinition(userFormDefinition, {
+    serverAction: createUser,
+  });
+
+  if (actionState?.success) return <p>Created {String(actionState.data?.name)}.</p>;
+
+  return <RenderedForm />; // server errors are shown on the fields automatically
+}
 ```
+
+(`isPending` reflects the in-flight submission. Passing `serverAction` as a `<RenderedForm serverAction={...}>` prop also works, but only the hook option exposes `actionState`.)
 
 ## Validation
 

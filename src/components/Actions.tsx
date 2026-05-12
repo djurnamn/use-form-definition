@@ -1,19 +1,19 @@
 import { ReactNode } from "react";
 
-export interface SubmitButtonProps {
+export interface ActionsProps {
   children?: ReactNode;
   className?: string;
   [key: string]: any; // Custom props for user extensions
 }
 
-export function SubmitButton({ 
+export function Actions({
   children = 'Submit',
   className,
-  ...customProps 
-}: SubmitButtonProps) {
+  ...customProps
+}: ActionsProps) {
   return (
-    <button 
-      type="submit" 
+    <button
+      type="submit"
       className={className}
       {...customProps}
     >

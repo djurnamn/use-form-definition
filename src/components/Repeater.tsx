@@ -1,7 +1,9 @@
 import React, { forwardRef, useEffect, useState } from "react";
 import { FieldError } from "react-hook-form";
-import { FormDefinition, FormFieldDefinition, FormConfig } from "../core/types";
+import { FormDefinition, FormFieldDefinition, FormConfig, InternalComponentProps, NestedFieldRenderer } from "../core/types";
 import { getDefaultValueForField } from "../core/utilities";
+
+export type { NestedFieldRenderer };
 
 /**
  * Row data type - represents a single row in the repeater
@@ -9,21 +11,13 @@ import { getDefaultValueForField } from "../core/utilities";
 export type RepeaterRowData = Record<string, unknown>;
 
 /**
- * Nested field renderer function type (injected by useFormDefinition)
- */
-export type NestedFieldRenderer = (
-  fieldKey: string,
-  fieldDefinition: FormFieldDefinition,
-  value: unknown,
-  onChange: (value: unknown) => void,
-  error?: FieldError,
-  namePrefix?: string
-) => React.ReactNode;
-
-/**
  * Repeater component props
+ *
+ * Extends `Partial<InternalComponentProps>` to declare the library-injected props
+ * (`__formConfig`, `__renderNestedField`, `__getDefaultValueForField`) that
+ * arrive when this component is registered with `injectFormConfig: true`.
  */
-export interface RepeaterProps {
+export interface RepeaterProps extends Partial<InternalComponentProps> {
   name: string;
   value?: RepeaterRowData[];
   onChange?: (value: RepeaterRowData[]) => void;
@@ -47,11 +41,6 @@ export interface RepeaterProps {
   ) => React.ReactNode;
   renderAddButton?: () => React.ReactNode;
   renderRemoveButton?: (rowIndex: number) => React.ReactNode;
-
-  // Injected by useFormDefinition when injectFormConfig is true
-  __formConfig?: FormConfig;
-  __renderNestedField?: NestedFieldRenderer;
-  __getDefaultValueForField?: typeof getDefaultValueForField;
 }
 
 /**

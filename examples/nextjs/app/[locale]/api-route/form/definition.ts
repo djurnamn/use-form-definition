@@ -9,7 +9,7 @@ import { FormDefinition } from "use-form-definition";
  * This demonstrates:
  * - Auto-generated placeholders (omitted → localePath(fieldKey))
  * - Explicit placeholder string (override the auto-generated key)
- * - Opting out of placeholders (placeholder: false)
+ * - Opting out of placeholders (placeholder: "none")
  */
 export const contactFormDefinition: FormDefinition = {
   // placeholder: omitted → auto-generates via localePath('name')
@@ -47,10 +47,10 @@ export const contactFormDefinition: FormDefinition = {
     },
   },
 
-  // placeholder: false → explicitly opt-out (no placeholder despite alwaysInclude: true)
+  // placeholder: "none" → explicitly opt-out (no placeholder despite alwaysInclude: true)
   message: {
     type: "textarea",
-    placeholder: false,
+    placeholder: "none",
     validation: {
       required: true,
       minLength: 10,

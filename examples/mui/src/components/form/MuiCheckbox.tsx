@@ -13,14 +13,16 @@ export interface MuiCheckboxProps extends Omit<CheckboxProps, 'error'> {
 }
 
 export const MuiCheckbox = forwardRef<HTMLButtonElement, MuiCheckboxProps>(
-  ({ inlineLabel, error, name, ...props }, ref) => {
+  ({ inlineLabel, error, name, value, ...props }, ref) => {
     const errorMessage = error?.message;
 
+    // react-hook-form's Controller passes the field state as `value` (a boolean here);
+    // MUI's Checkbox wants `checked`, not `value`.
     return (
       <FormControl error={!!errorMessage}>
         <FormControlLabel
           control={
-            <Checkbox {...props} name={name} inputRef={ref} />
+            <Checkbox {...props} name={name} checked={!!value} inputRef={ref} />
           }
           label={inlineLabel || ''}
         />

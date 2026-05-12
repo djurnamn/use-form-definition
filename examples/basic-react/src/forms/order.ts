@@ -33,8 +33,8 @@ export const orderFormDefinition: FormDefinition = {
       product: {
         type: 'select',
         label: 'Product',
+        placeholder: 'Select a product...',
         options: [
-          { value: '', label: 'Select a product...' },
           { value: 'widget-a', label: 'Widget A - $10' },
           { value: 'widget-b', label: 'Widget B - $25' },
           { value: 'gadget-x', label: 'Gadget X - $50' },

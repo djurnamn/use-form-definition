@@ -17,7 +17,7 @@ export function HomePage() {
         <ul>
           <li>
             <Link to="/contact">Contact Form</Link>
-            {' '}— Conditional validation with <code>requiredWhen</code>
+            {' '}— Conditional visibility with <code>form.watch()</code> and conditional validation with <code>requiredWhen</code>
           </li>
           <li>
             <Link to="/register">Registration Form</Link>
@@ -35,6 +35,7 @@ export function HomePage() {
         <li>Built-in unstyled components (TextInput, Select, Textarea, Checkbox, Repeater)</li>
         <li>Basic validation (required, minLength, maxLength, min, max)</li>
         <li>Pattern validation (email, username)</li>
+        <li>Conditional visibility (<code>form.watch()</code> with manual <code>RenderedField</code>)</li>
         <li>Conditional validation (<code>requiredWhen</code>)</li>
         <li>Password matching (<code>matchValue</code>)</li>
         <li>Checkbox validation (<code>mustBeTrue</code>)</li>

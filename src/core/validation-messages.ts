@@ -21,6 +21,9 @@ export const defaultValidationMessages: Record<
   minRows: (options) => `Must have at least ${options?.count ?? 0} rows`,
   maxRows: (options) => `Must have no more than ${options?.count ?? 0} rows`,
   invalid: "Invalid value",
+  invalidFormat: "Invalid format",
+  invalidSelection: "Invalid selection",
+  invalidSelections: "Contains invalid selection(s)",
 };
 
 /**

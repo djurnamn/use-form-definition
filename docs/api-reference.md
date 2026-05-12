@@ -23,7 +23,7 @@ interface FormDefinitionHookConfig {
     Form?: React.ComponentType<any>;
     LayoutContainer?: React.ComponentType<any> | false;
     LayoutItem?: React.ComponentType<any> | false;
-    SubmitButton?: React.ComponentType<any> | false;
+    Actions?: React.ComponentType<any> | false;
   };
 
   // Translation configuration
@@ -34,6 +34,11 @@ interface FormDefinitionHookConfig {
 
   // Plugin registry for async validation
   pluginRegistry?: PluginRegistry;
+
+  // Set `noValidate` on every rendered <form> (disables the browser's HTML5
+  // constraint bubbles, e.g. the <input type="email"> popup). Default: false.
+  // Overridable per form via <RenderedForm noValidate>.
+  noValidate?: boolean;
 }
 ```
 
@@ -92,7 +97,7 @@ const {
   RenderedField,
   RenderedForm,
   Form,
-  SubmitButton,
+  Actions,
   LayoutContainer,
   LayoutItem
 } = useFormDefinition(definition, options?);
@@ -105,6 +110,14 @@ const {
 | `definition` | `FormDefinition` | Your form field definitions |
 | `options` | `FormDefinitionHookOptions` | Runtime options (optional) |
 
+`options` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `form` | `UseFormReturn` | Bring your own `useForm()` instance instead of letting the hook create one |
+| `config` | `Partial<FormConfig>` | Per-call overrides (`components`, `translation`, `noValidate`, …) |
+| `serverAction` | `FormAction` | Server action for the form. When set, the hook owns `useActionState` and returns `actionState` / `isPending` / `formAction`, and `<RenderedForm>` becomes progressive-enhancement-capable (see [RenderedForm](#renderedform)). |
+
 ### Return Value
 
 | Property | Type | Description |
@@ -113,9 +126,12 @@ const {
 | `RenderedField` | Component | Renders a single field by name |
 | `RenderedForm` | Component | Auto-renders entire form with layout |
 | `Form` | Component | Form wrapper for custom layouts |
-| `SubmitButton` | Component | Submit button with loading states |
+| `Actions` | Component | Form actions slot (defaults to a submit button; render any action UI) |
 | `LayoutContainer` | Component | Layout container (optional) |
 | `LayoutItem` | Component | Layout item (optional) |
+| `actionState` | `FormActionResult \| null` | Latest result from the configured `serverAction`; `null` until the first submission, or if no `serverAction` was provided. Render your success / result view from this so it works with or without JS. |
+| `isPending` | `boolean` | Whether the configured `serverAction` is currently running (`false` if none). |
+| `formAction` | `((formData: FormData) => void) \| null` | The bound action `<RenderedForm>` wires to `<form action={...}>`; mostly internal. `null` if no `serverAction`. |
 
 ---
 
@@ -132,15 +148,14 @@ interface FormFieldDefinition {
 
   // Field metadata
   name?: string;
-  label?: string | boolean;
-  placeholder?: string | boolean;
+  label?: string | "auto" | "none";
+  placeholder?: string | "auto" | "none";
 
   // Validation
   validation?: ValidationRules;
 
-  // Select options
+  // Select options (static; pass dynamic options at the call site via <RenderedField name="..." options={...} />)
   options?: SelectOption[];
-  optionsCallback?: () => Promise<SelectOption[]>;
 
   // Default value
   defaultValue?: any;
@@ -224,26 +239,90 @@ Use these with `validation: { pattern: 'patternName' }`:
 
 ### RenderedField
 
-Renders a single field by name.
+Renders a single field by name from the form definition.
 
 ```tsx
 <RenderedField name="email" />
 ```
 
+Runtime override props let you pass values that override the field's static definition. The prop wins; the definition is the default.
+
+| Prop | Type | Effect |
+|------|------|--------|
+| `disabled` | `boolean` | Disable the field at render time |
+| `options` | `SelectOption[]` | Provide async-loaded options (replaces v1's `optionsCallback`) |
+| `label` | `string \| "auto" \| "none"` | Override or hide the field's label |
+| `placeholder` | `string \| "auto" \| "none"` | Override or hide the placeholder |
+| `className`, `style` | standard React | Forwarded to the field component |
+| `render` | `(field) => ReactNode` | Custom render override (escape hatch) |
+
+Any other prop is forwarded to the underlying field component, subject to the field type's `additionalProps` allowlist.
+
+```tsx
+// Load options at runtime instead of baking them into the definition
+const roleOptions = useRoleOptions();
+<RenderedField name="role" options={roleOptions} />
+
+// Disable a field based on state
+<RenderedField name="firstName" disabled={!canEditName} />
+```
+
 ### RenderedForm
 
-Auto-renders all fields with layout and submit button.
+Auto-renders all fields with layout and an actions slot.
 
 ```tsx
 // Client-side form
 <RenderedForm onSubmit={(data) => console.log(data)} />
+```
 
-// Server action form
-<RenderedForm
-  action={serverAction}
-  onSuccess={(result) => handleSuccess(result)}
-  onError={(result) => handleError(result)}
-/>
+**Props**
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `onSubmit` | `(data) => void` | Called with validated data (client-side forms only) |
+| `serverAction` | `FormAction` | Server action, as an alternative to passing it to `useFormDefinition`. The hook option is preferred — only it exposes `actionState`. |
+| `onSuccess` / `onError` | `(result: FormActionResult) => void` | Client-side callbacks for a server-action result. (For SSR / no-JS, render from the hook's `actionState` instead — effects don't run there.) |
+| `showActions` | `boolean` | Render the actions slot (default `true`) |
+| `noValidate` | `boolean` | Set `noValidate` on the `<form>`; overrides the hook/config `noValidate` for this form |
+| `className`, `style` | — | Passed to the `<form>` |
+
+**Server actions & progressive enhancement**
+
+Pass the server action to `useFormDefinition` (not as a prop) to get the progressive-enhancement behavior and `actionState`:
+
+```tsx
+'use client';
+const { RenderedForm, actionState, isPending } = useFormDefinition(definition, {
+  serverAction: createUser,
+});
+
+if (actionState?.success) return <ResultView data={actionState.data} />;
+return <RenderedForm />;
+```
+
+`<RenderedForm>` wires the action via `<form action={...}>`, so:
+
+- **Without JavaScript** — the form posts natively to the server action, which validates with the same schema; the server's field errors render server-side, and fields repopulate from `FormActionResult.values` (return `values: Object.fromEntries(formData.entries())` from the action on a failed result).
+- **With JavaScript** — `<RenderedForm>` intercepts on submit, runs react-hook-form's client validation as a gate, then dispatches the action inside `startTransition` (so `isPending` updates). Server errors come back on the fields as `type: 'server'` errors. The internal `useForm` uses `mode: 'onTouched'` when a `serverAction` is configured.
+
+Server action shape (see also [`generateDataValidator`](#generatedatavalidator)):
+
+```typescript
+'use server';
+import { generateDataValidator, parseValidationErrors } from 'use-form-definition/server';
+
+export async function createUser(prevState: unknown, formData: FormData) {
+  const result = generateDataValidator(definition)(formData);
+  if (!result.success) {
+    return {
+      success: false as const,
+      errors: parseValidationErrors(result.error.issues),
+      values: Object.fromEntries(formData.entries()),
+    };
+  }
+  return { success: true as const, data: result.data };
+}
 ```
 
 ### Form
@@ -256,14 +335,36 @@ Wrapper component for custom layouts.
 </Form>
 ```
 
-### SubmitButton
+### Actions
 
-Submit button with automatic loading states.
+The form's actions slot. Defaults to a single submit button, but can render any action UI — `[Cancel] [Save]`, destructive `[Delete]`, etc. — since the slot accepts any `React.ComponentType`.
 
 ```tsx
-<SubmitButton>Submit</SubmitButton>
-<SubmitButton disabled={!form.formState.isValid}>Save</SubmitButton>
+<Actions>Submit</Actions>
+<Actions disabled={!form.formState.isValid}>Save</Actions>
 ```
+
+### Conditional rendering
+
+For show/hide logic based on the form's current state, drop down from `<RenderedForm />` to manual rendering with `<Form>` and `<RenderedField>`, and use `form.watch()`:
+
+```tsx
+const { form, Form, RenderedField, Actions } = useFormDefinition(definition);
+const subject = form.watch('subject');
+
+return (
+  <Form onSubmit={form.handleSubmit(onSubmit)}>
+    <RenderedField name="name" />
+    <RenderedField name="email" />
+    <RenderedField name="subject" />
+    {subject === 'other' && <RenderedField name="customSubject" />}
+    <RenderedField name="message" />
+    <Actions />
+  </Form>
+);
+```
+
+The same pattern is the canonical place to apply runtime overrides like `disabled` or async-loaded `options` — the runtime data lives at the JSX site, not inside the static definition.
 
 ---
 
@@ -305,20 +406,22 @@ const schema = await generateSchemaAsync(definition, formData);
 
 ### generateDataValidator
 
-Generate a validator for server-side form data.
+Generate a validator for server-side `FormData`. Returns a Zod `SafeParseReturnType`.
 
 ```typescript
-import { generateDataValidator } from 'use-form-definition/server';
+import { generateDataValidator, parseValidationErrors } from 'use-form-definition/server';
 
-const validator = generateDataValidator(definition);
-const result = validator(formData);
+const result = generateDataValidator(definition)(formData);
 
 if (result.success) {
-  // result.data contains validated data
+  // result.data — validated, typed data
 } else {
-  // result.errors contains field errors
+  const errors = parseValidationErrors(result.error.issues);
+  // errors: Record<string, string[]> — display-ready, keyed by field name
 }
 ```
+
+`parseValidationErrors` resolves the library's message keys to English by default; pass a translate function (e.g. `next-intl`'s `getTranslations` result) as the second argument to localize them server-side.
 
 ---
 

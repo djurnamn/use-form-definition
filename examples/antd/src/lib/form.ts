@@ -44,7 +44,7 @@ export const useFormDefinition = createFormDefinitionHook({
     // Use Ant Design Row/Col grid for layout (24-column system)
     LayoutContainer: AntLayoutContainer,
     LayoutItem: AntLayoutItem,
-    // Use Ant Design Button for submit
-    SubmitButton: AntSubmitButton,
+    // Render the Actions slot with an Ant Design Button
+    Actions: AntSubmitButton,
   },
 });

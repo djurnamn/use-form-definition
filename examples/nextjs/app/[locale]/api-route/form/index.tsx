@@ -23,7 +23,7 @@ export function ApiRouteForm() {
   // Use hook with manual translation config (no hook configured in factory)
   // - Pass `function: t` at runtime to enable translation
   // - placeholders: auto-generated for all fields (alwaysInclude: true)
-  // - Fields can still opt-out with `placeholder: false`
+  // - Fields can still opt-out with `placeholder: "none"`
   const { RenderedForm, form } = useCustomFormDefinition(contactFormDefinition, {
     config: { translation: { function: t } },
   });

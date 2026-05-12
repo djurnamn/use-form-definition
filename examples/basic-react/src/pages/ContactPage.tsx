@@ -12,10 +12,11 @@ type FormData = {
 };
 
 export function ContactPage() {
-  const { RenderedForm } = useFormDefinition(contactFormDefinition);
+  const { form, Form, RenderedField, Actions } = useFormDefinition(contactFormDefinition);
+  const subject = form.watch('subject');
   const [submittedData, setSubmittedData] = useState<FormData | null>(null);
 
-  const handleSubmit = (data: FormData) => {
+  const onSubmit = (data: FormData) => {
     console.log('Contact form submitted:', data);
     setSubmittedData(data);
   };
@@ -42,11 +43,20 @@ export function ContactPage() {
     <>
       <h1>Contact Form</h1>
       <p>
-        Demonstrates conditional validation with <code>requiredWhen</code>.
-        Select "Other" as the subject to see the custom subject field become required.
+        Demonstrates conditional visibility and conditional validation.
+        Select "Other" as the subject to reveal the "Please specify" field;
+        once visible it's also required (via <code>requiredWhen</code>).
       </p>
 
-      <RenderedForm onSubmit={handleSubmit} />
+      <Form onSubmit={form.handleSubmit(onSubmit)}>
+        <RenderedField name="name" />
+        <RenderedField name="email" />
+        <RenderedField name="subject" />
+        {subject === 'other' && <RenderedField name="customSubject" />}
+        <RenderedField name="message" />
+        <RenderedField name="newsletter" />
+        <Actions />
+      </Form>
     </>
   );
 }

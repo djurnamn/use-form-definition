@@ -1,4 +1,4 @@
-import { forwardRef, SelectHTMLAttributes, useEffect, useState } from "react";
+import { forwardRef, SelectHTMLAttributes } from "react";
 import { FieldError } from "react-hook-form";
 import { useFieldId } from "../core/utilities";
 
@@ -12,46 +12,22 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
   value?: string | number;
   onChange: (value: string) => void;
   options?: SelectOption[];
-  optionsCallback?: () => Promise<SelectOption[]>;
   placeholder?: string;
   error?: FieldError;
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ 
-    name, 
-    value, 
-    onChange, 
-    options: initialOptions = [], 
-    optionsCallback,
+  ({
+    name,
+    value,
+    onChange,
+    options = [],
     placeholder = "Select an option",
     error,
     id,
-    ...props 
+    ...props
   }, ref) => {
     const fieldId = useFieldId(name, id);
-    const [options, setOptions] = useState<SelectOption[]>(initialOptions);
-    const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-      if (optionsCallback && !initialOptions.length) {
-        let cancelled = false;
-        setLoading(true);
-        optionsCallback()
-          .then((result) => {
-            if (!cancelled) setOptions(result);
-          })
-          .catch((err) => {
-            if (!cancelled) console.error(err);
-          })
-          .finally(() => {
-            if (!cancelled) setLoading(false);
-          });
-        return () => {
-          cancelled = true;
-        };
-      }
-    }, [optionsCallback, initialOptions.length]);
 
     return (
       <select
@@ -62,10 +38,9 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={!!error}
         aria-describedby={error ? `${name}-error` : undefined}
-        disabled={loading || props.disabled}
         {...props}
       >
-        <option value="">{loading ? "Loading..." : placeholder}</option>
+        <option value="">{placeholder}</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
