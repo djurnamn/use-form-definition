@@ -1,8 +1,8 @@
-# Repeater Fields
+# Repeater fields
 
-Repeater fields allow you to create dynamic lists of form data with add/remove functionality and full validation support.
+A repeater renders a dynamic list of rows, where each row is built from a nested field definition. It adds row controls (add and remove) and validates each row with the same rules as a top-level field.
 
-## Basic Usage
+## Basic usage
 
 ```typescript
 import { FormDefinition } from 'use-form-definition';
@@ -49,7 +49,7 @@ const formDefinition: FormDefinition = {
 };
 ```
 
-## Data Structure
+## Data structure
 
 The repeater field produces an array of objects:
 
@@ -72,7 +72,7 @@ The repeater field produces an array of objects:
 }
 ```
 
-## Configuration Options
+## Configuration options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -82,42 +82,39 @@ The repeater field produces an array of objects:
 | `validation.minRows` | number | - | Minimum number of rows required |
 | `validation.maxRows` | number | - | Maximum number of rows allowed |
 
-## Validation Features
+## Validation
 
-1. **Row-level validation**: Each field validates independently
-2. **Repeater-level validation**: Min/max row counts
-3. **Cross-field validation**: `requiredWhen` works within each row
-4. **JSON parsing**: Handles form submission with hidden JSON field
+Each field in a row validates independently, with the same rules it would use at the top level. `requiredWhen` resolves against the other fields in the same row. `minRows` and `maxRows` constrain the list as a whole. On submit, the rows travel as a JSON-encoded hidden field and are parsed back before validation (see [How it works](#how-it-works)).
 
-## Advanced Example
+## Advanced example
 
 ```typescript
 const advancedDefinition: FormDefinition = {
-  teamMembers: {
+  stops: {
     type: 'repeater',
-    label: 'Team Members',
+    label: 'Trip stops',
     fields: {
-      name: {
+      place: {
         type: 'text',
-        label: 'Name',
+        label: 'Place',
         validation: { required: true }
       },
-      role: {
+      kind: {
         type: 'select',
-        label: 'Role',
+        label: 'Kind',
         options: [
-          { value: 'developer', label: 'Developer' },
-          { value: 'designer', label: 'Designer' },
-          { value: 'manager', label: 'Manager' }
+          { value: 'city', label: 'City' },
+          { value: 'coast', label: 'Coast' },
+          { value: 'mountains', label: 'Mountains' }
         ]
       },
-      isLead: {
+      booked: {
         type: 'checkbox',
-        label: 'Team Lead'
+        label: 'Accommodation booked'
       },
-      startDate: {
+      arrival: {
         type: 'date',
-        label: 'Start Date',
+        label: 'Arrival date',
         validation: { required: true }
       }
     },
@@ -126,11 +123,8 @@ const advancedDefinition: FormDefinition = {
 };
 ```
 
-## Key Features
+## How it works
 
-- **Recursive field definitions**: Uses the same FormDefinition structure as root-level fields
-- **Automatic component integration**: Uses your configured field components
-- **Clean schema generation**: Leverages the modular schema system
-- **Simplified API**: No custom column types, just standard field definitions
-- **Better validation**: Full Zod schema validation with proper error handling
-- **Type safety**: Full TypeScript support throughout
+A repeater's `fields` is an ordinary `FormDefinition`, the same shape used at the root, so each row renders through your configured field components and there are no special column types to learn. The inferred type for the field is an array of the row's shape (see [Type inference](./type-inference.md)).
+
+Rows are managed client-side: the component keeps the list in React state and writes it to a hidden input as JSON, which the server parses back before validation. That means a repeater needs JavaScript to add or remove rows. This is the one part of the library that isn't progressively enhanced - a plain `<input type="text">` field still posts and validates without JS, but a repeater's row controls won't. If a form has to work with JS disabled, prefer a fixed set of named fields over a repeater.

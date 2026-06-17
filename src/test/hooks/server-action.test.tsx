@@ -60,7 +60,7 @@ describe('RenderedForm with a server action', () => {
     expect(action).not.toHaveBeenCalled();
   });
 
-  it('runs the client-validation gate before dispatching — invalid input shows client errors and the action is not called', async () => {
+  it('runs the client-validation gate before dispatching - invalid input shows client errors and the action is not called', async () => {
     const user = userEvent.setup();
     const action = vi.fn(async () => ({ success: true }));
     render(<FeedbackForm serverAction={action} />);
@@ -98,7 +98,7 @@ describe('RenderedForm with a server action', () => {
     const user = userEvent.setup();
     const action = vi.fn(async (_prev: FormActionResult | null, fd: FormData) => ({
       success: false,
-      // A server-only rule the client can't check — comes back already display-ready.
+      // A server-only rule the client can't check - comes back already display-ready.
       errors: { name: ['That name is already taken'] },
       values: Object.fromEntries(fd) as Record<string, unknown>,
     }));
@@ -152,5 +152,90 @@ describe('RenderedForm with a server action', () => {
     await waitFor(() => expect(screen.getByTestId('pending')).toHaveTextContent('idle'));
     expect(onSuccess).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('fires onError (not onSuccess) when the action returns an unsuccessful result', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async () => ({ success: false, errors: { name: ['Server rejected this'] } }));
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+    render(<FeedbackForm serverAction={action} onSuccess={onSuccess} onError={onError} />);
+
+    await fillValid(user, 'Bob', '5');
+    await user.click(screen.getByRole('button'));
+
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    expect(onError.mock.calls[0][0]).toMatchObject({ success: false });
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The action can also be passed straight to <RenderedForm serverAction={...}>
+// instead of the hook option. This path works (dispatch + onSuccess/onError),
+// but the hook's actionState/isPending stay inert - they only track the hook option.
+// ---------------------------------------------------------------------------
+
+function PropActionForm({
+  serverAction,
+  onSuccess,
+  onError,
+}: {
+  serverAction: Action;
+  onSuccess?: (r: FormActionResult) => void;
+  onError?: (r: FormActionResult) => void;
+}) {
+  // No serverAction passed to the hook - only to RenderedForm below.
+  const { RenderedForm, actionState, isPending } = useFormDefinition(feedbackDefinition);
+  return (
+    <div>
+      <div data-testid="pending">{isPending ? 'pending' : 'idle'}</div>
+      <div data-testid="state">{actionState ? 'has-state' : 'null'}</div>
+      <RenderedForm serverAction={serverAction} onSuccess={onSuccess} onError={onError} />
+    </div>
+  );
+}
+
+describe('RenderedForm with a server action passed as a prop', () => {
+  it('dispatches the action with the submitted form data and fires onSuccess', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async (_prev: FormActionResult | null, fd: FormData) => ({
+      success: true,
+      data: Object.fromEntries(fd) as any,
+    }));
+    const onSuccess = vi.fn();
+    render(<PropActionForm serverAction={action} onSuccess={onSuccess} />);
+
+    await fillValid(user, 'Carol', '4');
+    await user.click(screen.getByRole('button'));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+    expect(action).toHaveBeenCalledTimes(1);
+    const fd = action.mock.calls[0][1];
+    expect(fd.get('name')).toBe('Carol');
+    expect(fd.get('rating')).toBe('4');
+  });
+
+  it('still runs the client-validation gate before dispatching', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async () => ({ success: true }));
+    render(<PropActionForm serverAction={action} />);
+
+    await user.click(screen.getByRole('button'));
+
+    await waitFor(() => expect(screen.getByText('Must be at least 2 characters')).toBeInTheDocument());
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  it('leaves the hook actionState inert (it only tracks the hook option)', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async () => ({ success: true, data: { name: 'Carol' } as any }));
+    render(<PropActionForm serverAction={action} onSuccess={vi.fn()} />);
+
+    await fillValid(user, 'Carol', '4');
+    await user.click(screen.getByRole('button'));
+
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('state')).toHaveTextContent('null');
   });
 });

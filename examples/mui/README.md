@@ -1,18 +1,18 @@
-# MUI Example
+# MUI example
 
 This example demonstrates integrating `use-form-definition` with [Material UI (MUI)](https://mui.com/) components.
 
-## Features Demonstrated
+## Features demonstrated
 
 - **MUI TextField** - Standard text, email, password, number, and textarea inputs with floating labels
 - **MUI Select** - Dropdown selection with options
 - **MUI Checkbox** - Checkbox with inline label using `inlineLabel` prop
 - **MUI DatePicker** - Date selection using `@mui/x-date-pickers` (hidden input pattern)
 - **MUI Autocomplete** - Searchable dropdown with type-ahead (hidden input pattern)
-- **MUI Grid2 Layout** - Custom layout components with responsive breakpoints
-- **No Field Wrapper** - Uses `ignoreFieldWrapper: true` since MUI components handle their own labels and errors
+- **MUI Grid2 layout** - custom layout components with responsive breakpoints
+- **No field wrapper** - uses `ignoreFieldWrapper: true` since MUI components handle their own labels and errors
 
-### Hidden Input Pattern
+### Hidden input pattern
 
 This example demonstrates the **hidden input pattern** for MUI components that don't render native form elements. Components like `DatePicker` and `Autocomplete` are complex UI widgets that don't output `<input>` or `<select>` elements, which means their values won't be included in `FormData` during form submission.
 
@@ -35,12 +35,9 @@ const MuiAutocomplete = ({ name, value, onChange, ...props }) => {
 };
 ```
 
-This ensures:
-1. The value is included in `FormData` when the form is submitted
-2. Server-side form handling works correctly
-3. Progressive enhancement is maintained (form works without JS)
+The hidden input carries the component's value in `FormData`, so the form submits and validates server-side and keeps working without JS.
 
-### Custom Layout System
+### Custom layout system
 
 The library provides default `LayoutContainer` and `LayoutItem` components using CSS grid with a `half` prop. This example replaces them with **MUI Grid2** components, demonstrating how to customize the layout system for your UI library.
 
@@ -102,7 +99,7 @@ formComponents: {
 }
 ```
 
-## Running the Example
+## Running the example
 
 ```bash
 # Install dependencies
@@ -112,7 +109,7 @@ pnpm install
 pnpm dev
 ```
 
-## Project Structure
+## Project structure
 
 ```
 examples/mui/
@@ -139,7 +136,7 @@ examples/mui/
 └── package.json
 ```
 
-## Form Configuration
+## Form configuration
 
 The form hook is configured in `src/lib/form.ts`:
 
@@ -226,9 +223,9 @@ export const useFormDefinition = createFormDefinitionHook({
 - `zod` - Schema validation
 - `use-form-definition` - Form definition library
 
-## Key Patterns
+## Key patterns
 
-### Floating Labels with `additionalProps`
+### Floating labels with `additionalProps`
 
 MUI TextField supports floating labels that animate up when the field is focused or has a value. To enable this, pass the `label` prop directly to the input component using `additionalProps`:
 
@@ -249,7 +246,7 @@ firstName: {
 
 This differs from the default library behavior where `label` goes to the Field wrapper. For MUI's floating label pattern, we want the label on the TextField itself.
 
-### Custom Actions Slot
+### Custom actions slot
 
 Register an MUI-styled button in the `Actions` slot to replace the library's default HTML submit button. The slot accepts any component, so you can also render a row of buttons (e.g. `[Cancel] [Save]`).
 
@@ -289,7 +286,7 @@ const MuiCheckbox = ({ inlineLabel, ...props }) => (
 );
 ```
 
-### Error Handling
+### Error handling
 
 MUI components receive errors as `{ message?: string }` and handle display internally:
 

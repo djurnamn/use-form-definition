@@ -274,6 +274,95 @@ describe('Schema Generation', () => {
     });
   });
 
+  // The schema embeds validation messages as createMessage-encoded JSON (`["key", options]`)
+  // so an i18n client can resolve them. These assert the schema→message-key contract for the
+  // built-in failure messages, not just that parsing throws.
+  describe('Message-key contract', () => {
+    const decode = (message: string): [string, Record<string, unknown>] => JSON.parse(message);
+
+    // The first failing field's message, decoded to its [key, options] pair.
+    const firstMessage = (schema: z.ZodTypeAny, data: unknown): [string, Record<string, unknown>] => {
+      const result = schema.safeParse(data);
+      if (result.success) throw new Error('expected a validation failure');
+      return decode(result.error.errors[0].message);
+    };
+
+    it('emits invalidFormat for a value failing a named pattern', () => {
+      const schema = generateSchema({
+        email: { type: 'email', validation: { required: true, pattern: 'email' } },
+      });
+      expect(firstMessage(schema, { email: 'not-an-email' })).toEqual(['invalidFormat', {}]);
+    });
+
+    it('emits invalidSelection for a missing required select', () => {
+      const schema = generateSchema({
+        role: {
+          type: 'select',
+          options: [{ value: 'admin', label: 'Administrator' }],
+          validation: { required: true },
+        },
+      });
+      expect(firstMessage(schema, {})).toEqual(['invalidSelection', {}]);
+    });
+
+    it('emits invalidSelection for a value outside the select options', () => {
+      const schema = generateSchema({
+        role: {
+          type: 'select',
+          options: [{ value: 'admin', label: 'Administrator' }],
+          validation: { required: true },
+        },
+      });
+      expect(firstMessage(schema, { role: 'nope' })).toEqual(['invalidSelection', {}]);
+    });
+
+    it('emits invalidSelections for a value outside the multiselect options', () => {
+      const schema = generateSchema({
+        tags: {
+          type: 'multiselect',
+          options: [{ value: 'a', label: 'A' }],
+          validation: { required: true },
+        },
+      });
+      expect(firstMessage(schema, { tags: ['nope'] })).toEqual(['invalidSelections', {}]);
+    });
+
+    // A real form submit posts every field (empty string / empty array), so the library's own
+    // `required` key fires. A genuinely-absent key would instead fall through to zod's default
+    // "Required" string - not a path the rendered form produces.
+    it('emits required for an empty required text field', () => {
+      const schema = generateSchema({
+        name: { type: 'text', validation: { required: true } },
+      });
+      expect(firstMessage(schema, { name: '' })).toEqual(['required', {}]);
+    });
+
+    it('emits required for an empty required multiselect', () => {
+      const schema = generateSchema({
+        tags: {
+          type: 'multiselect',
+          options: [{ value: 'a', label: 'A' }],
+          validation: { required: true },
+        },
+      });
+      expect(firstMessage(schema, { tags: [] })).toEqual(['required', {}]);
+    });
+
+    it('emits mustBeTrue for an unchecked must-be-true checkbox', () => {
+      const schema = generateSchema({
+        terms: { type: 'checkbox', validation: { mustBeTrue: true } },
+      });
+      expect(firstMessage(schema, { terms: false })).toEqual(['mustBeTrue', {}]);
+    });
+
+    it('threads count into a minLength failure message', () => {
+      const schema = generateSchema({
+        name: { type: 'text', validation: { required: true, minLength: 3 } },
+      });
+      expect(firstMessage(schema, { name: 'ab' })).toEqual(['minLength', { count: 3 }]);
+    });
+  });
+
   describe('Complex form scenarios', () => {
     it('should handle nested repeater fields', () => {
       const definition: FormDefinition = {

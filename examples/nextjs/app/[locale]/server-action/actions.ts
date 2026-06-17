@@ -31,7 +31,7 @@ export async function submitFeedback(
 
   if (!result.success) {
     // Translate validation errors server-side so they're display-ready (works without JS too).
-    // Validation message keys live under the `form.validation.*` namespace — the library's
+    // Validation message keys live under the `form.validation.*` namespace - the library's
     // default localePath for validation messages.
     const t = await getTranslations();
     const errors = parseValidationErrors(result.error.issues, (key, options) =>

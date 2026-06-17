@@ -1,21 +1,21 @@
-# Plugin System
+# Plugin system
 
-The plugin system allows you to extend validation capabilities, create custom field types, and compose complex validation logic while maintaining type safety.
+Plugins extend the schema the library generates. Register an async validation rule, a custom field type, or a cross-field check, and it runs when the schema is built.
 
-## Table of Contents
+## Table of contents
 
-- [Basic Plugin Registration](#basic-plugin-registration)
-- [Validation Rule Registry](#validation-rule-registry)
-- [Field Schema Generator Registry](#field-schema-generator-registry)
-- [Built-in Plugins](#built-in-plugins)
-- [Custom Async Validation](#custom-async-validation)
-- [Cross-Field Validation](#cross-field-validation)
-- [Validation Rule Composition](#validation-rule-composition)
-- [Plugin Management](#plugin-management)
+- [Basic plugin registration](#basic-plugin-registration)
+- [Validation rule registry](#validation-rule-registry)
+- [Field schema generator registry](#field-schema-generator-registry)
+- [Built-in plugins](#built-in-plugins)
+- [Custom async validation](#custom-async-validation)
+- [Cross-field validation](#cross-field-validation)
+- [Validation rule composition](#validation-rule-composition)
+- [Plugin management](#plugin-management)
 
-## Basic Plugin Registration
+## Basic plugin registration
 
-### Simple Validation Plugin
+### Simple validation plugin
 
 ```typescript
 import { createPluginRegistry, ValidationPlugin } from 'use-form-definition';
@@ -61,7 +61,7 @@ const useFormDefinition = createFormDefinitionHook({
 });
 ```
 
-### Using Async Schema Generation
+### Using async schema generation
 
 ```typescript
 import { generateSchemaAsync } from 'use-form-definition';
@@ -78,9 +78,9 @@ const formDefinition = {
 const schema = await generateSchemaAsync(formDefinition);
 ```
 
-## Validation Rule Registry
+## Validation rule registry
 
-### Registering Custom Validation Rules
+### Registering custom validation rules
 
 ```typescript
 import { registerValidationRuleGlobal } from 'use-form-definition';
@@ -122,7 +122,7 @@ const paymentForm = {
 };
 ```
 
-### Pattern-based Validation Rules
+### Pattern-based validation rules
 
 ```typescript
 import { registerValidationRuleGlobal } from 'use-form-definition';
@@ -147,9 +147,9 @@ registerValidationRuleGlobal('phoneNumber', {
 });
 ```
 
-## Field Schema Generator Registry
+## Field schema generator registry
 
-### Custom Field Type
+### Custom field type
 
 ```typescript
 import { registerFieldSchemaGenerator } from 'use-form-definition';
@@ -184,7 +184,7 @@ const configForm = {
 };
 ```
 
-### File Upload Field Type
+### File upload field type
 
 ```typescript
 import { registerFieldSchemaGenerator } from 'use-form-definition';
@@ -211,9 +211,9 @@ registerFieldSchemaGenerator('file', (field) => {
 });
 ```
 
-## Built-in Plugins
+## Built-in plugins
 
-### Email Domain Validation
+### Email domain validation
 
 ```typescript
 import { createPluginRegistry, builtInPlugins } from 'use-form-definition';
@@ -232,7 +232,7 @@ registry.register(
 );
 ```
 
-### Password Strength Validation
+### Password strength validation
 
 ```typescript
 registry.register(
@@ -249,7 +249,7 @@ registry.register(
 );
 ```
 
-### Confirm Field Validation
+### Confirm field validation
 
 ```typescript
 registry.register(
@@ -273,9 +273,9 @@ const registrationForm = {
 };
 ```
 
-## Custom Async Validation
+## Custom async validation
 
-### API-based Validation
+### API-based validation
 
 ```typescript
 import { createAsyncValidationRule, createPluginRegistry } from 'use-form-definition';
@@ -306,9 +306,9 @@ registry.register(
 );
 ```
 
-## Cross-Field Validation
+## Cross-field validation
 
-### Dependent Field Validation
+### Dependent field validation
 
 ```typescript
 import { createDependentValidationRule, createPluginRegistry } from 'use-form-definition';
@@ -333,7 +333,7 @@ registry.register(
 );
 ```
 
-### Conditional Validation
+### Conditional validation
 
 ```typescript
 import { ValidationPlugin } from 'use-form-definition';
@@ -350,9 +350,9 @@ const conditionalRequiredPlugin: ValidationPlugin = (context) => {
 };
 ```
 
-## Validation Rule Composition
+## Validation rule composition
 
-### Complex Validation Logic
+### Complex validation logic
 
 ```typescript
 import { ValidationComposer, createAsyncValidationRule, createPluginRegistry } from 'use-form-definition';
@@ -385,7 +385,7 @@ registry.register(
 );
 ```
 
-## Plugin Management
+## Plugin management
 
 ```typescript
 import { createPluginRegistry } from 'use-form-definition';
@@ -405,12 +405,11 @@ const emailPlugins = registry.getForFieldType('email');
 registry.unregister('debug-validator');
 ```
 
-## Best Practices
+## Notes
 
-1. **Handle edge cases**: Check for empty values and invalid field types
-2. **Use meaningful error messages**: Provide clear, actionable feedback
-3. **Consider performance**: Cache expensive operations and avoid unnecessary API calls
-4. **Handle failures gracefully**: Plugin failures shouldn't break form validation
-5. **Document dependencies**: Clearly specify what fields or data your plugin depends on
-6. **Version your plugins**: Use semantic versioning for plugin metadata
-7. **Test thoroughly**: Create comprehensive test suites for custom plugins
+A few things worth keeping in mind when writing plugins:
+
+- A plugin sees every field it's registered for, so guard for empty values and for field types you don't handle - return `z.any()` or `schema.optional()` in those cases, as the examples above do.
+- Don't let a plugin throw on a failed request. A rejected `fetch` in an async rule shouldn't take the whole form's validation down with it.
+- Async rules run on validation, which can be every keystroke. Cache what you can so a single character doesn't fire a request each time.
+- The `metadata` you pass at registration (`name`, `version`, `description`) is yours to use however you like; the registry only reads `name` for lookup.

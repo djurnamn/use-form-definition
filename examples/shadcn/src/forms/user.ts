@@ -74,16 +74,15 @@ export const userFormDefinition: FormDefinition = {
       matchValue: 'password',
     },
   },
-  role: {
+  theme: {
     type: 'select',
-    label: 'Role',
+    label: 'Theme',
     options: [
-      { value: 'developer', label: 'Developer' },
-      { value: 'designer', label: 'Designer' },
-      { value: 'manager', label: 'Manager' },
-      { value: 'other', label: 'Other' },
+      { value: 'light', label: 'Light' },
+      { value: 'dark', label: 'Dark' },
+      { value: 'system', label: 'Match system' },
     ],
-    placeholder: 'Select a role...',
+    placeholder: 'Choose a theme...',
     validation: {
       required: true,
     },

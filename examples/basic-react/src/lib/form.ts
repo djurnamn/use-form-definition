@@ -1,4 +1,5 @@
 import { createFormDefinitionHook, Field } from 'use-form-definition';
+import { HintInput } from './HintInput';
 
 /**
  * Create a configured form definition hook using the library's built-in unstyled components.
@@ -22,5 +23,12 @@ import { createFormDefinitionHook, Field } from 'use-form-definition';
 export const useFormDefinition = createFormDefinitionHook({
   formComponents: {
     Field: Field,
+  },
+  // Register a custom text/email component that accepts a `helpText` extra.
+  // Listing it in `additionalProps` allows the value through the runtime filter;
+  // typing the hook call (see ContactPage) makes passing it compile-checked.
+  components: {
+    text: { component: HintInput, additionalProps: ['helpText'] },
+    email: { component: HintInput, additionalProps: ['helpText'] },
   },
 });

@@ -1,6 +1,7 @@
 import React from "react";
 import { FieldValues, UseFormReturn } from "react-hook-form";
 import { FormDefinition, FormConfig, ProcessedComponentConfig, FormAction } from "../core/types";
+import type { InferFormType } from "../core/types-inference";
 import { useFormDefinition, type UseFormDefinitionReturn } from "./useFormDefinition";
 import { createFormConfig, getFormConfigWithDefaultFieldTypes } from "../configuration/createFormConfig";
 import type { PluginRegistry } from "../core/plugin-system";
@@ -50,6 +51,14 @@ export interface FormDefinitionHookConfig {
    * `<RenderedForm noValidate>`.
    */
   noValidate?: boolean;
+  /**
+   * Emit native HTML5 validation attributes (`required`, `pattern`, `minLength`,
+   * `maxLength`, `min`, `max`) on every rendered input, derived from each field's
+   * `validation` rules. Gives a no-JS HTML5 validation layer alongside
+   * react-hook-form / your server action. Default: `false`. Overridable per form
+   * via the runtime `config.emitHtml5Attributes`.
+   */
+  emitHtml5Attributes?: boolean;
   /**
    * Optional plugin registry for SSR-safe plugin management
    * If not provided, uses the global plugin registry (client-side safe)
@@ -114,10 +123,13 @@ export interface FormDefinitionHookOptions<T extends FieldValues = FieldValues> 
   serverAction?: FormAction<T>;
 }
 
-export type FormDefinitionHook = <T extends FormDefinition>(
+export type FormDefinitionHook = <
+  T extends FormDefinition,
+  Extras extends Record<string, unknown> = Record<string, unknown>,
+>(
   definition: T,
   options?: FormDefinitionHookOptions
-) => UseFormDefinitionReturn<T>;
+) => UseFormDefinitionReturn<T, InferFormType<T>, Extras>;
 
 /**
  * Factory function to create a pre-configured useFormDefinition hook
@@ -208,13 +220,17 @@ export const createFormDefinitionHook = (
     translation: hookConfig.translation,
     pluginRegistry: hookConfig.pluginRegistry,
     noValidate: hookConfig.noValidate,
+    emitHtml5Attributes: hookConfig.emitHtml5Attributes,
   });
 
   // Return the configured hook function
-  return <T extends FormDefinition>(
+  return <
+    T extends FormDefinition,
+    Extras extends Record<string, unknown> = Record<string, unknown>,
+  >(
     definition: T,
     options: FormDefinitionHookOptions = {}
-  ): UseFormDefinitionReturn<T> => {
+  ): UseFormDefinitionReturn<T, InferFormType<T>, Extras> => {
     // For runtime config merging, we need to process any additional fieldTypes
     // that might be passed in the runtime config
     const runtimeFieldTypes: Record<string, ProcessedComponentConfig> = {};
@@ -302,10 +318,11 @@ export const createFormDefinitionHook = (
       translation: resolvedTranslation,
       pluginRegistry: options.config?.pluginRegistry || baseConfig.pluginRegistry,
       noValidate: options.config?.noValidate ?? baseConfig.noValidate,
+      emitHtml5Attributes: options.config?.emitHtml5Attributes ?? baseConfig.emitHtml5Attributes,
     };
 
     // Use the existing useFormDefinition hook with merged config
-    return useFormDefinition(definition, {
+    return useFormDefinition<T, Extras>(definition, {
       form: options.form,
       config: finalConfig,
       serverAction: options.serverAction,

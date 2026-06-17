@@ -17,15 +17,15 @@ export function HomePage() {
         <ul>
           <li>
             <Link to="/contact">Contact Form</Link>
-            {' '}— Conditional visibility with <code>form.watch()</code> and conditional validation with <code>requiredWhen</code>
+            {' '}- Conditional visibility with <code>form.watch()</code> and conditional validation with <code>requiredWhen</code>
           </li>
           <li>
             <Link to="/register">Registration Form</Link>
-            {' '}— Password matching (<code>matchValue</code>) and terms checkbox (<code>mustBeTrue</code>)
+            {' '}- Password matching (<code>matchValue</code>) and terms checkbox (<code>mustBeTrue</code>)
           </li>
           <li>
             <Link to="/order">Order Form</Link>
-            {' '}— Repeater fields with <code>minRows</code>/<code>maxRows</code> validation
+            {' '}- Repeater fields with <code>minRows</code>/<code>maxRows</code> validation
           </li>
         </ul>
       </nav>

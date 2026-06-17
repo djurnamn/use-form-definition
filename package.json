@@ -1,6 +1,6 @@
 {
   "name": "use-form-definition",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A UI-agnostic React form library that generates forms from simple field definitions with Zod validation and React Hook Form integration",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -45,11 +45,11 @@
   "homepage": "https://github.com/djurnamn/use-form-definition#readme",
   "peerDependencies": {
     "react": ">=19.0.0",
-    "react-hook-form": ">=7.0.0",
+    "react-hook-form": ">=7.55.0",
     "zod": ">=3.0.0 <4.0.0"
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.0.0"
+    "@hookform/resolvers": "^5.4.0"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",

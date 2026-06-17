@@ -33,15 +33,15 @@ function HomePageContent() {
         <ul>
           <li>
             <Link href="/server-action">{t('home.serverAction.title')}</Link>
-            {' '}— {t('home.serverAction.description')}
+            {' '}- {t('home.serverAction.description')}
           </li>
           <li>
             <Link href="/api-route">{t('home.apiRoute.title')}</Link>
-            {' '}— {t('home.apiRoute.description')}
+            {' '}- {t('home.apiRoute.description')}
           </li>
           <li>
             <Link href="/async-validation">{t('home.asyncValidation.title')}</Link>
-            {' '}— {t('home.asyncValidation.description')}
+            {' '}- {t('home.asyncValidation.description')}
           </li>
         </ul>
       </nav>

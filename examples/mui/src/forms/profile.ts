@@ -61,16 +61,16 @@ export const profileFormDefinition: FormDefinition = {
     label: 'Birth Date',
   },
   // Select - standard MUI Select component
-  role: {
+  contactMethod: {
     type: 'select',
-    label: 'Role',
+    label: 'Preferred contact method',
     options: [
-      { value: 'developer', label: 'Developer' },
-      { value: 'designer', label: 'Designer' },
-      { value: 'manager', label: 'Manager' },
-      { value: 'other', label: 'Other' },
+      { value: 'email', label: 'Email' },
+      { value: 'phone', label: 'Phone call' },
+      { value: 'text', label: 'Text message' },
+      { value: 'none', label: "Don't contact me" },
     ],
-    placeholder: 'Select a role...',
+    placeholder: 'How should we reach you?',
     validation: {
       required: true,
     },

@@ -1,24 +1,20 @@
-# Ant Design Example
+# Ant Design example
 
 This example demonstrates integrating `use-form-definition` with [Ant Design](https://ant.design/) components.
 
-## Features Demonstrated
+## Features demonstrated
 
-- **Form.Item as Field Wrapper** - Uses Ant Design's Form.Item component as the library's Field wrapper
-- **Ant Design Input** - Standard text, email, password, number inputs
-- **Ant Design TextArea** - Multiline text input
-- **Ant Design Select** - Dropdown selection with hidden input pattern for form submission
-- **Ant Design Checkbox** - Checkbox with inline label using `inlineLabel` prop
-- **Ant Design DatePicker** - Date selection with hidden input pattern
-- **Ant Design Row/Col Layout** - Custom layout components with responsive breakpoints (24-column grid)
+- **Form.Item as the Field wrapper** - uses Ant Design's Form.Item component as the library's Field wrapper
+- **Ant Design Input** - text, email, password, number inputs
+- **Ant Design TextArea** - multiline text input
+- **Ant Design Select** - dropdown selection with the hidden input pattern for form submission
+- **Ant Design Checkbox** - checkbox with inline label using `inlineLabel` prop
+- **Ant Design DatePicker** - date selection with the hidden input pattern
+- **Ant Design Row/Col layout** - custom layout components with responsive breakpoints (24-column grid)
 
-### Architecture: Form.Item as Field Wrapper
+### Form.Item as the Field wrapper
 
-Unlike the MUI example which uses `ignoreFieldWrapper: true` for all components, this example uses Ant Design's `Form.Item` as the Field wrapper component. This is the recommended approach because:
-
-1. **Form.Item IS the Field concept** - It handles labels and error display, just like the library's Field wrapper
-2. **Simpler input components** - Input components are "naked" (no Form.Item wrapper inside them)
-3. **Cleaner configuration** - Most field types don't need `ignoreFieldWrapper: true`
+Unlike the MUI example, which uses `ignoreFieldWrapper: true` for all components, this example uses Ant Design's `Form.Item` as the Field wrapper. `Form.Item` already *is* the Field concept: it renders the label and the error message, the same job the library's Field wrapper does. So the input components stay naked (no Form.Item inside them), and most field types don't need `ignoreFieldWrapper: true`.
 
 ```typescript
 // AntField.tsx - Form.Item as Field wrapper
@@ -48,7 +44,7 @@ formComponents: {
 
 The only exception is **checkbox**, which handles its own inline label and uses `ignoreFieldWrapper: true`.
 
-### Hidden Input Pattern
+### Hidden input pattern
 
 Some Ant Design components (Select, DatePicker) don't render native form elements. For form submission to work, we include hidden inputs:
 
@@ -64,7 +60,7 @@ const AntSelect = ({ name, value, onChange, options, ...props }) => {
 };
 ```
 
-### Custom Layout System
+### Custom layout system
 
 The library's default layout uses a 2-column CSS grid with a `half` prop. This example replaces it with **Ant Design Row/Col** components using a 24-column grid:
 
@@ -76,7 +72,7 @@ layout: { half: true }
 layout: { xs: 24, sm: 12 }  // Full on mobile, half on tablet+
 ```
 
-## Running the Example
+## Running the example
 
 ```bash
 # Install dependencies
@@ -86,7 +82,7 @@ pnpm install
 pnpm dev
 ```
 
-## Project Structure
+## Project structure
 
 ```
 examples/antd/
@@ -114,7 +110,7 @@ examples/antd/
 └── package.json
 ```
 
-## Form Configuration
+## Form configuration
 
 The form hook is configured in `src/lib/form.ts`:
 
@@ -179,9 +175,9 @@ export const useFormDefinition = createFormDefinitionHook({
 - `zod` - Schema validation
 - `use-form-definition` - Form definition library
 
-## Key Patterns
+## Key patterns
 
-### Form.Item for Labels and Errors
+### Form.Item for labels and errors
 
 The `AntField` component wraps inputs with Form.Item for consistent label and error display:
 
@@ -219,7 +215,7 @@ const AntCheckbox = ({ inlineLabel, value, ...props }) => (
 );
 ```
 
-### 24-Column Grid System
+### 24-column grid system
 
 Ant Design uses a 24-column grid. Use `layout` props to control field width:
 
@@ -239,6 +235,6 @@ bio: {
 }
 ```
 
-## Known Issues
+## Known issues
 
 - **Optional select validation**: Empty optional select fields may show "Invalid selection" error. This is a library-level validation issue where empty strings don't match the enum values and `.optional()` expects `undefined`, not `""`.

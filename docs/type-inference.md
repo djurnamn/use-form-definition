@@ -1,13 +1,13 @@
-# Type Inference
+# Type inference
 
-`use-form-definition` provides automatic type inference from your form definitions, eliminating the need for manual type definitions.
+`use-form-definition` infers TypeScript types from your form definitions, so you don't keep a separate type in sync with the definition by hand.
 
-## Basic Type Inference
+## Basic type inference
 
-### Traditional Approach (Manual Types)
+### Manual types
 
 ```typescript
-// Old way - manually defining types
+// Writing the type by hand, separate from the definition
 interface UserFormData {
   name: string;
   email: string;
@@ -25,12 +25,12 @@ const userFormDefinition: FormDefinition = {
 const form = useForm<UserFormData>(generateOptions(userFormDefinition));
 ```
 
-### Automatic Type Inference
+### Inferred types
 
 ```typescript
 import { InferFormType, generateOptions } from 'use-form-definition';
 
-// New way - types automatically inferred from definition
+// The type is derived from the definition
 const userFormDefinition = {
   name: { type: 'text', validation: { required: true } },
   email: { type: 'email', validation: { required: true } },
@@ -38,7 +38,7 @@ const userFormDefinition = {
   isActive: { type: 'checkbox' }
 } as const;
 
-// Type automatically inferred!
+// Type inferred from the definition
 type UserFormData = InferFormType<typeof userFormDefinition>;
 // UserFormData = {
 //   name: string;
@@ -48,7 +48,7 @@ type UserFormData = InferFormType<typeof userFormDefinition>;
 // }
 
 const options = generateOptions(userFormDefinition);
-const formInstance = useForm(options); // Automatic type inference!
+const formInstance = useForm(options); // typed from the definition
 ```
 
 ## Using createFormDefinition
@@ -98,7 +98,7 @@ if (result.success) {
 }
 ```
 
-## Fluent Form Builder API
+## Fluent form builder API
 
 ```typescript
 import { FormBuilder } from 'use-form-definition';
@@ -127,10 +127,10 @@ const complexForm = new FormBuilder()
   .build();
 
 type ComplexFormData = typeof complexForm._types;
-// Automatic type inference based on the builder chain!
+// Inferred from the builder chain
 ```
 
-## Server Action Integration
+## Server action integration
 
 ```typescript
 import { createFormDefinition, FormActionResult } from 'use-form-definition';
@@ -178,24 +178,6 @@ export async function createProduct(
 }
 ```
 
-## Benefits
+## Why it's set up this way
 
-### Automatic Type Safety
-- No manual type definitions needed
-- Types automatically stay in sync with form definitions
-- Compile-time validation of form structure
-
-### Better IntelliSense
-- Full autocomplete for form data
-- Type-aware error detection
-- Better refactoring support
-
-### Reduced Maintenance
-- Single source of truth for form structure
-- No risk of type/definition drift
-- Automatic updates when form changes
-
-### Runtime Safety
-- Zod validation ensures runtime type safety
-- Parse/safeParse methods with full typing
-- Form submission validation with proper error handling
+The definition is the single source for the form's shape, so the type can't drift from it the way a hand-written interface can - rename a field or change its rules and the type updates with it, with autocomplete and compile errors following. The same definition also drives a Zod schema, so the values are validated at runtime, not only checked at compile time.

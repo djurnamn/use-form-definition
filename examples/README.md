@@ -2,7 +2,7 @@
 
 This directory contains example projects demonstrating `use-form-definition` with various UI libraries and frameworks.
 
-## Available Examples
+## Available examples
 
 | Example | Stack | Features |
 |---------|-------|----------|
@@ -12,7 +12,7 @@ This directory contains example projects demonstrating `use-form-definition` wit
 | [antd](./antd) | Vite + Ant Design | Form.Item wrapper, 24-column grid |
 | [shadcn](./shadcn) | Vite + shadcn/ui + Tailwind | Definition-driven shadcn forms |
 
-## Getting Started
+## Getting started
 
 Each example can be run independently:
 
@@ -27,9 +27,9 @@ cd examples/basic-react
 pnpm dev
 ```
 
-## Choosing an Example
+## Choosing an example
 
-### Just Getting Started?
+### Just getting started?
 
 Start with **[basic-react](./basic-react)** - it demonstrates all core features using the library's built-in unstyled components with minimal dependencies.
 
@@ -37,13 +37,13 @@ Start with **[basic-react](./basic-react)** - it demonstrates all core features 
 
 Check out **[nextjs](./nextjs)** - it shows server actions, API route validation, async validation, and i18n integration with the App Router.
 
-### Using a UI Library?
+### Using a UI library?
 
 - **[mui](./mui)** - Material UI integration with DatePicker, Autocomplete, and the hidden input pattern
 - **[antd](./antd)** - Ant Design with Form.Item as Field wrapper and 24-column grid layout
 - **[shadcn](./shadcn)** - shadcn/ui with Tailwind CSS, showing how definition-driven forms simplify the typical shadcn + react-hook-form + zod setup
 
-## Example Structure
+## Example structure
 
 All examples follow a similar structure:
 
@@ -59,7 +59,7 @@ example/
 └── package.json
 ```
 
-## Key Patterns Demonstrated
+## Key patterns demonstrated
 
 | Pattern | Examples |
 |---------|----------|

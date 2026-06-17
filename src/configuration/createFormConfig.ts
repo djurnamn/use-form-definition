@@ -81,5 +81,6 @@ export const createFormConfig = (config: Partial<FormConfig> = {}): FormConfig =
     },
     translation: mergeTranslationConfig(defaultFormConfig.translation, config.translation),
     noValidate: config.noValidate,
+    emitHtml5Attributes: config.emitHtml5Attributes,
   };
 };

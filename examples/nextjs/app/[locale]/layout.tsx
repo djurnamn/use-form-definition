@@ -22,7 +22,7 @@ function Footer() {
           >
             use-form-definition
           </a>
-          {' '}— {t('common.tagline')}
+          {' '}- {t('common.tagline')}
         </p>
       </footer>
     </>

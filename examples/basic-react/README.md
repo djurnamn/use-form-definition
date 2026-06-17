@@ -1,8 +1,8 @@
-# Basic React Example
+# Basic React example
 
 This example demonstrates the core features of `use-form-definition` using the library's built-in unstyled components with Vite and React.
 
-## Features Demonstrated
+## Features demonstrated
 
 - **Built-in unstyled components** - No custom component wrappers needed
 - **Basic validation** - required, minLength, maxLength, min, max
@@ -11,14 +11,15 @@ This example demonstrates the core features of `use-form-definition` using the l
 - **Password matching** - `matchValue` to ensure two fields match
 - **Checkbox validation** - `mustBeTrue` for required checkboxes
 - **Repeater fields** - Dynamic lists with add/remove, minRows/maxRows validation
+- **Typed forwarded extras** - a custom `helpText` prop on `RenderedField`, type-checked via the hook's second type argument (contact form)
 
-## Forms Included
+## Forms included
 
-1. **Contact Form** - Demonstrates conditional validation with `requiredWhen`
-2. **Registration Form** - Demonstrates `matchValue` and `mustBeTrue` validation
-3. **Order Form** - Demonstrates repeater fields with nested field definitions
+1. **Contact form** - conditional validation with `requiredWhen`
+2. **Registration form** - `matchValue` and `mustBeTrue` validation
+3. **Order form** - repeater fields with nested field definitions
 
-## Running the Example
+## Running the example
 
 ```bash
 # From the repository root
@@ -31,7 +32,7 @@ cd examples/basic-react
 pnpm dev
 ```
 
-## Project Structure
+## Project structure
 
 ```
 basic-react/
@@ -54,9 +55,9 @@ basic-react/
 └── package.json
 ```
 
-## Key Concepts
+## Key concepts
 
-### Built-in Components
+### Built-in components
 
 This example uses the library's built-in unstyled components with minimal configuration in `lib/form.ts`:
 
@@ -74,7 +75,36 @@ export const useFormDefinition = createFormDefinitionHook({
 
 The library automatically provides default components for all standard field types (text, email, password, number, select, checkbox, textarea, repeater, etc.). You only need to explicitly configure components if you want to use custom implementations.
 
-### Form Definitions
+### Typed forwarded extras
+
+Field components can accept custom runtime props beyond the standard overrides. This example registers a `HintInput` for the `text` and `email` types that reads a `helpText` prop, and lists it in `additionalProps` so the value is forwarded at runtime:
+
+```typescript
+import { HintInput } from './HintInput';
+
+export const useFormDefinition = createFormDefinitionHook({
+  formComponents: { Field },
+  components: {
+    text: { component: HintInput, additionalProps: ['helpText'] },
+    email: { component: HintInput, additionalProps: ['helpText'] },
+  },
+});
+```
+
+By default forwarded extras are untyped. Pass the props your components accept as the hook's second type argument to get compile-time checking - see `ContactPage.tsx`:
+
+```tsx
+type FieldExtras = { helpText?: string };
+
+const { RenderedField } = useFormDefinition<typeof contactFormDefinition, FieldExtras>(
+  contactFormDefinition,
+);
+
+<RenderedField name="email" helpText="We'll only use this to reply." /> // ok
+<RenderedField name="email" helpTxt="..." />                           // compile error
+```
+
+### Form definitions
 
 Forms are defined declaratively:
 
@@ -92,7 +122,7 @@ export const contactFormDefinition: FormDefinition = {
 };
 ```
 
-### Using Forms
+### Using forms
 
 The `RenderedForm` component handles everything:
 

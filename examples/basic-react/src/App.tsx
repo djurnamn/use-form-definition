@@ -23,7 +23,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           >
             use-form-definition
           </a>
-          {' '}— Definition-driven forms for React
+          {' '}- Definition-driven forms for React
         </p>
       </footer>
     </>

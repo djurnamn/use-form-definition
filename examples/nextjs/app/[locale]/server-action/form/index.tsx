@@ -14,7 +14,7 @@ export function ServerActionForm() {
   // - <RenderedForm> wires it via `<form action>`, so the form submits and is validated
   //   server-side even with JavaScript disabled.
   // - The result comes back as `actionState` (it survives SSR / no-JS, unlike an onSuccess
-  //   callback) — we render the success view from it below.
+  //   callback) - we render the success view from it below.
   // - With JS, react-hook-form layers client-side validation on top (mode: 'onTouched').
   const { RenderedForm, actionState } = useFormDefinition(feedbackFormDefinition, {
     serverAction: submitFeedback,

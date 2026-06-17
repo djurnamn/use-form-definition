@@ -6,7 +6,7 @@ A UI-agnostic React form library. You write one field definition; it generates t
 
 If you already reach for **React Hook Form + Zod** on most forms and end up repeating the same field metadata across the schema, the RHF setup, the JSX, and a server-side validator, this library bundles those four into one place.
 
-If you only need one or two of those — for example, a single small form where writing a Zod schema by hand isn't a chore — the abstraction may not pay for itself. RHF or Zod on their own is usually enough in that case.
+If you only need one or two of those (for example, a single small form where writing a Zod schema by hand isn't a chore), the abstraction may not pay for itself. RHF or Zod on their own is usually enough in that case.
 
 ## What it does
 
@@ -25,11 +25,11 @@ npm install use-form-definition react react-hook-form zod
 
 ### Requirements
 
-- React >= 18.0.0
-- React Hook Form >= 7.0.0
+- React >= 19.0.0
+- React Hook Form >= 7.55.0
 - Zod >= 3.0.0 < 4.0.0
 
-## Quick Start
+## Quick start
 
 ### 1. Configure your form hook
 
@@ -92,7 +92,7 @@ export function UserForm() {
 }
 ```
 
-## Conditional Visibility
+## Conditional visibility
 
 When a field's visibility depends on the form's current state (e.g. show "Please specify" only when "Other" is selected), drop down from `<RenderedForm />` to manual rendering with `<Form>` and `<RenderedField>`, and use `form.watch()`:
 
@@ -112,9 +112,11 @@ return (
 );
 ```
 
-The same pattern applies to per-field runtime props like `disabled` or `options` — pass them as props on `<RenderedField>` and the prop wins over the definition default. See [examples/basic-react/src/pages/ContactPage.tsx](./examples/basic-react/src/pages/ContactPage.tsx) for a working example.
+The same pattern applies to per-field runtime props like `disabled` or `options`: pass them as props on `<RenderedField>` and the prop wins over the definition default. See [examples/basic-react/src/pages/ContactPage.tsx](./examples/basic-react/src/pages/ContactPage.tsx) for a working example.
 
-## Copy-and-Customize Components
+To type custom props your field components accept (anything beyond the standard overrides), pass a second type argument to the hook: `useFormDefinition<typeof definition, { tooltip?: string }>(definition)`. Those props are then checked on `<RenderedField>`, so a typo or wrong value type is a compile error. Without it they stay permissively typed; either way they're filtered at runtime against each field type's allowlist.
+
+## Copy and customize components
 
 Use the CLI to copy reference components to your project:
 
@@ -146,7 +148,7 @@ See the [examples](./examples) directory for complete implementations:
 | [antd](./examples/antd) | Ant Design integration |
 | [shadcn](./examples/shadcn) | shadcn/ui + Tailwind CSS |
 
-## Server Actions (Next.js)
+## Server actions (Next.js)
 
 Pass a server action to `useFormDefinition` and the form works with or without JavaScript: with JS it intercepts on submit, runs client-side validation, and dispatches the action; without JS the `<form>` posts natively to the server action, and the server's field errors render server-side. Render the result view from the returned `actionState`.
 
@@ -192,6 +194,8 @@ export function NewUserForm() {
 
 (`isPending` reflects the in-flight submission. Passing `serverAction` as a `<RenderedForm serverAction={...}>` prop also works, but only the hook option exposes `actionState`.)
 
+If you register a custom `Form` wrapper via `config.components.Form`, spread its props onto the underlying `<form>` so `action` and `onSubmit` reach it - a wrapper that drops them disables progressive enhancement silently. The default `Form` forwards them.
+
 ## Validation
 
 Built-in validation rules:
@@ -209,6 +213,10 @@ validation: {
   max: 100,
 }
 ```
+
+### HTML5 validation attributes
+
+By default the rendered inputs carry no native HTML5 constraint attributes. Set `emitHtml5Attributes: true` (on the `createFormDefinitionHook(...)` config or the per-call `config`) and each input gets `required`, `pattern`, `minLength`/`maxLength`, `min`/`max`, and `step` derived from its `validation`, emitted only where they're valid for the input type. This adds a no-JS validation layer alongside react-hook-form or a server action; it's the counterpart to `noValidate`.
 
 ## Contributing
 

@@ -232,11 +232,11 @@ export function AsyncValidationForm() {
         <strong>{t("asyncValidation.tryUsernames")}</strong>
         <ul>
           <li>
-            <code>admin</code>, <code>test</code>, <code>demo</code> —{" "}
+            <code>admin</code>, <code>test</code>, <code>demo</code> -{" "}
             {t("asyncValidation.alreadyTaken")}
           </li>
           <li>
-            {t("asyncValidation.anyOther")} — {t("asyncValidation.available")}
+            {t("asyncValidation.anyOther")} - {t("asyncValidation.available")}
           </li>
         </ul>
       </div>

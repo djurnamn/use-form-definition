@@ -12,6 +12,7 @@ export { useFormDefinition } from "./hooks/useFormDefinition";
 export type {
   UseFormDefinitionReturn,
   RenderedFieldProps,
+  RenderedFieldBaseProps,
   RenderedFormProps,
 } from "./hooks/useFormDefinition";
 export { createFormDefinitionHook } from "./hooks/createFormDefinitionHook";

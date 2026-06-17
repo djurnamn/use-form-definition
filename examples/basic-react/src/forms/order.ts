@@ -1,7 +1,7 @@
 import { FormDefinition } from 'use-form-definition';
 
 /**
- * Order form definition
+ * Plant nursery order form definition
  *
  * Demonstrates:
  * - Repeater fields for order items
@@ -12,7 +12,7 @@ import { FormDefinition } from 'use-form-definition';
 export const orderFormDefinition: FormDefinition = {
   customerName: {
     type: 'text',
-    label: 'Customer Name',
+    label: 'Your name',
     validation: {
       required: true,
       minLength: 2,
@@ -20,7 +20,7 @@ export const orderFormDefinition: FormDefinition = {
   },
   customerEmail: {
     type: 'email',
-    label: 'Customer Email',
+    label: 'Email',
     validation: {
       required: true,
       pattern: 'email',
@@ -28,17 +28,17 @@ export const orderFormDefinition: FormDefinition = {
   },
   items: {
     type: 'repeater',
-    label: 'Order Items',
+    label: 'Plants',
     fields: {
       product: {
         type: 'select',
-        label: 'Product',
-        placeholder: 'Select a product...',
+        label: 'Plant',
+        placeholder: 'Pick a plant...',
         options: [
-          { value: 'widget-a', label: 'Widget A - $10' },
-          { value: 'widget-b', label: 'Widget B - $25' },
-          { value: 'gadget-x', label: 'Gadget X - $50' },
-          { value: 'gadget-y', label: 'Gadget Y - $75' },
+          { value: 'pothos', label: 'Golden pothos - $15' },
+          { value: 'snake-plant', label: 'Snake plant - $22' },
+          { value: 'monstera', label: 'Monstera deliciosa - $38' },
+          { value: 'fiddle-leaf-fig', label: 'Fiddle-leaf fig - $55' },
         ],
         validation: {
           required: true,
@@ -56,7 +56,7 @@ export const orderFormDefinition: FormDefinition = {
       },
       notes: {
         type: 'text',
-        label: 'Notes',
+        label: 'Notes (pot colour, etc.)',
         // Optional field, no validation
       },
     },
@@ -67,7 +67,7 @@ export const orderFormDefinition: FormDefinition = {
   },
   shippingAddress: {
     type: 'textarea',
-    label: 'Shipping Address',
+    label: 'Delivery address',
     validation: {
       required: true,
       minLength: 10,
@@ -75,11 +75,11 @@ export const orderFormDefinition: FormDefinition = {
   },
   priority: {
     type: 'select',
-    label: 'Shipping Priority',
+    label: 'Delivery speed',
     options: [
       { value: 'standard', label: 'Standard (5-7 days)' },
       { value: 'express', label: 'Express (2-3 days)' },
-      { value: 'overnight', label: 'Overnight' },
+      { value: 'overnight', label: 'Next day' },
     ],
     defaultValue: 'standard',
     validation: {
@@ -88,6 +88,6 @@ export const orderFormDefinition: FormDefinition = {
   },
   giftWrap: {
     type: 'checkbox',
-    inlineLabel: 'Gift wrap this order',
+    inlineLabel: 'Include a plant care card',
   },
 };

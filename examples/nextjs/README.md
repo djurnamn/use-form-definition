@@ -1,17 +1,17 @@
-# Next.js Example
+# Next.js example
 
 This example demonstrates `use-form-definition` with Next.js 16, showcasing server actions, API route validation, async validation, and i18n support.
 
-## Features Demonstrated
+## Features demonstrated
 
-- **Server Actions with progressive enhancement** - the server-action form submits and validates server-side even with JavaScript disabled; with JS it adds client-side validation and `isPending`
-- **API Routes** - Form validation in API route handlers
-- **Async Validation** - Real-time username availability checking
-- **Internationalization** - Translation support with `next-intl` (including server-side error message translation)
-- **App Router** - Full compatibility with Next.js App Router
+- **Server actions with progressive enhancement** - the server-action form submits and validates server-side even with JavaScript disabled; with JS it adds client-side validation and `isPending`
+- **API routes** - form validation in API route handlers
+- **Async validation** - username availability checked against an API as you type
+- **Internationalization** - translation with `next-intl`, including server-side error message translation
+- **App Router** - works with the Next.js App Router
 - **React 19** - `useActionState`-based server actions
 
-## Running the Example
+## Running the example
 
 ```bash
 # From the repository root
@@ -33,9 +33,9 @@ cd examples/nextjs
 pnpm test:e2e
 ```
 
-The spec lives in `e2e/server-action.spec.ts`; config in `playwright.config.ts`. `@playwright/test` is a devDependency of this example. (The library's own unit tests live in the repo root — run `pnpm test` there.)
+The spec lives in `e2e/server-action.spec.ts`; config in `playwright.config.ts`. `@playwright/test` is a devDependency of this example. (The library's own unit tests live in the repo root - run `pnpm test` there.)
 
-## Project Structure
+## Project structure
 
 ```
 nextjs/
@@ -66,9 +66,9 @@ nextjs/
 └── playwright.config.ts
 ```
 
-## Forms Included
+## Forms included
 
-### Server Action Form (`/server-action`)
+### Server action form (`/server-action`)
 
 Demonstrates server-side validation with `generateDataValidator` and progressive enhancement. The action returns translated field errors (via `next-intl`'s `getTranslations`) plus `values` so the form repopulates on a no-JS round-trip:
 
@@ -95,7 +95,7 @@ export async function submitForm(prevState: unknown, formData: FormData) {
 }
 ```
 
-### API Route Form (`/api-route`)
+### API route form (`/api-route`)
 
 Demonstrates validation in Next.js API routes:
 
@@ -116,9 +116,9 @@ export async function POST(request: Request) {
 }
 ```
 
-### Async Validation Form (`/async-validation`)
+### Async validation form (`/async-validation`)
 
-Demonstrates real-time field validation with API calls:
+Demonstrates field validation against an API as the user types:
 
 ```typescript
 const definition: FormDefinition = {
@@ -133,11 +133,11 @@ const definition: FormDefinition = {
 };
 ```
 
-## Key Concepts
+## Key concepts
 
-### Server Action Integration
+### Server action integration
 
-Pass the server action to `useFormDefinition` — the hook owns `useActionState` and returns `actionState` / `isPending`, and `<RenderedForm>` wires `<form action={...}>` so it works with or without JavaScript. Render the result view from `actionState` (effects don't run without JS, so a `onSuccess` callback alone wouldn't show it):
+Pass the server action to `useFormDefinition` - the hook owns `useActionState` and returns `actionState` / `isPending`, and `<RenderedForm>` wires `<form action={...}>` so it works with or without JavaScript. Render the result view from `actionState` (effects don't run without JS, so a `onSuccess` callback alone wouldn't show it):
 
 ```tsx
 'use client';
@@ -156,7 +156,7 @@ Without JS: the `<form>` posts natively, the server validates and returns transl
 
 (Passing `serverAction` as a `<RenderedForm serverAction={...}>` prop with `onSuccess`/`onError` callbacks still works for client-only flows, but only the hook option exposes `actionState`.)
 
-### Translation Setup
+### Translation setup
 
 Using the hook pattern with `next-intl`:
 
@@ -172,6 +172,6 @@ export const useFormDefinition = createFormDefinitionHook({
 });
 ```
 
-### Locale Routing
+### Locale routing
 
 The example uses Next.js App Router with `[locale]` dynamic segments for i18n support.

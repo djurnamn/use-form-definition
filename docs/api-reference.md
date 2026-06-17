@@ -10,7 +10,7 @@ import { createFormDefinitionHook } from 'use-form-definition';
 const useFormDefinition = createFormDefinitionHook(config);
 ```
 
-### Config Options
+### Config options
 
 ```typescript
 interface FormDefinitionHookConfig {
@@ -39,6 +39,13 @@ interface FormDefinitionHookConfig {
   // constraint bubbles, e.g. the <input type="email"> popup). Default: false.
   // Overridable per form via <RenderedForm noValidate>.
   noValidate?: boolean;
+
+  // Emit native HTML5 validation attributes (required, pattern, minLength,
+  // maxLength, min, max, step) on rendered inputs, derived from each field's
+  // `validation` rules. Gives a no-JS validation layer alongside react-hook-form
+  // / a server action. Each attribute is emitted only where it is valid HTML.
+  // Default: false (output unchanged when off).
+  emitHtml5Attributes?: boolean;
 }
 ```
 
@@ -87,7 +94,7 @@ type TranslationFunction = (key: string, options?: Record<string, any>) => strin
 
 ---
 
-## useFormDefinition (Hook)
+## useFormDefinition (hook)
 
 The hook returned by `createFormDefinitionHook`.
 
@@ -115,10 +122,10 @@ const {
 | Field | Type | Description |
 |-------|------|-------------|
 | `form` | `UseFormReturn` | Bring your own `useForm()` instance instead of letting the hook create one |
-| `config` | `Partial<FormConfig>` | Per-call overrides (`components`, `translation`, `noValidate`, …) |
+| `config` | `Partial<FormConfig>` | Per-call overrides (`components`, `translation`, `noValidate`, ...) |
 | `serverAction` | `FormAction` | Server action for the form. When set, the hook owns `useActionState` and returns `actionState` / `isPending` / `formAction`, and `<RenderedForm>` becomes progressive-enhancement-capable (see [RenderedForm](#renderedform)). |
 
-### Return Value
+### Return value
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -186,29 +193,49 @@ interface SelectOption {
 
 ## ValidationRules
 
-Available validation rules for fields.
+Available validation rules for fields. This is the permissive umbrella type
+(`BaseValidationRules` in the source) used for `validation` on a generic
+`type: string` field - every rule is optional so any definition type-checks. For
+strict per-type rules, use `createField<T>()` or the specific rule types
+(`StringValidationRules`, `NumberValidationRules`, etc.).
+
+Each rule accepts either a bare value or a `{ value, message }` object; the
+`message` can be a plain string or a `{ key, options }` translation reference.
 
 ```typescript
 interface ValidationRules {
   // Required validation
   required?: boolean | { value: boolean; message: string };
-  requiredWhen?: { field: string; value: any };
+  requiredWhen?: { field: string; value: string | number | boolean };
 
   // String validations
   minLength?: number | { value: number; message: string };
   maxLength?: number | { value: number; message: string };
   pattern?: string | RegExp | { value: RegExp; message: string };
+  email?: boolean;
+  contains?: string | { value: string; message: string };
+  startsWith?: string | { value: string; message: string };
+  endsWith?: string | { value: string; message: string };
+  noWhitespace?: boolean | { value: boolean; message: string };
+  uppercase?: boolean | { value: boolean; message: string };
+  lowercase?: boolean | { value: boolean; message: string };
 
   // Field matching
   matchValue?: string | { value: string; message: string };
 
-  // Boolean validations
-  mustBeTrue?: boolean | { value: boolean; message: string };
-  mustBeFalse?: boolean | { value: boolean; message: string };
-
   // Numeric validations
   min?: number | { value: number; message: string };
   max?: number | { value: number; message: string };
+  step?: number | { value: number; message: string };
+  integer?: boolean;
+  positive?: boolean;
+  negative?: boolean;
+  nonNegative?: boolean;
+  nonPositive?: boolean;
+
+  // Boolean validations
+  mustBeTrue?: boolean;
+  mustBeFalse?: boolean;
 
   // Repeater validations
   minRows?: number | { value: number; message: string };
@@ -216,7 +243,7 @@ interface ValidationRules {
 }
 ```
 
-### Built-in Patterns
+### Built-in patterns
 
 Use these with `validation: { pattern: 'patternName' }`:
 
@@ -250,7 +277,7 @@ Runtime override props let you pass values that override the field's static defi
 | Prop | Type | Effect |
 |------|------|--------|
 | `disabled` | `boolean` | Disable the field at render time |
-| `options` | `SelectOption[]` | Provide async-loaded options (replaces v1's `optionsCallback`) |
+| `options` | `SelectOption[]` | Provide async-loaded options at render time |
 | `label` | `string \| "auto" \| "none"` | Override or hide the field's label |
 | `placeholder` | `string \| "auto" \| "none"` | Override or hide the placeholder |
 | `className`, `style` | standard React | Forwarded to the field component |
@@ -267,6 +294,19 @@ const roleOptions = useRoleOptions();
 <RenderedField name="firstName" disabled={!canEditName} />
 ```
 
+By default forwarded extras are untyped. Pass a second type argument to `useFormDefinition` (or `createFormDefinitionHook`) describing the custom props your field components accept, and those props become typed on `RenderedField` - a typo or wrong value type is then a compile error:
+
+```tsx
+const { RenderedField } = useFormDefinition<typeof definition, { tooltip?: string }>(definition);
+
+<RenderedField name="email" tooltip="We never share it." /> // ✓
+<RenderedField name="email" toolttip="..." />                  // ✗ typo caught
+```
+
+The runtime allowlist (`additionalProps`) is unchanged - typing the extras only adds compile-time checking on top.
+
+The `Extras` type is per-form: the declared extras are allowed on every field. Narrowing the allowed extras by field *type* (for example, `inlineLabel` only on `checkbox`) is something we're considering for a future release; it isn't available yet. Either way, an extra targeted at the wrong field type is still dropped at runtime by that field type's `additionalProps` allowlist.
+
 ### RenderedForm
 
 Auto-renders all fields with layout and an actions slot.
@@ -281,11 +321,11 @@ Auto-renders all fields with layout and an actions slot.
 | Prop | Type | Description |
 |------|------|-------------|
 | `onSubmit` | `(data) => void` | Called with validated data (client-side forms only) |
-| `serverAction` | `FormAction` | Server action, as an alternative to passing it to `useFormDefinition`. The hook option is preferred — only it exposes `actionState`. |
-| `onSuccess` / `onError` | `(result: FormActionResult) => void` | Client-side callbacks for a server-action result. (For SSR / no-JS, render from the hook's `actionState` instead — effects don't run there.) |
+| `serverAction` | `FormAction` | Server action, as an alternative to passing it to `useFormDefinition`. The hook option is preferred - only it exposes `actionState`. |
+| `onSuccess` / `onError` | `(result: FormActionResult) => void` | Client-side callbacks for a server-action result. (For SSR / no-JS, render from the hook's `actionState` instead - effects don't run there.) |
 | `showActions` | `boolean` | Render the actions slot (default `true`) |
 | `noValidate` | `boolean` | Set `noValidate` on the `<form>`; overrides the hook/config `noValidate` for this form |
-| `className`, `style` | — | Passed to the `<form>` |
+| `className`, `style` | - | Passed to the `<form>` |
 
 **Server actions & progressive enhancement**
 
@@ -303,8 +343,10 @@ return <RenderedForm />;
 
 `<RenderedForm>` wires the action via `<form action={...}>`, so:
 
-- **Without JavaScript** — the form posts natively to the server action, which validates with the same schema; the server's field errors render server-side, and fields repopulate from `FormActionResult.values` (return `values: Object.fromEntries(formData.entries())` from the action on a failed result).
-- **With JavaScript** — `<RenderedForm>` intercepts on submit, runs react-hook-form's client validation as a gate, then dispatches the action inside `startTransition` (so `isPending` updates). Server errors come back on the fields as `type: 'server'` errors. The internal `useForm` uses `mode: 'onTouched'` when a `serverAction` is configured.
+- **Without JavaScript** - the form posts natively to the server action, which validates with the same schema; the server's field errors render server-side, and fields repopulate from `FormActionResult.values` (return `values: Object.fromEntries(formData.entries())` from the action on a failed result).
+- **With JavaScript** - `<RenderedForm>` intercepts on submit, runs react-hook-form's client validation as a gate, then dispatches the action inside `startTransition` (so `isPending` updates). Server errors come back on the fields as `type: 'server'` errors. The internal `useForm` uses `mode: 'onTouched'` when a `serverAction` is configured.
+
+> **Custom `Form` component:** if you register your own wrapper via `config.components.Form`, it must spread its props onto the underlying `<form>` element (so `action` and `onSubmit` reach it). `<RenderedForm>` wires the server action through those props; a custom `Form` that drops them disables progressive enhancement silently - the form renders, but no-JS submission and client dispatch stop working. The default `Form` forwards them for you.
 
 Server action shape (see also [`generateDataValidator`](#generatedatavalidator)):
 
@@ -337,7 +379,7 @@ Wrapper component for custom layouts.
 
 ### Actions
 
-The form's actions slot. Defaults to a single submit button, but can render any action UI — `[Cancel] [Save]`, destructive `[Delete]`, etc. — since the slot accepts any `React.ComponentType`.
+The form's actions slot. Defaults to a single submit button, but can render any action UI - `[Cancel] [Save]`, destructive `[Delete]`, and so on - since the slot accepts any `React.ComponentType`.
 
 ```tsx
 <Actions>Submit</Actions>
@@ -364,11 +406,11 @@ return (
 );
 ```
 
-The same pattern is the canonical place to apply runtime overrides like `disabled` or async-loaded `options` — the runtime data lives at the JSX site, not inside the static definition.
+The same pattern is the canonical place to apply runtime overrides like `disabled` or async-loaded `options` - the runtime data lives at the JSX site, not inside the static definition.
 
 ---
 
-## Utility Functions
+## Utility functions
 
 ### generateOptions
 
@@ -414,18 +456,20 @@ import { generateDataValidator, parseValidationErrors } from 'use-form-definitio
 const result = generateDataValidator(definition)(formData);
 
 if (result.success) {
-  // result.data — validated, typed data
+  // result.data - validated, typed data
 } else {
   const errors = parseValidationErrors(result.error.issues);
-  // errors: Record<string, string[]> — display-ready, keyed by field name
+  // errors: Record<string, string[]> - display-ready, keyed by field name
 }
 ```
 
 `parseValidationErrors` resolves the library's message keys to English by default; pass a translate function (e.g. `next-intl`'s `getTranslations` result) as the second argument to localize them server-side.
 
+Some keys carry interpolation values. The count-based keys (`minLength`, `maxLength`, `min`, `max`, `minRows`, `maxRows`) pass a `{count}`, and the string keys `contains`, `startsWith`, and `endsWith` pass a `{value}` holding the constraint string - so a translation can read `Must contain "{value}"`. See the Next.js example's `messages/*.json` for the full set.
+
 ---
 
-## Plugin System
+## Plugin system
 
 ### createPluginRegistry
 
@@ -437,7 +481,7 @@ import { createPluginRegistry } from 'use-form-definition';
 const registry = createPluginRegistry();
 ```
 
-### PluginRegistry Methods
+### PluginRegistry methods
 
 ```typescript
 interface PluginRegistry {
@@ -458,7 +502,7 @@ interface PluginRegistry {
 }
 ```
 
-### Global Validation Rules
+### Global validation rules
 
 ```typescript
 import {
@@ -480,7 +524,7 @@ const rule = getValidationRuleGlobal('customRule');
 const rules = getAvailableValidationRules();
 ```
 
-### Field Schema Generators
+### Field schema generators
 
 ```typescript
 import { registerFieldSchemaGenerator } from 'use-form-definition';
@@ -490,7 +534,7 @@ registerFieldSchemaGenerator('customType', (field) => {
 });
 ```
 
-### Validation Helpers
+### Validation helpers
 
 ```typescript
 import {
@@ -520,7 +564,7 @@ const dependentRule = createDependentValidationRule(
 );
 ```
 
-### Built-in Plugins
+### Built-in plugins
 
 ```typescript
 import { builtInPlugins } from 'use-form-definition';
@@ -532,7 +576,7 @@ builtInPlugins.confirmField('fieldName')
 
 ---
 
-## Type Inference
+## Type inference
 
 ### InferFormType
 

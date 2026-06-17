@@ -21,7 +21,7 @@ async function submitAndWaitForNavigation(page: Page) {
   ]);
 }
 
-test.describe("server-action form — JavaScript enabled", () => {
+test.describe("server-action form - JavaScript enabled", () => {
   test("client validation gates submit; a valid submit shows the success view in one click", async ({ page }) => {
     await page.goto(PATH);
 
@@ -46,7 +46,7 @@ test.describe("server-action form — JavaScript enabled", () => {
   });
 });
 
-test.describe("server-action form — JavaScript disabled (progressive enhancement)", () => {
+test.describe("server-action form - JavaScript disabled (progressive enhancement)", () => {
   test.use({ javaScriptEnabled: false });
 
   test("invalid submit re-renders server-side with errors and repopulated fields", async ({ page }) => {

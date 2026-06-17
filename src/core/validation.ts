@@ -30,6 +30,14 @@ const countValidationTypes = new Set([
   "max",
 ]);
 
+// Validation types that include the constraint value in their message, so a
+// translation can say *what* the string must contain/start with/end with.
+const valueValidationTypes = new Set([
+  "contains",
+  "startsWith",
+  "endsWith",
+]);
+
 // Get validation rule helper
 export const getValidationRule = <T>(
   rule: ValidationRule<T> | undefined,
@@ -58,6 +66,14 @@ export const getValidationRule = <T>(
     return {
       value: rule as T,
       message: createMessage(type, { count: rule as number }),
+    };
+  }
+
+  // Types that include the constraint value in their message options
+  if (valueValidationTypes.has(type)) {
+    return {
+      value: rule as T,
+      message: createMessage(type, { value: rule as string }),
     };
   }
 

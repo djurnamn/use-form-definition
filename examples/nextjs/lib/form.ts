@@ -8,7 +8,7 @@ import { Input, Select, TextArea, Checkbox, Field } from "@/components/form";
  * Base hook configuration shared by all form hooks
  */
 const baseConfig = {
-  // Let react-hook-form / the server action be the validators — keep the browser's built-in
+  // Let react-hook-form / the server action be the validators - keep the browser's built-in
   // HTML5 constraint bubbles (e.g. on <input type="email">) out of the way.
   noValidate: true,
 

@@ -89,16 +89,15 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
       field.validation.contains,
       "contains"
     );
-    const containsMsg = message || `Must contain "${value}"`;
     if (hasConditionalRequired) {
       baseSchema = baseSchema.refine(
         (val) => val === "" || val.includes(value),
-        { message: containsMsg }
+        { message }
       );
     } else {
       baseSchema = baseSchema.refine(
         (val) => val.includes(value),
-        { message: containsMsg }
+        { message }
       );
     }
   }
@@ -109,16 +108,15 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
       field.validation.startsWith,
       "startsWith"
     );
-    const startsWithMsg = message || `Must start with "${value}"`;
     if (hasConditionalRequired) {
       baseSchema = baseSchema.refine(
         (val) => val === "" || val.startsWith(value),
-        { message: startsWithMsg }
+        { message }
       );
     } else {
       baseSchema = baseSchema.refine(
         (val) => val.startsWith(value),
-        { message: startsWithMsg }
+        { message }
       );
     }
   }
@@ -129,16 +127,15 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
       field.validation.endsWith,
       "endsWith"
     );
-    const endsWithMsg = message || `Must end with "${value}"`;
     if (hasConditionalRequired) {
       baseSchema = baseSchema.refine(
         (val) => val === "" || val.endsWith(value),
-        { message: endsWithMsg }
+        { message }
       );
     } else {
       baseSchema = baseSchema.refine(
         (val) => val.endsWith(value),
-        { message: endsWithMsg }
+        { message }
       );
     }
   }
@@ -150,16 +147,15 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
       "noWhitespace"
     );
     if (value) {
-      const noWhitespaceMsg = message || "Cannot contain spaces";
       if (hasConditionalRequired) {
         baseSchema = baseSchema.refine(
           (val) => val === "" || !/\s/.test(val),
-          { message: noWhitespaceMsg }
+          { message }
         );
       } else {
         baseSchema = baseSchema.refine(
           (val) => !/\s/.test(val),
-          { message: noWhitespaceMsg }
+          { message }
         );
       }
     }
@@ -172,16 +168,15 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
       "uppercase"
     );
     if (value) {
-      const uppercaseMsg = message || "Must be uppercase";
       if (hasConditionalRequired) {
         baseSchema = baseSchema.refine(
           (val) => val === "" || val === val.toUpperCase(),
-          { message: uppercaseMsg }
+          { message }
         );
       } else {
         baseSchema = baseSchema.refine(
           (val) => val === val.toUpperCase(),
-          { message: uppercaseMsg }
+          { message }
         );
       }
     }
@@ -194,16 +189,15 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
       "lowercase"
     );
     if (value) {
-      const lowercaseMsg = message || "Must be lowercase";
       if (hasConditionalRequired) {
         baseSchema = baseSchema.refine(
           (val) => val === "" || val === val.toLowerCase(),
-          { message: lowercaseMsg }
+          { message }
         );
       } else {
         baseSchema = baseSchema.refine(
           (val) => val === val.toLowerCase(),
-          { message: lowercaseMsg }
+          { message }
         );
       }
     }
@@ -238,9 +232,7 @@ export const createNumberFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
 
     numberSchema = numberSchema.refine(
       (val) => val === undefined || val >= minValue,
-      {
-        message: minMessage || `Must be at least ${minValue}`,
-      }
+      { message: minMessage }
     );
   }
 
@@ -252,9 +244,7 @@ export const createNumberFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
 
     numberSchema = numberSchema.refine(
       (val) => val === undefined || val <= maxValue,
-      {
-        message: maxMessage || `Must be no more than ${maxValue}`,
-      }
+      { message: maxMessage }
     );
   }
 
@@ -356,7 +346,7 @@ export const createMultiselectFieldSchema = (field: FormFieldDefinition): z.ZodT
     if (value) {
       return multiselectSchema.refine(
         (arr) => arr && arr.length > 0,
-        { message: message || "At least one selection is required" }
+        { message }
       );
     }
   }
@@ -505,7 +495,7 @@ export const createRepeaterFieldSchema = (field: FormFieldDefinition): z.ZodType
     );
     repeaterSchema = repeaterSchema.refine(
       (rows) => rows.length >= minRows,
-      { message: message || `At least ${minRows} row(s) required` }
+      { message }
     );
   }
 
@@ -516,7 +506,7 @@ export const createRepeaterFieldSchema = (field: FormFieldDefinition): z.ZodType
     );
     repeaterSchema = repeaterSchema.refine(
       (rows) => rows.length <= maxRows,
-      { message: message || `No more than ${maxRows} row(s) allowed` }
+      { message }
     );
   }
 
@@ -530,7 +520,7 @@ export const createRepeaterFieldSchema = (field: FormFieldDefinition): z.ZodType
     if (value) {
       return repeaterSchema.refine(
         (rows) => rows.length > 0,
-        { message: message || "At least one row is required" }
+        { message }
       );
     }
   }

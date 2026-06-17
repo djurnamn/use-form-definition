@@ -3,6 +3,11 @@ import { z } from 'zod';
 import { FormDefinition } from '../../core/types';
 import { generateSchema } from '../../core/schema/schema-builder';
 import { InferFormType, createFormDefinition } from '../../core/types-inference';
+import {
+  useFormDefinition,
+  type RenderedFieldProps,
+  type RenderedFieldBaseProps,
+} from '../../hooks/useFormDefinition';
 
 // Test form definitions for type inference
 const simpleFormDefinition = {
@@ -411,6 +416,64 @@ describe('Type Inference Tests', () => {
       if (result.success) {
         expect(result.data).toEqual(validData);
       }
+    });
+  });
+
+  describe('RenderedField forwarded-extras typing', () => {
+    const def = {
+      email: { type: 'email' as const, validation: { required: true } }
+    } satisfies FormDefinition;
+
+    type Extras = { tooltip?: string; badge?: number };
+
+    it('defaults to permissive extras (back-compat: untyped usage still compiles)', () => {
+      const props: RenderedFieldProps<typeof def> = {
+        name: 'email',
+        anythingAtAll: 123
+      };
+
+      expect(props.name).toBe('email');
+    });
+
+    it('types declared extras and their value types', () => {
+      const props: RenderedFieldProps<typeof def, Extras> = {
+        name: 'email',
+        tooltip: 'We never share it.',
+        badge: 3
+      };
+
+      expectTypeOf(props.tooltip).toEqualTypeOf<string | undefined>();
+      expect(props.badge).toBe(3);
+    });
+
+    it('rejects wrong value types and unknown keys when Extras is concrete', () => {
+      const wrongType: RenderedFieldProps<typeof def, Extras> = {
+        name: 'email',
+        // @ts-expect-error tooltip must be a string
+        tooltip: 123
+      };
+
+      const typo: RenderedFieldProps<typeof def, Extras> = {
+        name: 'email',
+        // @ts-expect-error 'toolttip' is not a declared extra (typo caught)
+        toolttip: 'oops'
+      };
+
+      expect(wrongType.name).toBe('email');
+      expect(typo.name).toBe('email');
+    });
+
+    it('threads Extras through the hook return type', () => {
+      type FieldProps = Parameters<
+        ReturnType<typeof useFormDefinition<typeof def, Extras>>['RenderedField']
+      >[0];
+
+      expectTypeOf<FieldProps['tooltip']>().toEqualTypeOf<string | undefined>();
+      expect(true).toBe(true);
+    });
+
+    it('keeps the standard overrides typed independently of Extras', () => {
+      expectTypeOf<RenderedFieldBaseProps<typeof def>['name']>().toEqualTypeOf<'email'>();
     });
   });
 });

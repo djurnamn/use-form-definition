@@ -10,7 +10,7 @@ export interface FormActionResult<T extends FieldValues = FieldValues> {
   data?: T;
   /**
    * Field validation errors, keyed by field name. Values are display-ready strings
-   * (already translated, if you're doing i18n) — `<RenderedForm>` shows them as-is.
+   * (already translated, if you're doing i18n) - `<RenderedForm>` shows them as-is.
    */
   errors?: Record<string, string | string[]>;
   redirectUrl?: string;
@@ -124,7 +124,7 @@ export interface FormFieldDefinition {
    * When omitted, the library uses the key of this entry in the parent
    * `FormDefinition` object as the field's name (e.g. `{ email: { type: 'text' } }`
    * yields `name: 'email'`). Set this explicitly only when the form field
-   * should have a different `name` from the definition key — e.g. nesting
+   * should have a different `name` from the definition key - e.g. nesting
    * inside a flat HTML name like `user[email]`.
    */
   name?: string;
@@ -135,7 +135,7 @@ export interface FormFieldDefinition {
    * - `"none"`: explicitly hide the label (was `false` in v1)
    * - any other string: use as the translation key (when translation enabled) or as a literal label
    *
-   * Note: the special strings `"auto"` and `"none"` are reserved — a literal label of
+   * Note: the special strings `"auto"` and `"none"` are reserved - a literal label of
    * `"auto"` or `"none"` is not supported. Use a different literal or a translation key.
    */
   label?: string | "auto" | "none";
@@ -198,7 +198,7 @@ export type NestedFieldRenderer = (
  * `ProcessedComponentConfig` has `injectFormConfig: true`.
  *
  * These are how complex field components (e.g. Repeater) access the surrounding
- * form's config — so nested fields render with the same registered components,
+ * form's config - so nested fields render with the same registered components,
  * translation, and defaults as the parent form.
  *
  * The `__` prefix marks these as library-injected and not user-facing: end users
@@ -347,6 +347,14 @@ export interface FormConfig {
    * Overridable per form via `<RenderedForm noValidate>`.
    */
   noValidate?: boolean;
+  /**
+   * Emit native HTML5 validation attributes (`required`, `pattern`, `minLength`,
+   * `maxLength`, `min`, `max`) on rendered inputs, derived from each field's
+   * `validation` rules. Gives a no-JS HTML5 validation layer alongside
+   * react-hook-form / your server action - the counterpart to `noValidate`.
+   * Default: `false` (output is unchanged when off).
+   */
+  emitHtml5Attributes?: boolean;
 }
 
 

@@ -11,6 +11,7 @@ import {
   NestedFieldRenderer,
 } from "../core/types";
 import { generateSchema, generateOptions } from "../core/schema";
+import { deriveHtml5Attributes } from "../core/html5-attributes";
 import { generateSchema as generateSchemaFromBuilder } from "../core/schema/schema-builder";
 import { createFormConfig } from "../configuration/createFormConfig";
 import {
@@ -244,38 +245,34 @@ interface UseFormDefinitionOptions<T extends FormDefinition> {
    *   validated server-side **without JavaScript** (progressive enhancement). With JS,
    *   react-hook-form layers client-side validation on top (the internal form uses
    *   `mode: 'onTouched'` so the user gets feedback before submitting).
-   * - The returned `actionState` is the latest result — render your success / result view
+   * - The returned `actionState` is the latest result - render your success / result view
    *   from it (it survives SSR / no-JS, unlike an `onSuccess` callback).
    * - The returned `isPending` reflects the in-flight submission.
    *
    * The server action should return display-ready (and, for i18n, already-translated)
-   * error strings in `errors` — `<RenderedForm>` shows them as-is. To re-populate the
+   * error strings in `errors` - `<RenderedForm>` shows them as-is. To re-populate the
    * fields on a no-JS validation-error round-trip, also return `values` (e.g.
    * `Object.fromEntries(formData.entries())`).
    *
    * This is also accepted as a prop on `<RenderedForm>` for backwards compatibility, but
-   * passing it here is preferred — only the hook option exposes `actionState`.
+   * passing it here is preferred - only the hook option exposes `actionState`.
    */
   serverAction?: ServerAction<z.infer<ReturnType<typeof generateSchema<T>>>>;
 }
 
 /**
- * Props for the RenderedField component
+ * The first-class, always-typed props of the RenderedField component.
  *
  * The standard runtime overrides (`disabled`, `options`, `label`, `placeholder`,
- * `className`, `style`) are typed and override the definition's default.
- *
- * Any other prop is forwarded to the field component, but only if its key is
- * declared in the field type's `additionalProps` config (otherwise the library
- * filters it out). Full type-checking of forwarded extras is planned for a
- * future minor release.
+ * `className`, `style`) override the definition's default and are typed here.
+ * Custom forwarded extras are added on top by {@link RenderedFieldProps}.
  */
-export interface RenderedFieldProps<T extends FormDefinition> {
+export interface RenderedFieldBaseProps<T extends FormDefinition> {
   /** The field name from the form definition */
   name: keyof T & string;
   /** Runtime override: disable the field (overrides any definition default) */
   disabled?: boolean;
-  /** Runtime override: select options (replaces v1's `optionsCallback` — load async data in your component and pass it here) */
+  /** Runtime override: select options (replaces v1's `optionsCallback` - load async data in your component and pass it here) */
   options?: SelectOption[];
   /** Runtime override: label string (or `false` to hide). Bypasses translation. */
   label?: string | boolean;
@@ -285,11 +282,33 @@ export interface RenderedFieldProps<T extends FormDefinition> {
   className?: string;
   /** Runtime override: forwarded to the field component */
   style?: React.CSSProperties;
-  /** Custom render function for the field (escape hatch — receives the raw field definition) */
+  /** Custom render function for the field (escape hatch - receives the raw field definition) */
   render?: (field: T[keyof T]) => ReactNode;
-  /** Any additional runtime prop forwarded to the field component (subject to the field type's `additionalProps` allowlist) */
-  [key: string]: unknown;
 }
+
+/**
+ * Props for the RenderedField component.
+ *
+ * `Extras` describes the custom runtime props your field components accept -
+ * the keys you declare in each field type's `additionalProps` allowlist. It
+ * defaults to a permissive record, so untyped usage keeps compiling unchanged.
+ * Pass a concrete shape (via the second type argument to {@link useFormDefinition})
+ * to get typo-checking and value types on forwarded extras:
+ *
+ * @example
+ * ```tsx
+ * const { RenderedField } = useFormDefinition<typeof def, { tooltip?: string }>(def);
+ * <RenderedField name="email" tooltip="We never share it." /> // ✓ typed
+ * <RenderedField name="email" toolttip="..." />                 // ✗ typo caught
+ * ```
+ *
+ * Extras are still filtered at runtime against the field type's `additionalProps`
+ * config; typing `Extras` only adds compile-time checking on top.
+ */
+export type RenderedFieldProps<
+  T extends FormDefinition,
+  Extras extends Record<string, unknown> = Record<string, unknown>,
+> = RenderedFieldBaseProps<T> & Partial<Extras>;
 
 /**
  * Props for the RenderedForm component
@@ -298,12 +317,12 @@ export interface RenderedFormProps<TFormData extends FieldValues> {
   /** Submit handler receiving validated form data (client-side). Ignored when a server action is configured. */
   onSubmit?: (data: TFormData) => void | Promise<void>;
   /**
-   * Server action for form submission — an alternative to passing `serverAction` to
+   * Server action for form submission - an alternative to passing `serverAction` to
    * `useFormDefinition()`. The hook option is preferred (it also exposes `actionState`);
    * passing it here keeps it working but `actionState` won't be available from the hook.
    */
   serverAction?: ServerAction<TFormData>;
-  /** Callback when the server action succeeds (client-side only — for SSR/no-JS, render from the hook's `actionState`). */
+  /** Callback when the server action succeeds (client-side only - for SSR/no-JS, render from the hook's `actionState`). */
   onSuccess?: (result: FormActionResult<TFormData>) => void;
   /** Callback when the server action fails (client-side only). */
   onError?: (result: FormActionResult<TFormData>) => void;
@@ -320,7 +339,11 @@ export interface RenderedFormProps<TFormData extends FieldValues> {
   style?: React.CSSProperties;
 }
 
-export interface UseFormDefinitionReturn<T extends FormDefinition, TFormData extends FieldValues = z.infer<ReturnType<typeof generateSchema<T>>>> {
+export interface UseFormDefinitionReturn<
+  T extends FormDefinition,
+  TFormData extends FieldValues = z.infer<ReturnType<typeof generateSchema<T>>>,
+  Extras extends Record<string, unknown> = Record<string, unknown>,
+> {
   /**
    * The react-hook-form instance
    * - If form was passed to useFormDefinition, this is that same instance
@@ -332,7 +355,7 @@ export interface UseFormDefinitionReturn<T extends FormDefinition, TFormData ext
    * Component to render a single field from the definition
    * @example <RenderedField name="email" />
    */
-  RenderedField: React.FC<RenderedFieldProps<T>>;
+  RenderedField: React.FC<RenderedFieldProps<T, Extras>>;
 
   /**
    * Component to render the entire form with all fields
@@ -347,7 +370,7 @@ export interface UseFormDefinitionReturn<T extends FormDefinition, TFormData ext
   Form: React.ComponentType<React.FormHTMLAttributes<HTMLFormElement>>;
 
   /**
-   * Configured Actions component (form action area — submit button(s), cancel, etc.)
+   * Configured Actions component (form action area - submit button(s), cancel, etc.)
    * Falls back to a basic <button type="submit"> if not configured
    */
   Actions: React.ComponentType<React.ButtonHTMLAttributes<HTMLButtonElement>>;
@@ -376,7 +399,7 @@ export interface UseFormDefinitionReturn<T extends FormDefinition, TFormData ext
 
   /**
    * The bound action to pass to `<form action={...}>` for the configured `serverAction`.
-   * `null` if no `serverAction` was provided. Mostly internal — `<RenderedForm>` wires it for you.
+   * `null` if no `serverAction` was provided. Mostly internal - `<RenderedForm>` wires it for you.
    */
   formAction: ((formData: FormData) => void) | null;
 
@@ -393,7 +416,7 @@ export interface UseFormDefinitionReturn<T extends FormDefinition, TFormData ext
 //
 // `RenderedField` / `RenderedForm` are created once per hook instance (stable component
 // identities) and read everything that changes per render from `ctxRef.current`. This avoids
-// recreating those components — and remounting the whole form subtree — every time the parent
+// recreating those components - and remounting the whole form subtree - every time the parent
 // re-renders (config / translationConfig / translateValidation are fresh objects each render).
 // ============================================================================
 
@@ -436,6 +459,11 @@ const renderField = <T extends FormDefinition>(
 
   const fieldName = getFieldName(key, field);
 
+  // Opt-in native HTML5 validation attributes derived from the field's validation rules.
+  // Undefined (and thus a no-op merge) unless `emitHtml5Attributes` is enabled, so the
+  // flag-off render output is unchanged.
+  const html5Attrs = config.emitHtml5Attributes ? deriveHtml5Attributes(field) : undefined;
+
   // If custom render function is provided, use it
   if (customRender) {
     return customRender(field);
@@ -458,6 +486,7 @@ const renderField = <T extends FormDefinition>(
 
     const fieldProps = {
       ...field,
+      ...(html5Attrs ?? {}),
       name: fieldName,
       label: fieldLabel,
       placeholder: fieldPlaceholder,
@@ -534,6 +563,7 @@ const renderField = <T extends FormDefinition>(
         const fieldProps = {
           ...field,
           ...controllerField,
+          ...(html5Attrs ?? {}),
           label: fieldLabel,
           placeholder: fieldPlaceholder,
           error: displayError,
@@ -564,7 +594,7 @@ const renderField = <T extends FormDefinition>(
 };
 
 // Helper to render the actions slot.
-// - `Actions: false` is an explicit opt-out — no actions rendered at all.
+// - `Actions: false` is an explicit opt-out - no actions rendered at all.
 // - `Actions: <Component>` (truthy) renders the registered component.
 // - `Actions: undefined` (not configured) renders a default <button type="submit">.
 const renderActions = (config: FormConfig): ReactNode => {
@@ -668,7 +698,7 @@ const createRenderedForm = <T extends FormDefinition>(
     const ctx = ctxRef.current;
     const { form } = ctx;
 
-    // A server action may be configured on the hook (preferred — also exposes `actionState`
+    // A server action may be configured on the hook (preferred - also exposes `actionState`
     // and re-populates fields on no-JS error round-trips) or passed here as a prop (back-compat).
     // We always call useActionState once so hooks stay unconditional; when the hook option is
     // in play, this local instance is inert (never dispatched).
@@ -683,7 +713,7 @@ const createRenderedForm = <T extends FormDefinition>(
     const hasServerAction = !!formAction;
 
     // Push server validation errors onto react-hook-form (so it owns + clears them on the
-    // client) and fire success/error callbacks. Effects don't run during SSR / without JS —
+    // client) and fire success/error callbacks. Effects don't run during SSR / without JS -
     // there, errors are rendered straight from `actionState` (see `serverErrors` below).
     const lastSeenStateRef = useRef<FormActionResult<any> | null>(null);
     useEffect(() => {
@@ -710,7 +740,7 @@ const createRenderedForm = <T extends FormDefinition>(
 
     // The error map rendered directly into the fields. On the client this is the same data the
     // effect pushes into RHF, so once RHF holds it (as a `type: 'server'` error) the Controller
-    // shows that copy — and RHF clears it when the user fixes the field.
+    // shows that copy - and RHF clears it when the user fixes the field.
     const serverErrors =
       hasServerAction && actionState && actionState.success === false ? actionState.errors : undefined;
 
@@ -725,7 +755,7 @@ const createRenderedForm = <T extends FormDefinition>(
     // Server-action submit handler (used with JS). We keep `action={formAction}` on the form so
     // that *without* JS the browser posts natively to the server-action endpoint (progressive
     // enhancement). *With* JS we intercept here, `preventDefault()` (which tells React to skip its
-    // own `<form action>` handling), run react-hook-form's client validation, and — if it passes —
+    // own `<form action>` handling), run react-hook-form's client validation, and - if it passes -
     // dispatch the action ourselves. Going through React's `<form action>` lifecycle on the client
     // would reset the form's DOM after the action, which desyncs controlled fields (a <select>
     // snaps back to its first option while RHF still holds the chosen value); dispatching manually
@@ -736,7 +766,7 @@ const createRenderedForm = <T extends FormDefinition>(
       e.preventDefault();
       if (!formAction) return;
       const formData = new globalThis.FormData(e.currentTarget);
-      // Drop React's progressive-enhancement bookkeeping inputs ($ACTION_REF_*, $ACTION_*, …) so
+      // Drop React's progressive-enhancement bookkeeping inputs ($ACTION_REF_*, $ACTION_*, ...) so
       // they don't leak into the validated data or the echoed `values`.
       for (const fieldKey of Array.from(formData.keys())) {
         if (fieldKey.startsWith('$ACTION')) formData.delete(fieldKey);
@@ -813,10 +843,13 @@ const createRenderedForm = <T extends FormDefinition>(
  * const { RenderedField } = useFormDefinition(definition, { form });
  * ```
  */
-export const useFormDefinition = <T extends FormDefinition>(
+export const useFormDefinition = <
+  T extends FormDefinition,
+  Extras extends Record<string, unknown> = Record<string, unknown>,
+>(
   definition: T,
   options: UseFormDefinitionOptions<T> = {}
-): UseFormDefinitionReturn<T> => {
+): UseFormDefinitionReturn<T, z.infer<ReturnType<typeof generateSchema<T>>>, Extras> => {
   const { form: formOption, config: userConfig, serverAction } = options;
 
   // Memoize schema generation - this is expensive and should only happen when definition changes
@@ -906,7 +939,11 @@ export const useFormDefinition = <T extends FormDefinition>(
       RenderedForm: createRenderedForm(ctxRef),
     };
   }
-  const RenderedField = componentsRef.current.RenderedField;
+  // The runtime component filters extras via each field type's `additionalProps`
+  // allowlist; `Extras` only re-labels its prop type for compile-time checking.
+  const RenderedField = componentsRef.current.RenderedField as React.FC<
+    RenderedFieldProps<T, Extras>
+  >;
   const RenderedForm = componentsRef.current.RenderedForm as React.FC<
     RenderedFormProps<z.infer<ReturnType<typeof generateSchema<T>>>>
   >;

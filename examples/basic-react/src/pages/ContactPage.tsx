@@ -11,8 +11,15 @@ type FormData = {
   newsletter?: boolean;
 };
 
+// Custom runtime props our registered field components accept (see lib/form.ts).
+// Passing this as the second type argument makes `helpText` typed on RenderedField.
+type FieldExtras = { helpText?: string };
+
 export function ContactPage() {
-  const { form, Form, RenderedField, Actions } = useFormDefinition(contactFormDefinition);
+  const { form, Form, RenderedField, Actions } = useFormDefinition<
+    typeof contactFormDefinition,
+    FieldExtras
+  >(contactFormDefinition);
   const subject = form.watch('subject');
   const [submittedData, setSubmittedData] = useState<FormData | null>(null);
 
@@ -49,8 +56,10 @@ export function ContactPage() {
       </p>
 
       <Form onSubmit={form.handleSubmit(onSubmit)}>
-        <RenderedField name="name" />
-        <RenderedField name="email" />
+        {/* `helpText` is a typed forwarded extra (FieldExtras). A typo or a
+            non-string value here would be a compile error. */}
+        <RenderedField name="name" helpText="As it appears on your account." />
+        <RenderedField name="email" helpText="We'll only use this to reply." />
         <RenderedField name="subject" />
         {subject === 'other' && <RenderedField name="customSubject" />}
         <RenderedField name="message" />

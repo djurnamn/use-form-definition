@@ -1,16 +1,16 @@
-# shadcn/ui Example
+# shadcn/ui example
 
 This example demonstrates `use-form-definition` with shadcn/ui and Tailwind CSS, showing how definition-driven forms simplify the typical shadcn + react-hook-form + zod setup.
 
-## Features Demonstrated
+## Features demonstrated
 
-- **Definition-driven forms** - Replace manual form composition with declarative definitions
+- **Definition-driven forms** - replace manual form composition with declarative definitions
 - **shadcn/ui components** - Input, Select, Checkbox, Textarea, Button
-- **Tailwind CSS v4** - Modern utility-first styling
-- **Custom Field wrapper** - Consistent label and error handling
-- **Responsive layout** - Grid-based layout with half-width support
+- **Tailwind CSS v4** - utility-first styling
+- **Custom Field wrapper** - consistent label and error handling
+- **Responsive layout** - grid-based layout with half-width support
 
-## Running the Example
+## Running the example
 
 ```bash
 # From the repository root
@@ -23,7 +23,7 @@ cd examples/shadcn
 pnpm dev
 ```
 
-## Project Structure
+## Project structure
 
 ```
 shadcn/
@@ -60,7 +60,7 @@ shadcn/
 
 ## Why use-form-definition with shadcn?
 
-The traditional shadcn/ui + react-hook-form + zod approach requires significant boilerplate:
+The usual shadcn/ui + react-hook-form + zod approach repeats the same wiring for every field:
 
 ```tsx
 // Traditional approach
@@ -122,9 +122,9 @@ function MyForm() {
 }
 ```
 
-## Key Concepts
+## Key concepts
 
-### Form Hook Configuration
+### Form hook configuration
 
 ```typescript
 // lib/form.tsx
@@ -161,7 +161,7 @@ export const useFormDefinition = createFormDefinitionHook({
 });
 ```
 
-### Form Definition
+### Form definition
 
 ```typescript
 // forms/user.ts
@@ -183,12 +183,13 @@ export const userFormDefinition: FormDefinition = {
     label: 'Email',
     validation: { required: true }
   },
-  role: {
+  theme: {
     type: 'select',
-    label: 'Role',
+    label: 'Theme',
     options: [
-      { value: 'user', label: 'User' },
-      { value: 'admin', label: 'Admin' }
+      { value: 'light', label: 'Light' },
+      { value: 'dark', label: 'Dark' },
+      { value: 'system', label: 'Match system' }
     ],
     validation: { required: true }
   },
@@ -200,7 +201,7 @@ export const userFormDefinition: FormDefinition = {
 };
 ```
 
-### Layout System
+### Layout system
 
 The example uses a Tailwind-based grid layout:
 
