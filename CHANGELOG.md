@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-07-07
+
+### Fixed
+
+- **The `use-form-definition/server` entry no longer loads React.** It re-exported `generateDataValidator` from `core/schema`, a module that also exports `generateOptions` and so transitively imported `@hookform/resolvers/zod`, `react-hook-form` (`createContext`), and React's `useId`. Importing the server entry from a React-free context such as a Next.js server action therefore pulled React onto the server. `generateDataValidator` now lives in its own React-free module (`core/schema/data-validator.ts`) that the server entry imports directly, so the built `dist/server.*` bundles reference neither `react` nor `@hookform/resolvers`. The public API is unchanged.
+- **Nested fields inside a repeater now get their presentation data translated.** The repeater cell renderer spread raw field definitions, so a nested `select`'s option labels and a field's `placeholder` showed their translation keys instead of the resolved text. It now runs the same `resolveFieldPresentationData` step as top-level fields. The field label stays suppressed, since a repeater's column header already carries it.
+
 ## [2.1.0] - 2026-06-17
 
 ### Added

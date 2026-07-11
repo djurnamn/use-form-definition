@@ -146,7 +146,8 @@ export type { NestedFieldRenderer };
  */
 const createNestedFieldRenderer = (
   config: FormConfig,
-  translateValidation: (key: string, options?: Record<string, any>) => string
+  translateValidation: (key: string, options?: Record<string, any>) => string,
+  translationConfig: Parameters<typeof resolveFieldPresentationData>[2]
 ): NestedFieldRenderer => {
   return (
     fieldKey: string,
@@ -191,12 +192,20 @@ const createNestedFieldRenderer = (
       }
     };
 
+    // Nested fields get the same translation resolution as top-level ones
+    // (options labels, placeholder) — only the label stays suppressed, since
+    // in repeater context labels are typically in the header.
+    const { placeholder: resolvedPlaceholder, options: resolvedOptions } =
+      resolveFieldPresentationData(fieldDefinition, fieldKey, translationConfig);
+
     const fieldProps = {
       name: namePrefix || fieldKey,
       value,
       onChange: wrappedOnChange,
       error,
       ...fieldDefinition,
+      ...(resolvedPlaceholder !== undefined ? { placeholder: resolvedPlaceholder } : {}),
+      ...(resolvedOptions ? { options: resolvedOptions } : {}),
       // In repeater context, labels are typically in the header
       label: undefined,
     };
@@ -498,7 +507,7 @@ const renderField = <T extends FormDefinition>(
 
     if (componentConfig.injectFormConfig) {
       componentProps.__formConfig = config;
-      componentProps.__renderNestedField = createNestedFieldRenderer(config, translateValidation);
+      componentProps.__renderNestedField = createNestedFieldRenderer(config, translateValidation, translationConfig);
       componentProps.__getDefaultValueForField = getDefaultValueForField;
     }
 
@@ -575,7 +584,7 @@ const renderField = <T extends FormDefinition>(
 
         if (componentConfig.injectFormConfig) {
           componentProps.__formConfig = config;
-          componentProps.__renderNestedField = createNestedFieldRenderer(config, translateValidation);
+          componentProps.__renderNestedField = createNestedFieldRenderer(config, translateValidation, translationConfig);
           componentProps.__getDefaultValueForField = getDefaultValueForField;
         }
 
