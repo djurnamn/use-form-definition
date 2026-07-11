@@ -114,6 +114,24 @@ return (
 
 The same pattern applies to per-field runtime props like `disabled` or `options`: pass them as props on `<RenderedField>` and the prop wins over the definition default. See [examples/basic-react/src/pages/ContactPage.tsx](./examples/basic-react/src/pages/ContactPage.tsx) for a working example.
 
+`<Form>` submits client-side only. If the form has a `serverAction` and you still want a custom layout (conditional fields, multi-column sections, an image beside the inputs), pass `children` to `<RenderedForm>` instead: your body renders in place of the automatic field grid, but `RenderedForm` keeps the whole progressive-enhancement path - `<form action>`, no-JS submission, and server errors on the fields. Compose it from the hook's `RenderedField` and `Actions`:
+
+```tsx
+const { form, RenderedForm, RenderedField, Actions } = useFormDefinition(definition, { serverAction });
+const subject = form.watch('subject');
+
+return (
+  <RenderedForm>
+    <RenderedField name="name" />
+    {subject === 'other' && <RenderedField name="customSubject" />}
+    <RenderedField name="message" />
+    <Actions />
+  </RenderedForm>
+);
+```
+
+See [Custom layout](./docs/api-reference.md#custom-layout) for details.
+
 To type custom props your field components accept (anything beyond the standard overrides), pass a second type argument to the hook: `useFormDefinition<typeof definition, { tooltip?: string }>(definition)`. Those props are then checked on `<RenderedField>`, so a typo or wrong value type is a compile error. Without it they stay permissively typed; either way they're filtered at runtime against each field type's allowlist.
 
 ## Copy and customize components

@@ -14,8 +14,9 @@ export type RepeaterRowData = Record<string, unknown>;
  * Repeater component props
  *
  * Extends `Partial<InternalComponentProps>` to declare the library-injected props
- * (`__formConfig`, `__renderNestedField`, `__getDefaultValueForField`) that
- * arrive when this component is registered with `injectFormConfig: true`.
+ * (`__formConfig`, `__renderNestedField`, `__getDefaultValueForField`,
+ * `__resolveFieldLabel`) that arrive when this component is registered with
+ * `injectFormConfig: true`.
  */
 export interface RepeaterProps extends Partial<InternalComponentProps> {
   name: string;
@@ -75,6 +76,7 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
       __formConfig,
       __renderNestedField,
       __getDefaultValueForField,
+      __resolveFieldLabel,
     },
     ref
   ) => {
@@ -222,7 +224,10 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
               <tr>
                 {fieldKeys.map((fieldKey) => (
                   <th key={fieldKey}>
-                    {fields[fieldKey].label || fieldKey}
+                    {/* Prefer the injected resolver so translation-key labels render translated;
+                        fall back to the raw label (or the field key) for standalone use. */}
+                    {__resolveFieldLabel?.(fieldKey, fields[fieldKey]) ??
+                      (fields[fieldKey].label || fieldKey)}
                   </th>
                 ))}
                 <th />

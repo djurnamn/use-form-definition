@@ -123,6 +123,41 @@ const advancedDefinition: FormDefinition = {
 };
 ```
 
+## Column headers and translation
+
+By default each column header shows the nested field's `label`, falling back to the field key. Per-cell labels are suppressed (in a table the label belongs in the header, not repeated in every row), so the header is the only place a nested label appears.
+
+When a `translation.hook` is configured and the nested labels are translation keys, the built-in `Repeater` resolves each header through the parent form's translation config, so the `<th>` shows the translated string rather than the key - no per-field change needed. `hideHeader: true` still removes the header row entirely.
+
+If you build your own repeater (or any complex component registered with `injectFormConfig: true`) that renders its own headers, use the injected `__resolveFieldLabel` to translate them the same way:
+
+```tsx
+interface MyRepeaterProps extends Partial<InternalComponentProps> {
+  name: string;
+  fields: FormDefinition;
+}
+
+function MyRepeater({ fields, __resolveFieldLabel }: MyRepeaterProps) {
+  return (
+    <table>
+      <thead>
+        <tr>
+          {Object.keys(fields).map((key) => (
+            <th key={key}>
+              {/* Translated when a hook is configured; raw label (or key) otherwise. */}
+              {__resolveFieldLabel?.(key, fields[key]) ?? (fields[key].label || key)}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      {/* ...rows via __renderNestedField... */}
+    </table>
+  );
+}
+```
+
+`__resolveFieldLabel` returns the translated string when a hook is configured, the raw label otherwise, or `undefined` when the field has no label - keep the `?? (fields[key].label || key)` fallback so the component also works standalone (without the form hook), where the prop is absent.
+
 ## How it works
 
 A repeater's `fields` is an ordinary `FormDefinition`, the same shape used at the root, so each row renders through your configured field components and there are no special column types to learn. The inferred type for the field is an array of the row's shape (see [Type inference](./type-inference.md)).

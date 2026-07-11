@@ -21,6 +21,9 @@ interface FormDefinitionHookConfig {
   formComponents?: {
     Field?: React.ComponentType<any>;
     Form?: React.ComponentType<any>;
+    // Form-level message region (see FormMessage). Receives { message, status }.
+    // Defaults to the built-in accessible FormMessage; set to false to opt out.
+    FormMessage?: React.ComponentType<any> | false;
     LayoutContainer?: React.ComponentType<any> | false;
     LayoutItem?: React.ComponentType<any> | false;
     Actions?: React.ComponentType<any> | false;
@@ -105,6 +108,7 @@ const {
   RenderedForm,
   Form,
   Actions,
+  FormMessage,
   LayoutContainer,
   LayoutItem
 } = useFormDefinition(definition, options?);
@@ -134,6 +138,7 @@ const {
 | `RenderedForm` | Component | Auto-renders entire form with layout |
 | `Form` | Component | Form wrapper for custom layouts |
 | `Actions` | Component | Form actions slot (defaults to a submit button; render any action UI) |
+| `FormMessage` | Component \| `null` | Form-level message region (see [FormMessage](#formmessage)); the configured component, for manual composition. `null` when the slot is set to `false` |
 | `LayoutContainer` | Component | Layout container (optional) |
 | `LayoutItem` | Component | Layout item (optional) |
 | `actionState` | `FormActionResult \| null` | Latest result from the configured `serverAction`; `null` until the first submission, or if no `serverAction` was provided. Render your success / result view from this so it works with or without JS. |
@@ -323,7 +328,8 @@ Auto-renders all fields with layout and an actions slot.
 | `onSubmit` | `(data) => void` | Called with validated data (client-side forms only) |
 | `serverAction` | `FormAction` | Server action, as an alternative to passing it to `useFormDefinition`. The hook option is preferred - only it exposes `actionState`. |
 | `onSuccess` / `onError` | `(result: FormActionResult) => void` | Client-side callbacks for a server-action result. (For SSR / no-JS, render from the hook's `actionState` instead - effects don't run there.) |
-| `showActions` | `boolean` | Render the actions slot (default `true`) |
+| `showActions` | `boolean` | Render the actions slot (default `true`). Ignored when `children` is provided |
+| `children` | `ReactNode` | Custom form body, rendered instead of the automatic field grid while `RenderedForm` keeps all form wiring. Compose from `RenderedField` + `Actions`. See [Custom layout](#custom-layout) |
 | `noValidate` | `boolean` | Set `noValidate` on the `<form>`; overrides the hook/config `noValidate` for this form |
 | `className`, `style` | - | Passed to the `<form>` |
 
@@ -367,6 +373,32 @@ export async function createUser(prevState: unknown, formData: FormData) {
 }
 ```
 
+#### Custom layout
+
+By default `<RenderedForm>` lays out the fields itself (`LayoutContainer` / a `LayoutItem` per field). Pass `children` to supply your own body instead - it renders in place of the automatic grid, while `RenderedForm` keeps owning all the form wiring above: the `<form action>` / `onSubmit` progressive-enhancement path, `actionState` → `form.setError`, no-JS value repopulation, and the `onSuccess` / `onError` callbacks. Compose the body from the hook's `RenderedField` and `Actions`, arranged however you like:
+
+```tsx
+const { RenderedForm, RenderedField, Actions } = useFormDefinition(definition, {
+  serverAction: createUser,
+});
+
+return (
+  <RenderedForm>
+    <div className="two-column">
+      <RenderedField name="avatar" />
+      <div>
+        <RenderedField name="name" />
+        <RenderedField name="slug" />
+      </div>
+    </div>
+    <RenderedField name="bio" />
+    <Actions />
+  </RenderedForm>
+);
+```
+
+Each hand-placed `RenderedField` still shows the server action's field errors on SSR / no-JS, so progressive enhancement survives a bespoke layout. That is the difference from dropping down to [`Form`](#form) + `RenderedField`, which also gives full layout control but is client-only submission - it loses the server-action wiring. `showActions` is ignored in this mode; place `<Actions />` yourself.
+
 ### Form
 
 Wrapper component for custom layouts.
@@ -385,6 +417,36 @@ The form's actions slot. Defaults to a single submit button, but can render any 
 <Actions>Submit</Actions>
 <Actions disabled={!form.formState.isValid}>Save</Actions>
 ```
+
+### FormMessage
+
+The form-level message region. `<RenderedForm>` renders it inside the `<form>`, above the fields, whenever the form carries a message that has no per-field home - a rate-limit refusal, an expired reset link, "invalid credentials", and so on. It surfaces the message from either channel:
+
+- a **server-action envelope** `message` (`actionState.message`), with severity taken from the result's `success` flag (`error` / `success` / `info`); and
+- a **client-side whole-form error** as react-hook-form's `root` error (`form.setError('root', ...)`), always `error` severity.
+
+The envelope takes precedence when both are present, and the region renders nothing when there is no message. So a server action can refuse the whole form without inventing a fake field:
+
+```ts
+// server action
+return { success: false, message: 'Reset link is invalid or expired' };
+```
+
+Register your own component to restyle it - the same way you supply `Field` and `Actions`:
+
+```tsx
+const useFormDefinition = createFormDefinitionHook({
+  formComponents: {
+    FormMessage: ({ message, status }) => (
+      <Banner tone={status}>{message}</Banner>
+    ),
+  },
+});
+```
+
+A registered component receives `{ message: string; status?: 'error' | 'success' | 'info' }`. Set the slot to `false` to opt out of the region entirely - `RenderedForm` renders no region and the hook returns `FormMessage: null`. The built-in default is minimal and accessible: a single element with `role="alert"` for errors (`role="status"` otherwise), plus `data-status` and `data-form-message` styling hooks.
+
+If your server action already returns a `message` that you render yourself from `actionState`, note that it will now also appear in this region; opt out with `FormMessage: false` to keep your own rendering.
 
 ### Conditional rendering
 
@@ -407,6 +469,8 @@ return (
 ```
 
 The same pattern is the canonical place to apply runtime overrides like `disabled` or async-loaded `options` - the runtime data lives at the JSX site, not inside the static definition.
+
+> `<Form>` here submits client-side only. If the form has a `serverAction`, put the same `form.watch()`-driven fields inside [`<RenderedForm>`'s `children`](#custom-layout) instead - you keep the show/hide logic *and* the server-action wiring (`<form action>`, no-JS submission, server errors on the fields).
 
 ---
 

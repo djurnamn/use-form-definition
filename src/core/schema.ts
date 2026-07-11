@@ -33,6 +33,6 @@ export const generateOptions = <T extends FormDefinition>(
   } as const;
 };
 
-// Generate data validator function — implemented in its own React-free
+// Generate data validator function - implemented in its own React-free
 // module so the `./server` entry can re-export it directly.
 export { generateDataValidator } from "./schema/data-validator";

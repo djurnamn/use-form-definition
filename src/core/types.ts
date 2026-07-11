@@ -230,6 +230,13 @@ export interface InternalComponentProps {
   __renderNestedField: NestedFieldRenderer;
   /** Default-value resolver, for seeding new rows / nested instances. */
   __getDefaultValueForField: (field: { type: string; defaultValue?: unknown }) => unknown;
+  /**
+   * Resolve a nested field's display label with the parent form's translation config.
+   * Returns the translated string when a `translation.hook` is configured, the raw label
+   * otherwise, or `undefined` when the field has no label. Lets a complex component (e.g.
+   * a Repeater rendering its own column headers) translate labels the same way the cells do.
+   */
+  __resolveFieldLabel: (fieldKey: string, fieldDefinition: FormFieldDefinition) => string | undefined;
 }
 
 // Translation configuration types
@@ -330,6 +337,13 @@ export interface FormConfig {
   components: {
     Form?: React.ComponentType<any>;
     Field?: React.ComponentType<any>;
+    /**
+     * Form-level message region, rendered inside the `<form>` above the fields whenever the
+     * form carries a whole-form message (a server-action envelope `message`, or a react-hook-form
+     * `root` error). Receives `{ message, status }`. Defaults to the built-in `FormMessage`
+     * (minimal, accessible: `role="alert"` for errors). Set to `false` to opt out of the region.
+     */
+    FormMessage?: React.ComponentType<any> | false;
     LayoutContainer?: React.ComponentType<any> | false;
     LayoutItem?: React.ComponentType<any> | false;
     Actions?: React.ComponentType<any> | false;

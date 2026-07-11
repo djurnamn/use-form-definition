@@ -1,5 +1,5 @@
 import React, { ReactNode, useMemo, FormEvent, useEffect, useRef, useActionState, startTransition } from "react";
-import { Controller, FieldValues, UseFormReturn, DefaultValues, useForm, FieldError } from "react-hook-form";
+import { Controller, FieldValues, UseFormReturn, DefaultValues, useForm, useFormState, FieldError, Control } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -25,6 +25,7 @@ import {
   type NormalizedTranslationConfig,
 } from "../core/utilities";
 import Field from "../components/Field";
+import { FormMessage, FormMessageStatus } from "../components/FormMessage";
 
 /**
  * Parse validation error message
@@ -193,7 +194,7 @@ const createNestedFieldRenderer = (
     };
 
     // Nested fields get the same translation resolution as top-level ones
-    // (options labels, placeholder) — only the label stays suppressed, since
+    // (options labels, placeholder) - only the label stays suppressed, since
     // in repeater context labels are typically in the header.
     const { placeholder: resolvedPlaceholder, options: resolvedOptions } =
       resolveFieldPresentationData(fieldDefinition, fieldKey, translationConfig);
@@ -335,8 +336,33 @@ export interface RenderedFormProps<TFormData extends FieldValues> {
   onSuccess?: (result: FormActionResult<TFormData>) => void;
   /** Callback when the server action fails (client-side only). */
   onError?: (result: FormActionResult<TFormData>) => void;
-  /** Whether to show the actions slot (default: true) */
+  /** Whether to show the actions slot (default: true). Ignored when `children` is provided. */
   showActions?: boolean;
+  /**
+   * Custom layout for the form body. When provided, these children are rendered inside the
+   * form element **instead of** the automatic field grid (`LayoutContainer` / `LayoutItem`
+   * per-field layout), while `RenderedForm` keeps owning all form wiring: the `<form action>`
+   * / `onSubmit` progressive-enhancement path, `actionState` → `form.setError`, no-JS value
+   * re-population, and the `onSuccess` / `onError` callbacks.
+   *
+   * Compose the body from the hook's `RenderedField` (each still shows server-action errors on
+   * SSR / no-JS) and `Actions`, arranged however you like:
+   *
+   * ```tsx
+   * const { RenderedForm, RenderedField, Actions } = useFormDefinition(def, { serverAction });
+   * <RenderedForm>
+   *   <MyTwoColumnLayout
+   *     left={<RenderedField name="image" />}
+   *     right={<><RenderedField name="name" /><RenderedField name="slug" /></>}
+   *   />
+   *   <RenderedField name="description" />
+   *   <Actions />
+   * </RenderedForm>
+   * ```
+   *
+   * `showActions` is ignored in this mode - place `<Actions />` yourself.
+   */
+  children?: ReactNode;
   /**
    * Set `noValidate` on the `<form>`, disabling the browser's built-in HTML5 constraint
    * validation. Overrides the hook/config `noValidate` for this form.
@@ -383,6 +409,14 @@ export interface UseFormDefinitionReturn<
    * Falls back to a basic <button type="submit"> if not configured
    */
   Actions: React.ComponentType<React.ButtonHTMLAttributes<HTMLButtonElement>>;
+
+  /**
+   * Configured FormMessage component (the form-level message region).
+   * `RenderedForm` renders this automatically above the fields when the form carries a
+   * whole-form message; it's also returned here for manual composition. Falls back to the
+   * built-in `FormMessage` if not configured; `null` when the slot is set to `false` (opted out).
+   */
+  FormMessage: React.ComponentType<{ message: string; status?: FormMessageStatus }> | null;
 
   /**
    * Configured LayoutContainer component for grid layouts
@@ -509,6 +543,8 @@ const renderField = <T extends FormDefinition>(
       componentProps.__formConfig = config;
       componentProps.__renderNestedField = createNestedFieldRenderer(config, translateValidation, translationConfig);
       componentProps.__getDefaultValueForField = getDefaultValueForField;
+      componentProps.__resolveFieldLabel = (fieldKey: string, fieldDefinition: FormFieldDefinition) =>
+        resolveFieldPresentationData(fieldDefinition, fieldKey, translationConfig).label;
     }
 
     if (shouldIgnoreWrapper) {
@@ -586,6 +622,8 @@ const renderField = <T extends FormDefinition>(
           componentProps.__formConfig = config;
           componentProps.__renderNestedField = createNestedFieldRenderer(config, translateValidation, translationConfig);
           componentProps.__getDefaultValueForField = getDefaultValueForField;
+          componentProps.__resolveFieldLabel = (fieldKey: string, fieldDefinition: FormFieldDefinition) =>
+            resolveFieldPresentationData(fieldDefinition, fieldKey, translationConfig).label;
         }
 
         if (shouldIgnoreWrapper) {
@@ -610,6 +648,58 @@ const renderActions = (config: FormConfig): ReactNode => {
   const Actions = config.components.Actions;
   if (Actions === false) return null;
   return Actions ? <Actions /> : <button type="submit">Submit</button>;
+};
+
+/**
+ * Form-level message region, rendered inside the `<form>` above the fields.
+ *
+ * Surfaces a whole-form message from either channel, so a component binding gets a first-class
+ * place to show it instead of rendering outside the form:
+ *  - a server-action envelope `message` (`actionState.message`), with severity derived from the
+ *    result's `success` flag (`error` / `success` / `info`); and
+ *  - a client-side whole-form error the resolver / consumer produces as react-hook-form's `root`
+ *    error (`form.setError('root', ...)`), always `error` severity.
+ *
+ * The envelope message takes precedence when both are present. Renders nothing when there is no
+ * message, or when the `FormMessage` slot is set to `false`. Its own component subscribes to the
+ * `root` error via `useFormState` so a client-side root error appears/clears reactively without
+ * re-rendering the whole field grid.
+ */
+interface FormMessageSlotProps {
+  config: FormConfig;
+  control: Control<any>;
+  /** Whole-form message from a server-action envelope, if any. */
+  envelopeMessage?: string;
+  /** Severity for the envelope message. */
+  envelopeStatus?: FormMessageStatus;
+}
+
+const FormMessageSlot: React.FC<FormMessageSlotProps> = ({
+  config,
+  control,
+  envelopeMessage,
+  envelopeStatus,
+}) => {
+  const { errors } = useFormState({ control });
+  const rootError = errors?.root as FieldError | undefined;
+
+  let message: string | undefined;
+  let status: FormMessageStatus | undefined;
+  if (envelopeMessage) {
+    message = envelopeMessage;
+    status = envelopeStatus ?? "error";
+  } else if (rootError?.message) {
+    message = rootError.message;
+    status = "error";
+  }
+
+  if (!message) return null;
+
+  const Component = config.components.FormMessage;
+  if (Component === false) return null;
+
+  const FormMessageComponent = Component || FormMessage;
+  return <FormMessageComponent message={message} status={status} />;
 };
 
 // Helper to render all fields with layout
@@ -685,7 +775,17 @@ const createRenderedField = <T extends FormDefinition>(
     if (className !== undefined) runtimeOverrides.className = className;
     if (style !== undefined) runtimeOverrides.style = style;
 
-    return <>{renderField(ctxRef.current, name, runtimeOverrides, render)}</>;
+    // Derive the same server-error map `renderAllFields` passes down, so a field placed by hand
+    // in a custom `RenderedForm` layout still shows server-action errors on SSR / no-JS (before
+    // the client setError effect runs). No-op without a server action or a successful result.
+    const ctx = ctxRef.current;
+    const hasServerAction = !!ctx.formAction;
+    const serverErrors =
+      hasServerAction && ctx.actionState && ctx.actionState.success === false
+        ? ctx.actionState.errors
+        : undefined;
+
+    return <>{renderField(ctx, name, runtimeOverrides, render, serverErrors)}</>;
   };
   Component.displayName = 'RenderedField';
   return Component;
@@ -700,6 +800,7 @@ const createRenderedForm = <T extends FormDefinition>(
     onSuccess,
     onError,
     showActions = true,
+    children,
     noValidate: noValidateProp,
     className,
     style,
@@ -798,11 +899,38 @@ const createRenderedForm = <T extends FormDefinition>(
     }
 
     const FormComponent = ctx.config.components.Form;
-    const formContent = renderAllFields(ctx, showActions, serverErrors);
+    // A custom layout (`children`) replaces the automatic field grid, but keeps every bit of
+    // form wiring above (action, onSubmit, setError effect, callbacks). Fields inside compose
+    // from the hook's `RenderedField`, which reads the same server errors from the render
+    // context, so SSR / no-JS server-side errors still render per field.
+    const formContent =
+      children !== undefined ? children : renderAllFields(ctx, showActions, serverErrors);
+
+    // The whole-form message region sits inside the form, above the fields, in both the
+    // automatic-grid and custom-layout modes. It carries the server-action envelope `message`
+    // (severity from the result's `success` flag) and falls back to a react-hook-form `root`
+    // error; it renders nothing when neither is present.
+    const envelopeMessage = actionState?.message;
+    const envelopeStatus: FormMessageStatus | undefined = actionState
+      ? actionState.success === false
+        ? "error"
+        : actionState.success === true
+          ? "success"
+          : "info"
+      : undefined;
+    const formMessage = (
+      <FormMessageSlot
+        config={ctx.config}
+        control={form.control}
+        envelopeMessage={envelopeMessage}
+        envelopeStatus={envelopeStatus}
+      />
+    );
 
     if (FormComponent) {
       return (
         <FormComponent {...formProps}>
+          {formMessage}
           {formContent}
         </FormComponent>
       );
@@ -810,6 +938,7 @@ const createRenderedForm = <T extends FormDefinition>(
 
     return (
       <form {...formProps}>
+        {formMessage}
         {formContent}
       </form>
     );
@@ -821,8 +950,8 @@ const createRenderedForm = <T extends FormDefinition>(
 /**
  * Form definition hook with automatic type inference
  *
- * This hook leverages TypeScript's type inference and Zod's schema typing
- * capabilities for full type safety.
+ * This hook uses TypeScript's type inference and Zod's schema typing
+ * for full type safety.
  *
  * @example Simple usage (hook manages useForm internally)
  * ```typescript
@@ -989,6 +1118,12 @@ export const useFormDefinition = <
   // Get configured components or use defaults
   const FormComponent = config.components.Form || DefaultForm;
   const ActionsComponent = config.components.Actions || DefaultActions;
+  // `false` means the consumer opted out of the region entirely - return null rather than
+  // handing back a component they explicitly disabled.
+  const FormMessageComponent =
+    config.components.FormMessage === false
+      ? null
+      : config.components.FormMessage || FormMessage;
   const LayoutContainerComponent = config.components.LayoutContainer || null;
   const LayoutItemComponent = config.components.LayoutItem || null;
 
@@ -998,6 +1133,7 @@ export const useFormDefinition = <
     RenderedForm,
     Form: FormComponent,
     Actions: ActionsComponent,
+    FormMessage: FormMessageComponent,
     LayoutContainer: LayoutContainerComponent,
     LayoutItem: LayoutItemComponent,
     actionState,

@@ -82,7 +82,7 @@ export const parseValidationErrors = (
 // Schema generation (Zod only, no React)
 export { generateSchema } from "./core/schema/schema-builder";
 
-// Data validator for server-side validation (React-free module — importing
+// Data validator for server-side validation (React-free module - importing
 // it from ./core/schema would drag @hookform/resolvers → react-hook-form
 // into the server bundle)
 export { generateDataValidator } from "./core/schema/data-validator";

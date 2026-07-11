@@ -1,6 +1,6 @@
 {
   "name": "use-form-definition",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "A UI-agnostic React form library that generates forms from simple field definitions with Zod validation and React Hook Form integration",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

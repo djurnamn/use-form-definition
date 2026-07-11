@@ -9,6 +9,20 @@ import { patterns } from "../../validation/patterns";
  */
 
 /**
+ * Normalizes a blank submitted value to `undefined` ("no value set").
+ *
+ * A form control that the user left empty submits an empty string (react-hook-form
+ * keeps `""`, and an HTML form posts `""` in FormData) rather than `undefined`. For
+ * coerced field types that would turn `""` into a wrong concrete value - `Number("")`
+ * is `0`, `new Date("")` is an Invalid Date - this collapses a blank (empty or
+ * whitespace-only) string to `undefined` *before* coercion, so an optional blank field
+ * stays absent and a required blank field is caught by the normal required check.
+ * Non-string and non-blank values pass through untouched.
+ */
+const blankToUndefined = (value: unknown): unknown =>
+  typeof value === "string" && value.trim() === "" ? undefined : value;
+
+/**
  * Creates a string field schema (text, email, password, etc.)
  */
 export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
@@ -221,7 +235,14 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
  * Creates a number field schema
  */
 export const createNumberFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
-  let numberSchema: z.ZodTypeAny = z.coerce.number().optional();
+  // A blank/whitespace value means "no number set". Normalize it to undefined *before*
+  // coercion - `Number("")` is `0`, so without this an optional blank would submit as `0`
+  // and a required blank would slip past the required check as `0`. A real "0" (or any
+  // other non-blank value) is untouched and still coerces to its number.
+  let numberSchema: z.ZodTypeAny = z.preprocess(
+    blankToUndefined,
+    z.coerce.number().optional()
+  );
 
   // Apply numeric validations
   if (field.validation?.min !== undefined) {
@@ -262,10 +283,13 @@ export const createNumberFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
  * Creates a date field schema
  */
 export const createDateFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
-  let dateSchema = z
+  // Coerce a string or Date to a Date. `.optional()` lets a genuinely-absent value through
+  // so the blank-normalization below (undefined) doesn't hit the string/date union.
+  const toDate = z
     .string()
     .or(z.date())
-    .transform((arg) => new Date(arg));
+    .transform((arg) => new Date(arg))
+    .optional();
 
   // Handle required validation
   if (field.validation?.required) {
@@ -273,15 +297,22 @@ export const createDateFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny 
       field.validation.required,
       "required"
     );
-    return dateSchema.refine(
-      (val) => val !== null && !isNaN(val.getTime()),
-      { message }
+    // A blank/whitespace value means "no date set". Normalize it to undefined *before* the
+    // Date transform - `new Date("")` is an Invalid Date, which `.optional()` (guarding only
+    // undefined) would not catch - so the required check below reports the friendly required
+    // message instead of leaking an Invalid Date.
+    return z.preprocess(
+      blankToUndefined,
+      toDate.refine(
+        (val) => val instanceof Date && !isNaN(val.getTime()),
+        { message }
+      )
     );
-  } else if (!field.validation?.requiredWhen) {
-    return dateSchema.optional();
   }
 
-  return dateSchema;
+  // Optional (and requiredWhen, which the schema builder makes optional + adds its cross-field
+  // rule to): a blank stays absent instead of becoming an Invalid Date.
+  return z.preprocess(blankToUndefined, toDate);
 };
 
 /**

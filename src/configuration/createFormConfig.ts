@@ -4,6 +4,7 @@ import { getDefaultFieldTypes } from "./defaultFieldTypes";
 import { LayoutContainer } from "../components/LayoutContainer";
 import { LayoutItem } from "../components/LayoutItem";
 import { Actions } from "../components/Actions";
+import { FormMessage } from "../components/FormMessage";
 
 // Basic default configuration with layout components
 // Translation defaults are handled in normalizeTranslationConfig
@@ -13,6 +14,7 @@ export const defaultFormConfig: FormConfig = {
     LayoutContainer: LayoutContainer,
     LayoutItem: LayoutItem,
     Actions: Actions,
+    FormMessage: FormMessage,
   },
   translation: {
     // All translation defaults are handled by normalizeTranslationConfig in utilities.ts
