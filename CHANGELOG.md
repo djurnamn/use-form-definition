@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-07-15
+
+### Added
+
+- **`registerFieldType` - custom field kinds with a declared value type.** Unregistered custom field kinds validate as `z.string()` everywhere (via `createCustomFieldSchema`), which works for string-valued kinds (a `slug`, a `markdown` body) but makes a *non-string* custom kind impossible: a kind whose value is a boolean - a public/private `visibility` toggle, say - would run its boolean through a string schema on the client resolver, and parse the posted checkbox `"on"` as a string on the server data validator. `registerFieldType(type, registration)` registers a kind *with its value semantics*, so it validates with the right value type on **both** paths (`generateOptions` and `generateDataValidator`) and seeds the matching default value, while the rendering side still picks its own component by kind. Provide one of: `valueType: "string" | "number" | "boolean" | "date"` (validate like `text` / `number` / `checkbox` / `date`), `schema: "<existing kind>"` (alias a registered kind's exact validator - including `select`'s option/enum handling), or `generator` (a full custom Zod generator, equivalent to `registerFieldSchemaGenerator` but co-registered with the default value); an optional `defaultValue` overrides the resolved default. Call it once at module scope, from code imported by both the client and server bundles, so the two validators agree - a module-level registration like `registerFieldSchemaGenerator` / `registerPattern`. Exported from both the main entry and the React-free `use-form-definition/server` entry (which now also re-exports `registerFieldSchemaGenerator`). `getDefaultValueForField` moved into a React-free `core/default-values` module (re-exported from `utilities` - no import-surface change) so the server entry can consult registered defaults without loading React.
+
 ## [2.2.0] - 2026-07-12
 
 ### Added

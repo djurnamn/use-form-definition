@@ -37,6 +37,12 @@ export {
   fieldSchemaGenerators,
   getFieldSchemaGenerator,
   registerFieldSchemaGenerator,
+  registerFieldType,
+} from "./field-generators";
+
+export type {
+  FieldValueType,
+  FieldTypeRegistration,
 } from "./field-generators";
 
 // Re-export the main generateSchema function as the default export

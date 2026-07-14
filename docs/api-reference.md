@@ -588,7 +588,44 @@ const rule = getValidationRuleGlobal('customRule');
 const rules = getAvailableValidationRules();
 ```
 
+### Custom field kinds
+
+An unregistered field type validates as a string everywhere. To give a custom kind a
+different value type - so it validates correctly on **both** the client resolver
+(`generateOptions`) and the server data validator (`generateDataValidator`), and seeds the
+right default value - register it with `registerFieldType`:
+
+```typescript
+import { registerFieldType } from 'use-form-definition';
+import { z } from 'zod';
+// (also exported from 'use-form-definition/server' for the server bundle)
+
+// A public/private toggle whose value is a boolean, validated like a checkbox:
+registerFieldType('visibility', { valueType: 'boolean' });
+
+// Alias an existing kind's exact validator by name (incl. select's option/enum handling):
+registerFieldType('togglePrivate', { schema: 'checkbox' });
+
+// Or a fully custom Zod generator (co-registered with a default value):
+registerFieldType('csv', {
+  generator: (field) => z.string().transform((v) => v.split(',')),
+  defaultValue: '',
+});
+```
+
+Provide exactly one of `valueType` (`"string" | "number" | "boolean" | "date"`), `schema`
+(alias a registered kind), or `generator`; `defaultValue` is optional and overrides the
+resolved default. The rendering side still picks the field's component by kind (via the
+`components` / `fieldTypes` map) - this only declares how the kind *validates*.
+
+Call it once at module scope, from code imported by both the client and server bundles, so
+the two validators agree.
+
 ### Field schema generators
+
+For the low-level case - registering only a Zod generator, without the value-type/default
+wiring - use `registerFieldSchemaGenerator` (what `registerFieldType`'s `generator` form
+calls under the hood):
 
 ```typescript
 import { registerFieldSchemaGenerator } from 'use-form-definition';

@@ -2,6 +2,10 @@ import { z } from "zod";
 import { FormFieldDefinition, FormDefinition } from "../types";
 import { getValidationRule, createMessage } from "../validation";
 import { patterns } from "../../validation/patterns";
+import {
+  getDefaultValueForField,
+  registerFieldTypeDefault,
+} from "../default-values";
 
 /**
  * Field schema generators for different field types
@@ -606,4 +610,131 @@ export const registerFieldSchemaGenerator = (
   generator: (field: FormFieldDefinition) => z.ZodTypeAny
 ) => {
   (fieldSchemaGenerators as any)[fieldType] = generator;
+};
+
+/**
+ * The value semantics a custom field kind can declare.
+ *
+ * Determines how the kind validates on *both* the client resolver (`generateOptions`) and
+ * the server data validator (`generateDataValidator`), plus the field's default value:
+ * - `"string"`  - validates like `text` (default `""`)
+ * - `"number"`  - validates like `number`, coercing the posted string (default `0`)
+ * - `"boolean"` - validates like `checkbox`, coercing the posted `"on"`/`"true"` (default `false`)
+ * - `"date"`    - validates like `date`, coercing string/Date (default `""`)
+ */
+export type FieldValueType = "string" | "number" | "boolean" | "date";
+
+/** Maps a declared value type to the built-in generator that validates it. */
+const valueTypeSchemaGenerators: Record<
+  FieldValueType,
+  (field: FormFieldDefinition) => z.ZodTypeAny
+> = {
+  string: createStringFieldSchema,
+  number: createNumberFieldSchema,
+  boolean: createCheckboxFieldSchema,
+  date: createDateFieldSchema,
+};
+
+/** The natural default value for each value type (mirrors getDefaultValueForField). */
+const valueTypeDefaults: Record<FieldValueType, unknown> = {
+  string: "",
+  number: 0,
+  boolean: false,
+  date: "",
+};
+
+/**
+ * How a custom field kind should validate. Provide exactly one of `valueType`, `schema`,
+ * or `generator` (checked in that order of precedence: `generator` > `schema` > `valueType`).
+ */
+export interface FieldTypeRegistration {
+  /**
+   * Validate the kind by its value semantics - the ergonomic path for the common case of
+   * "this custom kind is really a boolean/number/date/string". See {@link FieldValueType}.
+   */
+  valueType?: FieldValueType;
+  /**
+   * Alias an existing registered kind's validator by name (e.g. `"checkbox"`, `"select"`,
+   * `"number"`). Use when you want a built-in kind's exact validator - including option/enum
+   * handling for `"select"` - rather than a bare value type. The aliased kind must already
+   * be registered.
+   */
+  schema?: string;
+  /**
+   * A fully custom Zod generator, for when neither a value type nor an alias fits. Equivalent
+   * to {@link registerFieldSchemaGenerator}, but co-registered with the default value below.
+   */
+  generator?: (field: FormFieldDefinition) => z.ZodTypeAny;
+  /**
+   * Override the field's default value. Defaults to the resolved value type's natural default
+   * (`""` / `0` / `false`), the aliased kind's default, or `""` for a bare `generator`.
+   */
+  defaultValue?: unknown;
+}
+
+/**
+ * Register a custom field kind *with its value semantics*.
+ *
+ * Unregistered custom kinds validate as `z.string()` everywhere (see `createCustomFieldSchema`),
+ * which makes a non-string custom kind - e.g. a `visibility` toggle whose value is a boolean -
+ * impossible: the client resolver would run the boolean through a string schema, and the server
+ * would parse the posted checkbox `"on"` as a string. This registers the kind so it validates
+ * with the right value type on both paths and seeds the right default value, while the rendering
+ * side (the `components` / `fieldTypes` map) still picks its own component by kind.
+ *
+ * Call it once at module scope, from code imported by *both* the client and server bundles, so
+ * `generateOptions` and `generateDataValidator` agree - a module-level registration, like
+ * `registerFieldSchemaGenerator` / `registerPattern`.
+ *
+ * @example Alias the checkbox validator for a boolean toggle kind
+ * ```ts
+ * registerFieldType("visibility", { valueType: "boolean" });
+ * // or, to reuse checkbox's exact validator (mustBeTrue/mustBeFalse rules and all):
+ * registerFieldType("visibility", { schema: "checkbox" });
+ * ```
+ */
+export const registerFieldType = (
+  fieldType: string,
+  registration: FieldTypeRegistration
+): void => {
+  const { valueType, schema, generator, defaultValue } = registration;
+
+  let resolvedGenerator: (field: FormFieldDefinition) => z.ZodTypeAny;
+  let resolvedDefault: unknown;
+
+  if (generator) {
+    resolvedGenerator = generator;
+    resolvedDefault = "";
+  } else if (schema) {
+    const aliased =
+      fieldSchemaGenerators[schema as keyof typeof fieldSchemaGenerators];
+    if (!aliased || aliased === createCustomFieldSchema) {
+      throw new Error(
+        `registerFieldType("${fieldType}", { schema: "${schema}" }): no field type "${schema}" ` +
+          `is registered to alias. Register "${schema}" first, or use \`valueType\` / \`generator\`.`
+      );
+    }
+    resolvedGenerator = aliased;
+    resolvedDefault = getDefaultValueForField({ type: schema });
+  } else if (valueType) {
+    const generatorForValueType = valueTypeSchemaGenerators[valueType];
+    if (!generatorForValueType) {
+      throw new Error(
+        `registerFieldType("${fieldType}"): unknown valueType "${valueType}". ` +
+          `Expected one of: ${Object.keys(valueTypeSchemaGenerators).join(", ")}.`
+      );
+    }
+    resolvedGenerator = generatorForValueType;
+    resolvedDefault = valueTypeDefaults[valueType];
+  } else {
+    throw new Error(
+      `registerFieldType("${fieldType}"): provide one of \`valueType\`, \`schema\`, or \`generator\`.`
+    );
+  }
+
+  registerFieldSchemaGenerator(fieldType, resolvedGenerator);
+  registerFieldTypeDefault(
+    fieldType,
+    defaultValue !== undefined ? defaultValue : resolvedDefault
+  );
 };

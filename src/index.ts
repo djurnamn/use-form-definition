@@ -4,7 +4,14 @@ export * from "./core/utilities";
 export * from "./core/validation";
 export { generateSchema, generateOptions } from "./core/schema";
 export { generateSchemaAsync } from "./core/schema/schema-builder";
-export { registerFieldSchemaGenerator } from "./core/schema/field-generators";
+export {
+  registerFieldSchemaGenerator,
+  registerFieldType,
+} from "./core/schema/field-generators";
+export type {
+  FieldValueType,
+  FieldTypeRegistration,
+} from "./core/schema/field-generators";
 export * from "./core/types-inference";
 
 // Hook exports

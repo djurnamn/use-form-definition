@@ -87,6 +87,18 @@ export { generateSchema } from "./core/schema/schema-builder";
 // into the server bundle)
 export { generateDataValidator } from "./core/schema/data-validator";
 
+// Custom field-kind registration (React-free). Exported here too so a custom kind's value
+// type is registered in the *server* bundle - `generateDataValidator` resolves schemas by
+// field type, so the registration must run wherever the validator does.
+export {
+  registerFieldType,
+  registerFieldSchemaGenerator,
+} from "./core/schema/field-generators";
+export type {
+  FieldValueType,
+  FieldTypeRegistration,
+} from "./core/schema/field-generators";
+
 // Validation utilities (Zod only, no React)
 export {
   // Pattern validation rules

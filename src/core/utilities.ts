@@ -213,50 +213,15 @@ export const getFieldName = (key: string, field: { name?: string }): string => {
 };
 
 // Default value generation
-/**
- * Generate the appropriate default value for a field based on its type
- *
- * @param field - The field definition
- * @returns The default value for the field type
- */
-export const getDefaultValueForField = (field: {
-  type: string;
-  defaultValue?: unknown;
-}): unknown => {
-  // If field has an explicit defaultValue, use it
-  if (field.defaultValue !== undefined) {
-    return field.defaultValue;
-  }
-
-  // Otherwise, determine default based on field type
-  switch (field.type) {
-    case "checkbox":
-      return false;
-    case "multiselect":
-    case "repeater":
-      return [];
-    case "number":
-      return 0;
-    default:
-      return "";
-  }
-};
-
-/**
- * Generate default values for all fields in a form definition
- *
- * @param definition - The form definition object
- * @returns An object with default values for each field
- */
-export const generateDefaultValues = <T extends Record<string, { type: string; defaultValue?: unknown }>>(
-  definition: T
-): Record<string, unknown> => {
-  return Object.keys(definition).reduce((accumulator, key) => {
-    const field = definition[key];
-    const defaultValue = getDefaultValueForField(field);
-    return { ...accumulator, [key]: defaultValue };
-  }, {});
-};
+//
+// The implementations live in the React-free `./default-values` module so the schema
+// layer (reached by the server entry) can consult them without pulling React in. They
+// are re-exported here to keep the historical `from "./utilities"` import surface.
+export {
+  getDefaultValueForField,
+  generateDefaultValues,
+  registerFieldTypeDefault,
+} from "./default-values";
 
 // Field ID utilities
 

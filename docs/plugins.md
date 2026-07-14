@@ -149,7 +149,32 @@ registerValidationRuleGlobal('phoneNumber', {
 
 ## Field schema generator registry
 
+### Declaring a custom kind's value type
+
+For the common case - "this custom kind is really a boolean / number / date / string" -
+reach for `registerFieldType` rather than hand-writing a generator. It registers the schema
+*and* the default value keyed by type, so the kind validates the same on the client resolver
+and the server data validator:
+
+```typescript
+import { registerFieldType } from 'use-form-definition';
+
+// A public/private toggle: validates like a checkbox everywhere, defaults to `false`.
+registerFieldType('visibility', { valueType: 'boolean' });
+
+// Alias an existing kind's validator by name instead of a bare value type:
+registerFieldType('togglePrivate', { schema: 'checkbox' });
+```
+
+`valueType` accepts `"string" | "number" | "boolean" | "date"`. Use `schema` to reuse a
+registered kind's exact validator (e.g. `"select"` for its option/enum handling), or
+`generator` for a fully custom Zod schema (below). Register once at module scope, in code
+imported by both the client and server bundles.
+
 ### Custom field type
+
+For a fully custom Zod schema, register a generator directly. (`registerFieldType`'s
+`generator` form is a thin wrapper over this that also records a default value.)
 
 ```typescript
 import { registerFieldSchemaGenerator } from 'use-form-definition';
