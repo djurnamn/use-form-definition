@@ -172,6 +172,10 @@ interface FormFieldDefinition {
   // Default value
   defaultValue?: any;
 
+  // Derive this field's value from a sibling field while the user hasn't claimed it
+  deriveFrom?: string;
+  deriveTransform?: (value: unknown) => unknown;
+
   // Read-only state
   readOnly?: boolean;
 
@@ -193,6 +197,42 @@ interface SelectOption {
   label: string;
 }
 ```
+
+### Derived fields (`deriveFrom`)
+
+`deriveFrom: "<sibling key>"` mirrors a transformed copy of a sibling field's value into
+this field while the user hasn't claimed it - the classic case is a slug that auto-fills
+from a title until the user edits it by hand:
+
+```typescript
+const definition = {
+  title: { type: 'text', validation: { required: true } },
+  slug: {
+    type: 'slug',
+    deriveFrom: 'title',
+    validation: { required: true, pattern: 'slug' },
+  },
+};
+```
+
+The rules:
+
+- While the target is **empty or still equal to the last derived value**, every change to
+  the source writes `transform(sourceValue)` into it.
+- A stored value (an edit form) is never overwritten - it differs from any derivation and
+  the field isn't empty, so derivation never engages.
+- Editing the target by hand stops derivation; **clearing it re-arms** it.
+- Derived writes don't mark the target dirty (`shouldDirty: false`); user edits still do.
+
+The transform is resolved at runtime, in order: a per-field `deriveTransform` function on
+the definition, else the kind-level transform registered via
+`registerFieldType(type, { deriveTransform })`, else identity (a verbatim mirror).
+
+Derivation is client-side only - a live-preview affordance. Server code ignores
+`deriveFrom` entirely (`generateSchema` / `generateDataValidator` treat it as inert), so a
+definition carrying it stays serializable and shareable with server validation; keep the
+per-field `deriveTransform` (a function) out of shared definitions and register the
+transform at the kind level instead.
 
 ---
 
@@ -611,12 +651,18 @@ registerFieldType('csv', {
   generator: (field) => z.string().transform((v) => v.split(',')),
   defaultValue: '',
 });
+
+// A kind-level derive transform for `deriveFrom` fields of this kind (see Derived fields):
+registerFieldType('slug', { deriveTransform: slugify });
 ```
 
 Provide exactly one of `valueType` (`"string" | "number" | "boolean" | "date"`), `schema`
 (alias a registered kind), or `generator`; `defaultValue` is optional and overrides the
-resolved default. The rendering side still picks the field's component by kind (via the
-`components` / `fieldTypes` map) - this only declares how the kind *validates*.
+resolved default. `deriveTransform` can accompany any of them, or stand alone to attach a
+transform to a kind whose validation is already registered (or a built-in) without
+touching it. The rendering side still picks the field's component by kind (via the
+`components` / `fieldTypes` map) - this only declares how the kind *validates* (and,
+with `deriveTransform`, how it derives).
 
 Call it once at module scope, from code imported by both the client and server bundles, so
 the two validators agree.

@@ -12,6 +12,8 @@ export type {
   FieldValueType,
   FieldTypeRegistration,
 } from "./core/schema/field-generators";
+export { registerDeriveTransform } from "./core/derive";
+export type { DeriveTransform } from "./core/derive";
 export * from "./core/types-inference";
 
 // Hook exports

@@ -12,6 +12,7 @@ import {
 } from "../core/types";
 import { generateSchema, generateOptions } from "../core/schema";
 import { deriveHtml5Attributes } from "../core/html5-attributes";
+import { resolveDeriveTransform } from "../core/derive";
 import { generateSchema as generateSchemaFromBuilder } from "../core/schema/schema-builder";
 import { createFormConfig } from "../configuration/createFormConfig";
 import {
@@ -115,6 +116,8 @@ const LIBRARY_PROPS: Record<string, true> = {
   options: true,
   readOnly: true,
   defaultValue: true,
+  deriveFrom: true,
+  deriveTransform: true,
 };
 
 /**
@@ -1033,6 +1036,68 @@ export const useFormDefinition = <
 
   // Use provided form or internal form
   const form = formOption ?? internalForm;
+
+  // Live derivation for `deriveFrom` fields: while a target is *unclaimed*, every change to
+  // its source field mirrors `transform(sourceValue)` into it. "Unclaimed" means empty or
+  // still equal to the last value derivation wrote (tracked below) - so an edit form's
+  // stored value is never overwritten (it differs from any derivation and the field isn't
+  // empty), a user edit breaks the equality and stops derivation, and a user *clearing*
+  // the field re-arms it. Derived writes use `shouldDirty: false`, so only user edits mark
+  // the target dirty. Server code never runs this - `deriveFrom` is inert there.
+  const lastDerivedRef = useRef<Record<string, unknown>>({});
+  useEffect(() => {
+    // sourceName -> targets deriving from it (a source may feed several targets)
+    const targetsBySource = new Map<
+      string,
+      Array<{ targetName: string; field: FormFieldDefinition }>
+    >();
+    for (const targetKey of Object.keys(definition)) {
+      const field = definition[targetKey];
+      if (typeof field.deriveFrom !== "string" || field.deriveFrom === "") continue;
+      const sourceField = definition[field.deriveFrom];
+      if (!sourceField) {
+        console.warn(
+          `deriveFrom: field "${targetKey}" derives from "${field.deriveFrom}", which is not in the definition`
+        );
+        continue;
+      }
+      const sourceName = getFieldName(field.deriveFrom, sourceField);
+      const targetName = getFieldName(targetKey, field);
+      if (sourceName === targetName) {
+        console.warn(`deriveFrom: field "${targetKey}" cannot derive from itself`);
+        continue;
+      }
+      const targets = targetsBySource.get(sourceName) ?? [];
+      targets.push({ targetName, field });
+      targetsBySource.set(sourceName, targets);
+    }
+    if (targetsBySource.size === 0) return;
+
+    const subscription = form.watch((_values, { name }) => {
+      if (!name) return;
+      const targets = targetsBySource.get(name);
+      if (!targets) return;
+      const sourceValue = form.getValues(name as any);
+      for (const { targetName, field } of targets) {
+        const currentValue = form.getValues(targetName as any);
+        const lastDerived = lastDerivedRef.current[targetName];
+        const isEmpty =
+          currentValue === undefined || currentValue === null || currentValue === "";
+        if (!isEmpty && !Object.is(currentValue, lastDerived)) continue; // claimed by the user (or stored)
+        const derived = resolveDeriveTransform(field)(sourceValue);
+        lastDerivedRef.current[targetName] = derived;
+        if (Object.is(derived, currentValue)) continue;
+        // Re-validate only when the target already shows an error, so e.g. a stale
+        // "required" error from an earlier blur clears as derivation fills the field.
+        const shouldValidate = !!form.getFieldState(targetName as any).error;
+        form.setValue(targetName as any, derived as any, {
+          shouldDirty: false,
+          shouldValidate,
+        });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [definition, form]);
 
   // Memoize config to prevent unnecessary re-renders
   const config = useMemo(

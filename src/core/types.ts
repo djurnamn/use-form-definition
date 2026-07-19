@@ -150,6 +150,28 @@ export interface FormFieldDefinition {
   options?: SelectOptions;
   readOnly?: boolean;
   defaultValue?: string | number | boolean | any[];
+  /**
+   * Derive this field's value from a sibling field (referenced by its definition key)
+   * while this field is *unclaimed* - a live-preview affordance for e.g. a slug that
+   * auto-fills from a title until the user edits it by hand.
+   *
+   * While the target is empty or still equal to the last derived value, every change to
+   * the source mirrors `transform(sourceValue)` into it (without marking it dirty). A
+   * stored value (edit form) is never overwritten; a user edit stops derivation; clearing
+   * the field re-arms it.
+   *
+   * The transform is resolved at runtime: the per-field {@link deriveTransform}, else the
+   * kind-level transform registered via `registerFieldType(type, { deriveTransform })`,
+   * else identity. Client-side only - server validation ignores this property entirely,
+   * so a definition carrying it stays serializable and server-safe.
+   */
+  deriveFrom?: string;
+  /**
+   * Per-field transform for {@link deriveFrom}, overriding any kind-level registration.
+   * A runtime function - client-side only, not serializable; omit it in definitions
+   * shared with server code and rely on the kind-level registration instead.
+   */
+  deriveTransform?: (value: unknown) => unknown;
   validation?: BaseValidationRules;
   layout?: Record<string, any>; // Props to pass to LayoutItem component
 

@@ -6,6 +6,7 @@ import {
   getDefaultValueForField,
   registerFieldTypeDefault,
 } from "../default-values";
+import { registerDeriveTransform, type DeriveTransform } from "../derive";
 
 /**
  * Field schema generators for different field types
@@ -646,6 +647,8 @@ const valueTypeDefaults: Record<FieldValueType, unknown> = {
 /**
  * How a custom field kind should validate. Provide exactly one of `valueType`, `schema`,
  * or `generator` (checked in that order of precedence: `generator` > `schema` > `valueType`).
+ * A registration carrying only `deriveTransform` is also valid - it attaches the transform
+ * to a kind whose validation is already registered (or a built-in) without touching it.
  */
 export interface FieldTypeRegistration {
   /**
@@ -670,6 +673,15 @@ export interface FieldTypeRegistration {
    * (`""` / `0` / `false`), the aliased kind's default, or `""` for a bare `generator`.
    */
   defaultValue?: unknown;
+  /**
+   * Kind-level transform for `deriveFrom` fields of this kind: when a field of this kind
+   * declares `deriveFrom: "<sibling>"`, changes to the sibling mirror
+   * `deriveTransform(sourceValue)` into it while it is unclaimed (see
+   * `FormFieldDefinition.deriveFrom`). A per-field `deriveTransform` on the definition
+   * takes precedence. Client-side behaviour only - the registration is harmless in a
+   * server bundle, where `deriveFrom` is inert.
+   */
+  deriveTransform?: DeriveTransform;
 }
 
 /**
@@ -697,7 +709,20 @@ export const registerFieldType = (
   fieldType: string,
   registration: FieldTypeRegistration
 ): void => {
-  const { valueType, schema, generator, defaultValue } = registration;
+  const { valueType, schema, generator, defaultValue, deriveTransform } = registration;
+
+  if (deriveTransform) {
+    registerDeriveTransform(fieldType, deriveTransform);
+  }
+
+  // A deriveTransform-only registration attaches the transform without disturbing the
+  // kind's existing (or built-in) validation and default value.
+  if (!generator && !schema && !valueType && deriveTransform) {
+    if (defaultValue !== undefined) {
+      registerFieldTypeDefault(fieldType, defaultValue);
+    }
+    return;
+  }
 
   let resolvedGenerator: (field: FormFieldDefinition) => z.ZodTypeAny;
   let resolvedDefault: unknown;
@@ -728,7 +753,8 @@ export const registerFieldType = (
     resolvedDefault = valueTypeDefaults[valueType];
   } else {
     throw new Error(
-      `registerFieldType("${fieldType}"): provide one of \`valueType\`, \`schema\`, or \`generator\`.`
+      `registerFieldType("${fieldType}"): provide one of \`valueType\`, \`schema\`, ` +
+        `\`generator\`, or \`deriveTransform\`.`
     );
   }
 

@@ -134,6 +134,30 @@ See [Custom layout](./docs/api-reference.md#custom-layout) for details.
 
 To type custom props your field components accept (anything beyond the standard overrides), pass a second type argument to the hook: `useFormDefinition<typeof definition, { tooltip?: string }>(definition)`. Those props are then checked on `<RenderedField>`, so a typo or wrong value type is a compile error. Without it they stay permissively typed; either way they're filtered at runtime against each field type's allowlist.
 
+## Derived fields
+
+A field can auto-fill from a sibling field while the user hasn't claimed it - a slug that
+follows the title until the user edits it by hand:
+
+```tsx
+const definition = {
+  title: { type: 'text', validation: { required: true } },
+  slug: { type: 'slug', deriveFrom: 'title', validation: { required: true, pattern: 'slug' } },
+};
+```
+
+While the slug is empty (or still holds the last derived value), typing in the title
+mirrors a transformed copy into it; a stored slug on an edit form is never touched, a
+hand-edited slug stops derivation, and clearing the slug re-arms it. Derived writes don't
+mark the field dirty.
+
+The transform comes from the field kind - register it once with
+`registerFieldType('slug', { deriveTransform: slugify })` - or per field via a
+`deriveTransform` function on the definition. With neither, the value is mirrored
+verbatim. Derivation is client-side only: server validation ignores `deriveFrom`, so the
+definition stays shareable with server code. See
+[Derived fields](./docs/api-reference.md#derived-fields-derivefrom) for details.
+
 ## Copy and customize components
 
 Use the CLI to copy reference components to your project:

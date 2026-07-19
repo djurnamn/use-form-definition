@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-07-19
+
+### Added
+
+- **`deriveFrom` - declarative field derivation with a pristine latch.** A field definition can declare `deriveFrom: "<sibling key>"` to auto-fill from a sibling field while the user hasn't claimed it - the classic case is a slug that follows the title until the user edits it by hand. While the target is *unclaimed* - empty, or still equal to the last value derivation wrote - every change to the source mirrors `transform(sourceValue)` into it. The latch covers edit forms for free: a stored value differs from any derivation (and the field isn't empty), so it is never overwritten; a user edit breaks the equality and derivation stops; a user *clearing* the field re-arms it. Derived writes use `shouldDirty: false`, so only user edits mark the target dirty. The definition carries only the field name - naturally serializable, so a definition shared with server code can carry it where it could never carry a function - and the transform is resolved at runtime: a per-field `deriveTransform` function on the definition, else the kind-level transform registered via `registerFieldType(type, { deriveTransform })` (a `deriveTransform`-only registration is now valid, attaching a transform to an already-registered or built-in kind without touching its validation; `registerDeriveTransform` is also exported standalone), else identity. Derivation is client-side only, a live-preview affordance - server validation (`generateSchema` / `generateDataValidator`) treats `deriveFrom` as inert, and the server's own canonicalization stays authoritative.
+
 ## [2.3.0] - 2026-07-15
 
 ### Added

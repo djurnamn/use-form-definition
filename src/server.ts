@@ -99,6 +99,12 @@ export type {
   FieldTypeRegistration,
 } from "./core/schema/field-generators";
 
+// Derive-transform registration (React-free). Exported here so shared config modules that
+// register a kind's `deriveTransform` can be imported by the server bundle too - the
+// registry is inert on the server (`deriveFrom` is a client-only live-preview affordance).
+export { registerDeriveTransform } from "./core/derive";
+export type { DeriveTransform } from "./core/derive";
+
 // Validation utilities (Zod only, no React)
 export {
   // Pattern validation rules
