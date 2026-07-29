@@ -371,6 +371,24 @@ export interface RenderedFormProps<TFormData extends FieldValues> {
    * validation. Overrides the hook/config `noValidate` for this form.
    */
   noValidate?: boolean;
+  /**
+   * The `method` attribute on the rendered `<form>`.
+   *
+   * Only meaningful for a **client-only** form (one wired with `onSubmit` and no server
+   * action), and only before React hydrates - once the submit handler is attached it calls
+   * `preventDefault()` and the browser never uses the method. It defaults to `"post"`,
+   * because the browser's own default (`"get"`) serializes every field into the URL on a
+   * pre-hydration submit, which for a sign-in or password-reset form leaks credentials into
+   * browser history, the `Referer` header of anything the page later loads, and every access
+   * log in front of the app.
+   *
+   * Pass `"get"` explicitly where a query string is the point - a search or filter form that
+   * should be linkable and shareable.
+   *
+   * Ignored when a server action is configured: React owns the method there (it POSTs to its
+   * own action endpoint), and overriding it would break that path.
+   */
+  method?: 'get' | 'post';
   /** Additional props to pass to the form element */
   className?: string;
   /** Additional props to pass to the form element */
@@ -805,6 +823,7 @@ const createRenderedForm = <T extends FormDefinition>(
     showActions = true,
     children,
     noValidate: noValidateProp,
+    method: methodProp,
     className,
     style,
   }) => {
@@ -895,10 +914,18 @@ const createRenderedForm = <T extends FormDefinition>(
     const noValidate = noValidateProp ?? ctx.config.noValidate;
     if (noValidate) formProps.noValidate = true;
     if (hasServerAction) {
+      // React owns the method here: it renders its own multipart POST to the action
+      // endpoint. Setting `method` would fight that, so `methodProp` is deliberately ignored.
       formProps.action = formAction as React.FormHTMLAttributes<HTMLFormElement>['action'];
       formProps.onSubmit = handleServerSubmit;
     } else {
       formProps.onSubmit = handleClientSubmit;
+      // A client-only form has no `action`, so the browser's default method applies to any
+      // submit that lands BEFORE hydration - and that default is GET, which serializes every
+      // field into the URL. For a sign-in or password-reset form that is a credential leak
+      // into browser history, the `Referer` header and access logs. POST by default; a form
+      // that genuinely wants a query string (search, filters) opts in with `method="get"`.
+      formProps.method = methodProp ?? 'post';
     }
 
     const FormComponent = ctx.config.components.Form;

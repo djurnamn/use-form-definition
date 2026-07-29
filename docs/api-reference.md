@@ -371,7 +371,19 @@ Auto-renders all fields with layout and an actions slot.
 | `showActions` | `boolean` | Render the actions slot (default `true`). Ignored when `children` is provided |
 | `children` | `ReactNode` | Custom form body, rendered instead of the automatic field grid while `RenderedForm` keeps all form wiring. Compose from `RenderedField` + `Actions`. See [Custom layout](#custom-layout) |
 | `noValidate` | `boolean` | Set `noValidate` on the `<form>`; overrides the hook/config `noValidate` for this form |
+| `method` | `'get' \| 'post'` | The `<form>`'s method. Client-only forms default to `'post'` - see [Why client-only forms POST](#why-client-only-forms-post). Pass `'get'` for search/filter forms. Ignored when a server action is configured. |
 | `className`, `style` | - | Passed to the `<form>` |
+
+<a id="why-client-only-forms-post"></a>
+**Why client-only forms POST**
+
+A form wired with `onSubmit` and no server action gets no `action` attribute, so before React hydrates a native submit uses the browser's default method - **GET**, which serializes every field into the URL. For a sign-in or password-reset form that puts the password in browser history, in the `Referer` header of anything the page loads next, and in every access log in front of the app. The window is not theoretical: it is the whole page load on a slow connection, and permanent for anyone whose JavaScript fails to run.
+
+Client-only forms therefore render `method="post"` by default. Once hydrated the method is irrelevant - the submit handler calls `preventDefault()` - so this only changes the pre-hydration failure mode, from "leaks the fields into the URL" to "posts them to a route that ignores them".
+
+Pass `method="get"` where the query string is the point (a search or filter form that should be linkable). Server-action forms are unaffected: React renders its own multipart POST to the action endpoint and owns the method itself.
+
+The default is `RenderedForm`'s alone. The hook's plain `<Form>` wrapper is a passthrough and does not set `method` - when composing manually with `<Form onSubmit={...}>`, pass `method="post"` explicitly on forms that handle credentials.
 
 **Server actions & progressive enhancement**
 

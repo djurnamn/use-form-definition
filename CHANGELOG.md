@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-07-29
+
+### Fixed
+
+- **A client-only form no longer submits as GET, which put passwords in the URL.** `RenderedForm` assembled the `<form>` props from a closed set (`className`, `style`, `noValidate`, then `action` + `onSubmit` or `onSubmit` alone) and never set `method`. For a **server-action** form that is harmless - React renders `<form action={fn}>` and POSTs to its own endpoint - but a form wired only with `onSubmit` got neither an `action` nor a `method`, so the browser's default applied to any submit that landed **before React hydrates**: a native **GET**, serializing every field into the query string. For a sign-in or password-reset form that is a credential disclosure into browser history, the `Referer` header of anything the page subsequently loads, and every access log in front of the app - and the exposure window is the whole page load on a slow connection, permanent for anyone whose JavaScript fails to run. Client-only forms now render `method="post"`. Once hydrated the method is never used (the submit handler calls `preventDefault()`), so this changes only the pre-hydration failure mode: from leaking the fields to posting them somewhere that ignores them. Server-action forms are untouched - `method` is deliberately not set there, so React keeps owning its own action endpoint. Found by a consumer's browser test, not by review: clicking sign-in before hydration navigated to `/sign-in?email=...&password=...`.
+
+### Added
+
+- **`method` on `RenderedForm`.** `'get' | 'post'`, overriding the client-only default above - pass `'get'` for the forms where a query string is the point (a search or filter form that should be linkable and shareable). Ignored when a server action is configured, since React owns the method on that path.
+
 ## [2.4.0] - 2026-07-19
 
 ### Added

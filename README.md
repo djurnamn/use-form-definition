@@ -114,6 +114,8 @@ return (
 
 The same pattern applies to per-field runtime props like `disabled` or `options`: pass them as props on `<RenderedField>` and the prop wins over the definition default. See [examples/basic-react/src/pages/ContactPage.tsx](./examples/basic-react/src/pages/ContactPage.tsx) for a working example.
 
+One difference from `RenderedForm`: `<Form>` is a plain passthrough and does not default `method="post"`, so a submit that lands before React hydrates falls back to the browser's native GET and serializes the fields into the URL. On any form that handles credentials, pass `method="post"` yourself - see [Why client-only forms POST](./docs/api-reference.md#why-client-only-forms-post).
+
 `<Form>` submits client-side only. If the form has a `serverAction` and you still want a custom layout (conditional fields, multi-column sections, an image beside the inputs), pass `children` to `<RenderedForm>` instead: your body renders in place of the automatic field grid, but `RenderedForm` keeps the whole progressive-enhancement path - `<form action>`, no-JS submission, and server errors on the fields. Compose it from the hook's `RenderedField` and `Actions`:
 
 ```tsx
