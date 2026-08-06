@@ -85,6 +85,7 @@ interface TranslationConfig {
     localePath?: (key: string) => string;
   };
   placeholders?: { /* same as labels */ };
+  descriptions?: { /* same as labels */ };
   options?: { /* same as labels */ };
   validation?: {
     enabled?: boolean;
@@ -162,6 +163,11 @@ interface FormFieldDefinition {
   name?: string;
   label?: string | "auto" | "none";
   placeholder?: string | "auto" | "none";
+  // Explanatory text rendered by the Field wrapper under the control with
+  // id="<fieldId>-description"; built-in controls point aria-describedby at it.
+  // A field type that allowlists `description` in additionalProps receives it
+  // on the control instead, as the control's own inline description.
+  description?: string | "auto" | "none";
 
   // Validation
   validation?: ValidationRules;
@@ -325,6 +331,7 @@ Runtime override props let you pass values that override the field's static defi
 | `options` | `SelectOption[]` | Provide async-loaded options at render time |
 | `label` | `string \| "auto" \| "none"` | Override or hide the field's label |
 | `placeholder` | `string \| "auto" \| "none"` | Override or hide the placeholder |
+| `description` | `string \| "auto" \| "none"` | Override or hide the field's explanatory text |
 | `className`, `style` | standard React | Forwarded to the field component |
 | `render` | `(field) => ReactNode` | Custom render override (escape hatch) |
 

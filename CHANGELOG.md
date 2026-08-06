@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-08-06
+
+### Added
+
+- **`description` - per-field explanatory text, as a first-class library prop.** A field definition can carry `description: "..."` - the standard form affordance for "what does this value actually do" - and it now reaches the `Field` wrapper (which every wrapper already received in full, but had no contract for), while being **filtered from the control's DOM props** like `label` and `placeholder`, so it never lands as an invalid `description="..."` attribute on an `<input>`. The built-in `Field` wrapper renders it under the control with `id="<fieldId>-description"`, and the built-in controls point `aria-describedby` at it automatically (joined with the error id when an error shows); custom `Field` components render it however their field chrome dictates. Field types that allowlist `description` in their `additionalProps` (as the djui binding's `checkbox` and `switch` do) keep their existing behaviour - there it reaches the control itself, as the control's own inline description. Also available as a typed runtime override on `RenderedField` (`description="..."` or `description={false}` to hide), like `label` and `placeholder`.
+- **`descriptions` translation category.** `description` resolves through the same translation machinery as `label` and `placeholder`: `"auto"` (or `alwaysInclude`) resolves `form.descriptions.<key>` via the configured translation function, any other string is a translation key when the category is enabled or a literal otherwise, `"none"` opts out. Opt-in like `placeholders` (`enabled`/`alwaysInclude` default off unless a translation source implicitly enables categories), with `localePath` overridable. Nested (repeater) fields resolve it the same way.
+
+### Fixed
+
+- **Submitting a client-only `RenderedForm` without `onSubmit` now runs validation.** The client submit handler gated `form.handleSubmit` on an `onSubmit` being provided, so a form rendered without one swallowed the submit entirely - no validation ran, no errors showed, nothing happened. Validation now runs regardless, marking the fields and showing their errors; `onSubmit` remains optional and is simply not called when absent.
+
 ## [2.5.0] - 2026-07-29
 
 ### Fixed

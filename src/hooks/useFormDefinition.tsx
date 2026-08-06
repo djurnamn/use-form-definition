@@ -19,6 +19,7 @@ import {
   getFieldName,
   generateDefaultValues,
   getDefaultValueForField,
+  generateFieldId,
   normalizeTranslationConfig,
   resolveTranslatableValue,
   resolveSelectOptions,
@@ -58,6 +59,7 @@ const parseValidationError = (
 interface ResolvedFieldData {
   label: string | undefined;
   placeholder: string | undefined;
+  description: string | undefined;
   options: SelectOption[] | undefined;
 }
 
@@ -71,6 +73,7 @@ const resolveFieldPresentationData = (
   translationConfig: {
     labels: { enabled: boolean; alwaysInclude: boolean; localePath: (key: string) => string };
     placeholders: { enabled: boolean; alwaysInclude: boolean; localePath: (key: string) => string };
+    descriptions: { enabled: boolean; alwaysInclude: boolean; localePath: (key: string) => string };
     options: { enabled: boolean; alwaysInclude: boolean; localePath: (key: string) => string };
     function?: (key: string, options?: Record<string, any>) => string;
   }
@@ -89,13 +92,20 @@ const resolveFieldPresentationData = (
     translationConfig.function
   );
 
+  const description = resolveTranslatableValue(
+    field.description,
+    fieldKey,
+    translationConfig.descriptions,
+    translationConfig.function
+  );
+
   const options = resolveSelectOptions(
     field.options,
     translationConfig.options,
     translationConfig.function
   );
 
-  return { label, placeholder, options };
+  return { label, placeholder, description, options };
 };
 
 /**
@@ -107,6 +117,11 @@ const LIBRARY_PROPS: Record<string, true> = {
   validation: true,
   label: true,
   placeholder: true,
+  // The Field wrapper's explanatory text - filtered from controls so it never
+  // lands as a DOM attribute; a field type's `additionalProps` can allowlist it
+  // back (e.g. a binding's `checkbox`/`switch`), and there it is the control's
+  // own inline description.
+  description: true,
   type: true,
   fields: true,
   hideHeader: true,
@@ -140,6 +155,33 @@ const filterLibraryProps = (
   }
 
   return filtered;
+};
+
+/**
+ * Point the control's `aria-describedby` at the description element the default
+ * `Field` wrapper is about to render (`<fieldId>-description`). The built-in
+ * controls only fall back to their error id when no `aria-describedby` prop is
+ * passed, so the injected value must carry the error id too when an error shows.
+ * Only applies with the default wrapper - a custom `Field` renders the
+ * description its own way, with ids this hook can't know about.
+ */
+const injectDescriptionDescribedBy = (
+  componentProps: Record<string, any>,
+  fieldProps: Record<string, any>,
+  fieldName: string,
+  error: FieldError | undefined
+): void => {
+  const description = fieldProps.description;
+  if (typeof description !== 'string' || !description) return;
+
+  const descriptionId = `${generateFieldId(fieldName, componentProps.id)}-description`;
+  componentProps['aria-describedby'] = [
+    componentProps['aria-describedby'],
+    error?.message ? `${fieldName}-error` : undefined,
+    descriptionId,
+  ]
+    .filter(Boolean)
+    .join(' ');
 };
 
 export type { NestedFieldRenderer };
@@ -197,9 +239,9 @@ const createNestedFieldRenderer = (
     };
 
     // Nested fields get the same translation resolution as top-level ones
-    // (options labels, placeholder) - only the label stays suppressed, since
-    // in repeater context labels are typically in the header.
-    const { placeholder: resolvedPlaceholder, options: resolvedOptions } =
+    // (options labels, placeholder, description) - only the label stays
+    // suppressed, since in repeater context labels are typically in the header.
+    const { placeholder: resolvedPlaceholder, description: resolvedDescription, options: resolvedOptions } =
       resolveFieldPresentationData(fieldDefinition, fieldKey, translationConfig);
 
     const fieldProps = {
@@ -209,6 +251,7 @@ const createNestedFieldRenderer = (
       error,
       ...fieldDefinition,
       ...(resolvedPlaceholder !== undefined ? { placeholder: resolvedPlaceholder } : {}),
+      ...(resolvedDescription !== undefined ? { description: resolvedDescription } : {}),
       ...(resolvedOptions ? { options: resolvedOptions } : {}),
       // In repeater context, labels are typically in the header
       label: undefined,
@@ -277,7 +320,8 @@ interface UseFormDefinitionOptions<T extends FormDefinition> {
  * The first-class, always-typed props of the RenderedField component.
  *
  * The standard runtime overrides (`disabled`, `options`, `label`, `placeholder`,
- * `className`, `style`) override the definition's default and are typed here.
+ * `description`, `className`, `style`) override the definition's default and are
+ * typed here.
  * Custom forwarded extras are added on top by {@link RenderedFieldProps}.
  */
 export interface RenderedFieldBaseProps<T extends FormDefinition> {
@@ -291,6 +335,8 @@ export interface RenderedFieldBaseProps<T extends FormDefinition> {
   label?: string | boolean;
   /** Runtime override: placeholder string (or `false` to hide). Bypasses translation. */
   placeholder?: string | boolean;
+  /** Runtime override: description string (or `false` to hide). Bypasses translation. */
+  description?: string | boolean;
   /** Runtime override: forwarded to the field component */
   className?: string;
   /** Runtime override: forwarded to the field component */
@@ -545,7 +591,7 @@ const renderField = <T extends FormDefinition>(
 
     const shouldIgnoreWrapper = componentConfig.ignoreFieldWrapper;
 
-    const { label: fieldLabel, placeholder: fieldPlaceholder, options: resolvedOptions } =
+    const { label: fieldLabel, placeholder: fieldPlaceholder, description: fieldDescription, options: resolvedOptions } =
       resolveFieldPresentationData(field, key, translationConfig);
 
     const fieldProps = {
@@ -554,11 +600,16 @@ const renderField = <T extends FormDefinition>(
       name: fieldName,
       label: fieldLabel,
       placeholder: fieldPlaceholder,
+      description: fieldDescription,
       ...(resolvedOptions ? { options: resolvedOptions } : {}),
       ...runtimeOverrides,
     };
 
     const componentProps = filterLibraryProps(fieldProps, componentConfig.additionalProps);
+
+    if (!shouldIgnoreWrapper && !config.components.Field) {
+      injectDescriptionDescribedBy(componentProps, fieldProps, fieldName, undefined);
+    }
 
     if (componentConfig.injectFormConfig) {
       componentProps.__formConfig = config;
@@ -623,7 +674,7 @@ const renderField = <T extends FormDefinition>(
           }
         }
 
-        const { label: fieldLabel, placeholder: fieldPlaceholder, options: resolvedOptions } =
+        const { label: fieldLabel, placeholder: fieldPlaceholder, description: fieldDescription, options: resolvedOptions } =
           resolveFieldPresentationData(field, key, translationConfig);
 
         const fieldProps = {
@@ -632,12 +683,17 @@ const renderField = <T extends FormDefinition>(
           ...(html5Attrs ?? {}),
           label: fieldLabel,
           placeholder: fieldPlaceholder,
+          description: fieldDescription,
           error: displayError,
           ...(resolvedOptions ? { options: resolvedOptions } : {}),
           ...runtimeOverrides,
         };
 
         const componentProps = filterLibraryProps(fieldProps, componentConfig.additionalProps);
+
+        if (!shouldIgnoreWrapper && !config.components.Field) {
+          injectDescriptionDescribedBy(componentProps, fieldProps, fieldName, displayError);
+        }
 
         if (componentConfig.injectFormConfig) {
           componentProps.__formConfig = config;
@@ -781,6 +837,7 @@ const createRenderedField = <T extends FormDefinition>(
     options: runtimeOptions,
     label: runtimeLabel,
     placeholder: runtimePlaceholder,
+    description: runtimeDescription,
     className,
     style,
     ...rest
@@ -793,6 +850,7 @@ const createRenderedField = <T extends FormDefinition>(
     if (runtimeOptions !== undefined) runtimeOverrides.options = runtimeOptions;
     if (runtimeLabel !== undefined) runtimeOverrides.label = runtimeLabel;
     if (runtimePlaceholder !== undefined) runtimeOverrides.placeholder = runtimePlaceholder;
+    if (runtimeDescription !== undefined) runtimeOverrides.description = runtimeDescription;
     if (className !== undefined) runtimeOverrides.className = className;
     if (style !== undefined) runtimeOverrides.style = style;
 
@@ -876,12 +934,12 @@ const createRenderedForm = <T extends FormDefinition>(
     const serverErrors =
       hasServerAction && actionState && actionState.success === false ? actionState.errors : undefined;
 
-    // Client-side submit handler (no server action)
+    // Client-side submit handler (no server action). Validation runs even without an
+    // `onSubmit`, so submitting still marks the fields and shows their errors instead
+    // of silently doing nothing.
     const handleClientSubmit = (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      if (onSubmit) {
-        form.handleSubmit(onSubmit)(e);
-      }
+      form.handleSubmit(onSubmit ?? (() => {}))(e);
     };
 
     // Server-action submit handler (used with JS). We keep `action={formAction}` on the form so

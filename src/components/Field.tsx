@@ -7,6 +7,9 @@ export interface FieldProps<T = any> {
   name?: string;
   id?: string;
   error?: FieldError;
+  /** Per-field explanatory text, rendered under the control. The element carries
+   * `id={fieldId}-description` so a custom input can point `aria-describedby` at it. */
+  description?: string;
   className?: string;
   children: ReactNode;
 }
@@ -17,6 +20,7 @@ const Field = <T,>(
     name,
     id,
     error,
+    description,
     className,
     children,
   }: FieldProps<T>,
@@ -24,7 +28,7 @@ const Field = <T,>(
 ) => {
   // Error message is already parsed by useFormDefinition
   const errorMessage = error?.message || null;
-  
+
   // Generate the same ID that the input component would use
   const fieldId = generateFieldId(name || '', id);
 
@@ -35,7 +39,7 @@ const Field = <T,>(
           {label}
         </label>
       )}
-      
+
       <div>
         {children}
       </div>
@@ -43,6 +47,12 @@ const Field = <T,>(
       {errorMessage && (
         <div id={`${name}-error`} role="alert" aria-live="polite">
           {errorMessage}
+        </div>
+      )}
+
+      {description && (
+        <div id={`${fieldId}-description`}>
+          {description}
         </div>
       )}
     </div>

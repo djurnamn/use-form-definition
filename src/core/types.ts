@@ -147,6 +147,20 @@ export interface FormFieldDefinition {
    * - any other string: use as the translation key (when translation enabled) or as a literal placeholder
    */
   placeholder?: string | "auto" | "none";
+  /**
+   * Per-field explanatory text ("what does this value actually do"), rendered by the
+   * `Field` wrapper under the control and associated with the input via `aria-describedby`.
+   * Accepts the same forms as `placeholder`:
+   * - `undefined`: use the default localePath when `translation.descriptions.alwaysInclude` is true; otherwise no description
+   * - `"auto"`: explicitly use the default localePath for translation
+   * - `"none"`: explicitly hide the description
+   * - any other string: use as the translation key (when translation enabled) or as a literal description
+   *
+   * Note: a field type can allowlist `description` in its `additionalProps` (as the
+   * djui binding does for `checkbox` and `switch`) - then it reaches the control
+   * itself as the control's own inline description, not the wrapper.
+   */
+  description?: string | "auto" | "none";
   options?: SelectOptions;
   readOnly?: boolean;
   defaultValue?: string | number | boolean | any[];
@@ -335,6 +349,14 @@ export interface TranslationConfigObject {
    * - localePath: (key) => `form.placeholders.${key}` by default
    */
   placeholders?: TranslationCategoryConfig;
+
+  /**
+   * Field description translation config
+   * - enabled: false by default
+   * - alwaysInclude: false by default (descriptions require explicit `description: "auto"` or a string)
+   * - localePath: (key) => `form.descriptions.${key}` by default
+   */
+  descriptions?: TranslationCategoryConfig;
 
   /**
    * Validation message translation config
