@@ -5,4 +5,4 @@ export { MuiDatePicker } from './MuiDatePicker';
 export { MuiAutocomplete } from './MuiAutocomplete';
 export { MuiLayoutContainer } from './MuiLayoutContainer';
 export { MuiLayoutItem } from './MuiLayoutItem';
-export { MuiSubmitButton } from './MuiSubmitButton';
+export { MuiActions } from './MuiActions';

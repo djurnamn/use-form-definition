@@ -15,7 +15,8 @@ const AVAILABLE_COMPONENTS = {
   'field': 'Field.tsx',
   'layout-container': 'LayoutContainer.tsx',
   'layout-item': 'LayoutItem.tsx',
-  'submit-button': 'SubmitButton.tsx',
+  'actions': 'Actions.tsx',
+  'form-message': 'FormMessage.tsx',
 };
 
 function showHelp() {
@@ -55,8 +56,16 @@ function copyComponent(componentName, destination) {
       fs.mkdirSync(destination, { recursive: true });
     }
 
-    // Copy the file
-    fs.copyFileSync(sourcePath, destPath);
+    // Copy the file, rewriting the package's internal relative imports
+    // (../core/utilities, ../core/types, ...) to the package root, which
+    // re-exports everything the components use. A verbatim copy would only
+    // compile in a tree that mirrors this repo's layout.
+    const source = fs.readFileSync(sourcePath, 'utf8');
+    const rewritten = source.replace(
+      /from (["'])\.\.\/core\/[^"']+\1/g,
+      'from "use-form-definition"'
+    );
+    fs.writeFileSync(destPath, rewritten);
     console.log(`✅ Copied ${componentFile} to ${destPath}`);
     return true;
   } catch (error) {

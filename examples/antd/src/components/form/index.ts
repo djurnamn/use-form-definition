@@ -6,4 +6,4 @@ export { AntDatePicker } from './AntDatePicker';
 export { AntField } from './AntField';
 export { AntLayoutContainer } from './AntLayoutContainer';
 export { AntLayoutItem } from './AntLayoutItem';
-export { AntSubmitButton } from './AntSubmitButton';
+export { AntActions } from './AntActions';

@@ -96,7 +96,7 @@ examples/antd/
 │   │   ├── AntField.tsx          # Form.Item as Field wrapper
 │   │   ├── AntLayoutContainer.tsx # Row container
 │   │   ├── AntLayoutItem.tsx     # Col with responsive props
-│   │   ├── AntSubmitButton.tsx   # Styled submit button
+│   │   ├── AntActions.tsx   # Styled submit button
 │   │   └── index.ts
 │   ├── forms/
 │   │   └── settings.ts           # Settings form definition
@@ -125,7 +125,7 @@ import {
   AntField,
   AntLayoutContainer,
   AntLayoutItem,
-  AntSubmitButton,
+  AntActions,
 } from '@/components/form';
 
 export const useFormDefinition = createFormDefinitionHook({
@@ -161,7 +161,7 @@ export const useFormDefinition = createFormDefinitionHook({
     LayoutContainer: AntLayoutContainer,
     LayoutItem: AntLayoutItem,
     // Register an Ant Design Button in the Actions slot
-    Actions: AntSubmitButton,
+    Actions: AntActions,
   },
 });
 ```

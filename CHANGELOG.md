@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-08-19
+
+### Added
+
+- **`extractSubmittedValues(formData)`** on the `./server` entry - the form's own fields from a posted `FormData`, for echoing back as `FormActionResult.values`. A post carries more than the form's fields: React's `$ACTION_REF_*` / `$ACTION_*` / `$ACTION_KEY` bookkeeping rides **every** no-JS submit. That was already a small leak before this release - `values` is not inert, since `useFormDefinition` spreads it over the generated defaults to seed `useForm()` on the no-JS validation-error round trip, so whatever an action echoes lands in the form model. `handleServerSubmit` has always stripped `$ACTION*` on the **JS** path; this applies the same rule on the path where it actually matters, in one place, so an action does not have to know React's reserved names to echo correctly. The guard is a `$ACTION` prefix, so ordinary fields called `action` or `transaction` are untouched.
+- **`defaultValues` on the hook options** - initial values for the form the hook constructs (an edit form's stored record), merged over the definition's generated defaults and *under* a failed action's echoed `values`. It exists because the alternative silently broke progressive enhancement: the no-JS validation-error re-population happens where this hook builds the form, so a consumer who supplied their own `form` (the documented "full control" pattern, and the only way to start from stored values until now) lost it with no signal at all. Passing both `form` and `serverAction` now warns in development, and the `form` option documents the trade-off.
+
+### Deprecated
+
+- **`showActions` on `RenderedForm`.** Configure the slot instead: `config: { components: { Actions: false } }` on the hook, or a custom component there to replace the default. The slot mechanism already supports both per form, so the boolean was a redundant second switch; it keeps working until the next major.
+- **A field-level `name` different from the definition key.** It has never worked - the field gets two react-hook-form slots, client validation fails with the field filled in, and the server reports it missing (measured; `docs/follow-ups.md` section 1 carries the evidence and the decision) - so nothing can be relying on it working. The JSDoc is marked `@deprecated` and a development-mode warning names the offending fields; removal is the likely resolution.
+
+### Docs
+
+- **[Without JavaScript](./docs/without-javascript.md)** - the no-JS contract in one place: a server-action form degrades to a working plain-HTML form, a client-only form does not, and the boundaries (tabs, `form` + `serverAction`, empty-state posting) each get a plain statement. Previously spread across changelog entries and JSDoc blocks.
+
+### Fixed
+
+- **A submit blocked entirely by errors on unrendered fields no longer looks like a dead button.** Any conditionally-rendered form could reach this and a tabbed one hits it constantly: the gate validates the whole definition, the failing field is on another page, and *nothing appears on screen* - no error, no message, no submit. `RenderedForm` now raises a whole-form message (`validation.errorsNotVisible`, overridable through the usual validation-translation path) when a blocked submit would otherwise show the user nothing, and retracts it as soon as a submit passes the client-side gate; a form whose errors render on their own fields is untouched. Visibility is read from `form.elements`, so a custom control counts as on-screen only if it renders a named native form element - every built-in does; a binding rendering only unnamed wrappers through the `Controller` should add a named element (a hidden input carrying its value) to participate. Both submit paths are covered - the gate is the resolver, not the server action, so a client-only tabbed form hit the same dead button. Two findings worth recording, both from running it rather than reading it. **react-hook-form drops errors for fields it never registered**, so on a page the user never opened `trigger()` returns `false` while `formState.errors` stays *empty* - the failing set has to be recomputed from the schema rather than read off form state (which also lags a render). And the notice is held in `RenderedForm`'s own state rather than pushed in as a `root` error, because a lingering root error combined with a client-side route change left the *next* submit dead, the handler never firing at all - it is also the more honest model, since this is the form saying where to look, not a validation error on a field.
+- **The copy CLI works again, and its copies compile.** `npx use-form-definition copy` still listed `submit-button` pointing at `SubmitButton.tsx`, a file the v2.0.0 rename removed - so that entry (and the `all` sweep) had been failing since May; it is now `actions`, and `form-message` (added in 2.2.0) is registered too. Copies also rewrite the package's internal `../core/...` imports to `use-form-definition`, which re-exports everything the components use - a verbatim copy only compiled in a tree that mirrored this repo's layout. The stale `*SubmitButton` component names in the shadcn/mui/antd examples were renamed to `*Actions` as well.
+
 ## [2.6.0] - 2026-08-06
 
 ### Added

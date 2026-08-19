@@ -30,6 +30,11 @@ export const defaultValidationMessages: Record<
   invalidFormat: "Invalid format",
   invalidSelection: "Invalid selection",
   invalidSelections: "Contains invalid selection(s)",
+  // Whole-form rather than per-field: raised when a submit is blocked but nothing that
+  // failed is on screen, so without it the button would simply appear dead. Deliberately
+  // uncounted - react-hook-form drops errors for never-registered fields, so at the moment
+  // this fires the failing set is genuinely unknown.
+  errorsNotVisible: "Some fields need attention, but are not currently shown",
 };
 
 /**

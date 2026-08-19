@@ -7,7 +7,7 @@ import {
   MuiAutocomplete,
   MuiLayoutContainer,
   MuiLayoutItem,
-  MuiSubmitButton,
+  MuiActions,
 } from '@/components/form';
 
 export const useFormDefinition = createFormDefinitionHook({
@@ -66,6 +66,6 @@ export const useFormDefinition = createFormDefinitionHook({
     LayoutContainer: MuiLayoutContainer,
     LayoutItem: MuiLayoutItem,
     // Render the Actions slot with an MUI Button instead of a plain HTML button
-    Actions: MuiSubmitButton,
+    Actions: MuiActions,
   },
 });

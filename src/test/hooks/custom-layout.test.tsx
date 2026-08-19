@@ -33,6 +33,24 @@ function CustomLayoutForm({ serverAction }: { serverAction: Action }) {
   );
 }
 
+// Zero-config form with the Actions slot switched off through per-form config - the
+// configured replacement for the deprecated `showActions` prop.
+function NoActionsForm() {
+  const { RenderedForm } = useFormDefinition(profileDefinition, {
+    config: { components: { Actions: false } },
+  });
+  return <RenderedForm />;
+}
+
+describe('per-form components config', () => {
+  it('renders no actions with `components: { Actions: false }` on the hook', () => {
+    render(<NoActionsForm />);
+
+    expect(screen.getAllByRole('textbox')).toHaveLength(2);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+});
+
 describe('RenderedForm with a custom layout (children)', () => {
   it('renders the supplied layout instead of the automatic field grid', () => {
     const action = vi.fn(async () => ({ success: true }));

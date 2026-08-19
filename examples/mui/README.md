@@ -122,7 +122,7 @@ examples/mui/
 │   │   ├── MuiAutocomplete.tsx   # Autocomplete with hidden input
 │   │   ├── MuiLayoutContainer.tsx # Grid2 container for form layout
 │   │   ├── MuiLayoutItem.tsx     # Grid2 item with responsive props
-│   │   ├── MuiSubmitButton.tsx   # Styled submit button
+│   │   ├── MuiActions.tsx   # Styled submit button
 │   │   └── index.ts
 │   ├── forms/
 │   │   └── profile.ts            # Profile form definition
@@ -150,7 +150,7 @@ import {
   MuiAutocomplete,
   MuiLayoutContainer,
   MuiLayoutItem,
-  MuiSubmitButton,
+  MuiActions,
 } from '@/components/form';
 
 export const useFormDefinition = createFormDefinitionHook({
@@ -208,7 +208,7 @@ export const useFormDefinition = createFormDefinitionHook({
     LayoutContainer: MuiLayoutContainer,
     LayoutItem: MuiLayoutItem,
     // MUI Button registered in the Actions slot
-    Actions: MuiSubmitButton,
+    Actions: MuiActions,
   },
 });
 ```
@@ -251,8 +251,8 @@ This differs from the default library behavior where `label` goes to the Field w
 Register an MUI-styled button in the `Actions` slot to replace the library's default HTML submit button. The slot accepts any component, so you can also render a row of buttons (e.g. `[Cancel] [Save]`).
 
 ```typescript
-// MuiSubmitButton.tsx
-export function MuiSubmitButton({ children = 'Submit', ...props }) {
+// MuiActions.tsx
+export function MuiActions({ children = 'Submit', ...props }) {
   return (
     <Button type="submit" variant="contained" color="primary" fullWidth {...props}>
       {children}
@@ -262,7 +262,7 @@ export function MuiSubmitButton({ children = 'Submit', ...props }) {
 
 // Configure in formComponents
 formComponents: {
-  Actions: MuiSubmitButton,
+  Actions: MuiActions,
 }
 ```
 

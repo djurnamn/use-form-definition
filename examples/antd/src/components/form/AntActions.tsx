@@ -1,7 +1,7 @@
 import { Button, ButtonProps } from 'antd';
 import { ReactNode } from 'react';
 
-export interface AntSubmitButtonProps extends Omit<ButtonProps, 'htmlType'> {
+export interface AntActionsProps extends Omit<ButtonProps, 'htmlType'> {
   children?: ReactNode;
 }
 
@@ -11,10 +11,10 @@ export interface AntSubmitButtonProps extends Omit<ButtonProps, 'htmlType'> {
  * Replaces the library's default HTML button with Ant Design's Button component.
  * Uses primary type and block layout by default.
  */
-export function AntSubmitButton({
+export function AntActions({
   children = 'Submit',
   ...props
-}: AntSubmitButtonProps) {
+}: AntActionsProps) {
   return (
     <Button
       htmlType="submit"

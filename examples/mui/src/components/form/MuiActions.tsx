@@ -1,7 +1,7 @@
 import { Button, ButtonProps } from '@mui/material';
 import { ReactNode } from 'react';
 
-export interface MuiSubmitButtonProps extends Omit<ButtonProps, 'type'> {
+export interface MuiActionsProps extends Omit<ButtonProps, 'type'> {
   children?: ReactNode;
 }
 
@@ -11,10 +11,10 @@ export interface MuiSubmitButtonProps extends Omit<ButtonProps, 'type'> {
  * Replaces the library's default HTML button with MUI's Button component.
  * Uses contained variant and primary color by default.
  */
-export function MuiSubmitButton({
+export function MuiActions({
   children = 'Submit',
   ...props
-}: MuiSubmitButtonProps) {
+}: MuiActionsProps) {
   return (
     <Button
       type="submit"

@@ -146,3 +146,31 @@ export type {
 } from "./core/types";
 
 export { createField } from "./core/types";
+
+/**
+ * The form's own submitted values, for echoing back as `FormActionResult.values` on a
+ * failed result.
+ *
+ * A posted `FormData` carries more than the form's fields: React's progressive-enhancement
+ * bookkeeping (`$ACTION_REF_*`, `$ACTION_*`, `$ACTION_KEY`) rides every no-JS submit. That
+ * is not a field, and `values` is not inert - `useFormDefinition` spreads it over the
+ * generated defaults to seed `useForm()` on the no-JS round trip, so whatever is echoed
+ * lands in the form model.
+ *
+ * `handleServerSubmit` already strips `$ACTION*` on the **JS** path; this applies the same
+ * rule on the path where it actually matters, in one place, so every action does not have
+ * to know React's reserved names itself.
+ *
+ * ```ts
+ * return { success: false, errors, values: extractSubmittedValues(formData) };
+ * ```
+ *
+ * The guard is a `$ACTION` prefix match, so ordinary fields called `action` or
+ * `transaction` are untouched.
+ */
+export const extractSubmittedValues = (
+  formData: FormData
+): Record<string, FormDataEntryValue> =>
+  Object.fromEntries(
+    Array.from(formData.entries()).filter(([name]) => !name.startsWith("$ACTION"))
+  );

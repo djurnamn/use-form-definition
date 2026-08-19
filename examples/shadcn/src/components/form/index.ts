@@ -5,4 +5,4 @@ export { ShadcnCheckbox } from './ShadcnCheckbox';
 export { ShadcnField } from './ShadcnField';
 export { ShadcnLayoutContainer } from './ShadcnLayoutContainer';
 export { ShadcnLayoutItem } from './ShadcnLayoutItem';
-export { ShadcnSubmitButton } from './ShadcnSubmitButton';
+export { ShadcnActions } from './ShadcnActions';

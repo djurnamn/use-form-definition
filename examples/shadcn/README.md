@@ -44,7 +44,7 @@ shadcn/
 │   │       ├── ShadcnField.tsx
 │   │       ├── ShadcnLayoutContainer.tsx
 │   │       ├── ShadcnLayoutItem.tsx
-│   │       ├── ShadcnSubmitButton.tsx
+│   │       ├── ShadcnActions.tsx
 │   │       └── index.ts
 │   ├── forms/
 │   │   └── user.ts          # User form definition
@@ -137,7 +137,7 @@ import {
   ShadcnField,
   ShadcnLayoutContainer,
   ShadcnLayoutItem,
-  ShadcnSubmitButton
+  ShadcnActions
 } from '@/components/form';
 
 export const useFormDefinition = createFormDefinitionHook({
@@ -156,7 +156,7 @@ export const useFormDefinition = createFormDefinitionHook({
     Field: ShadcnField,
     LayoutContainer: ShadcnLayoutContainer,
     LayoutItem: ShadcnLayoutItem,
-    Actions: ShadcnSubmitButton
+    Actions: ShadcnActions
   }
 });
 ```

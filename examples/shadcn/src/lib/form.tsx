@@ -8,7 +8,7 @@ import {
   ShadcnField,
   ShadcnLayoutContainer,
   ShadcnLayoutItem,
-  ShadcnSubmitButton,
+  ShadcnActions,
 } from '@/components/form';
 
 /**
@@ -60,6 +60,6 @@ export const useFormDefinition = createFormDefinitionHook({
     LayoutItem: ShadcnLayoutItem,
 
     // Custom Actions slot - renders the submit button with loading state
-    Actions: ShadcnSubmitButton,
+    Actions: ShadcnActions,
   },
 });

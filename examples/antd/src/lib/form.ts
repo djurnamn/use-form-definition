@@ -8,7 +8,7 @@ import {
   AntField,
   AntLayoutContainer,
   AntLayoutItem,
-  AntSubmitButton,
+  AntActions,
 } from '@/components/form';
 
 export const useFormDefinition = createFormDefinitionHook({
@@ -45,6 +45,6 @@ export const useFormDefinition = createFormDefinitionHook({
     LayoutContainer: AntLayoutContainer,
     LayoutItem: AntLayoutItem,
     // Render the Actions slot with an Ant Design Button
-    Actions: AntSubmitButton,
+    Actions: AntActions,
   },
 });

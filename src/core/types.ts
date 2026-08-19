@@ -123,9 +123,17 @@ export interface FormFieldDefinition {
    *
    * When omitted, the library uses the key of this entry in the parent
    * `FormDefinition` object as the field's name (e.g. `{ email: { type: 'text' } }`
-   * yields `name: 'email'`). Set this explicitly only when the form field
-   * should have a different `name` from the definition key - e.g. nesting
-   * inside a flat HTML name like `user[email]`.
+   * yields `name: 'email'`).
+   *
+   * ⚠ **Setting this to anything other than the definition key is broken - do not use
+   * it.** Rendering keys by the name while defaults and the generated schema key by the
+   * definition key, so the field ends up with two slots in react-hook-form, client
+   * validation fails with the field filled in, and the server reports it missing. Measured,
+   * with the cause and the decision it needs: `docs/follow-ups.md` section 1.
+   *
+   * @deprecated Setting a `name` different from the definition key has never worked and
+   * is slated for removal; a development-mode warning fires when a definition does it.
+   * The definition key already is the field's name - omit this.
    */
   name?: string;
   /**

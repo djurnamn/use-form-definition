@@ -109,8 +109,19 @@ export interface FormDefinitionHookOptions<T extends FieldValues = FieldValues> 
    * Form instance from react-hook-form
    * - If omitted, useForm() is called internally with auto-generated options
    * - If provided, the full UseFormReturn object is used
+   *
+   * Note the trade-off documented on `useFormDefinition`'s `form` option: a form you
+   * construct yourself cannot receive the no-JS validation-error re-population, because
+   * that merge happens where this hook builds the form. Prefer `defaultValues` below when
+   * starting values are all you need.
    */
   form?: UseFormReturn<T>;
+  /**
+   * Initial values for the internally-created form - an edit form's stored record. Merged
+   * over the definition's generated defaults and under a failed action's echoed `values`.
+   * Ignored when `form` is passed.
+   */
+  defaultValues?: FieldValues;
   config?: Partial<FormConfig>;
   /**
    * Server action for the form (e.g. a Next.js Server Action).
@@ -324,6 +335,7 @@ export const createFormDefinitionHook = (
     // Use the existing useFormDefinition hook with merged config
     return useFormDefinition<T, Extras>(definition, {
       form: options.form,
+      defaultValues: options.defaultValues,
       config: finalConfig,
       serverAction: options.serverAction,
     });

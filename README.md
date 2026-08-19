@@ -179,6 +179,8 @@ npx use-form-definition copy field ./src/components/
 - [Plugin System](./docs/plugins.md) - Extending validation and field types
 - [Repeater Fields](./docs/repeaters.md) - Dynamic list fields
 - [Type Inference](./docs/type-inference.md) - Automatic TypeScript types
+- [Without JavaScript](./docs/without-javascript.md) - What works before hydration or with JS disabled, and where the boundaries run
+- [Follow-ups](./docs/follow-ups.md) - Known gaps carried deliberately, with the evidence to act on them
 
 ## Examples
 

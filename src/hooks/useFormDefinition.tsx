@@ -1,4 +1,4 @@
-import React, { ReactNode, useMemo, FormEvent, useEffect, useRef, useActionState, startTransition } from "react";
+import React, { ReactNode, useMemo, useState, FormEvent, useEffect, useRef, useActionState, startTransition } from "react";
 import { Controller, FieldValues, UseFormReturn, DefaultValues, useForm, useFormState, FieldError, Control } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +14,7 @@ import { generateSchema, generateOptions } from "../core/schema";
 import { deriveHtml5Attributes } from "../core/html5-attributes";
 import { resolveDeriveTransform } from "../core/derive";
 import { generateSchema as generateSchemaFromBuilder } from "../core/schema/schema-builder";
+import { generateDataValidator } from "../core/schema/data-validator";
 import { createFormConfig } from "../configuration/createFormConfig";
 import {
   getFieldName,
@@ -290,8 +291,32 @@ interface UseFormDefinitionOptions<T extends FormDefinition> {
    * Form instance from react-hook-form
    * - If omitted, useForm() is called internally with auto-generated options
    * - If provided, the full UseFormReturn object is used
+   *
+   * **Trade-off worth knowing before you reach for this.** The no-JS validation-error
+   * round trip re-populates the fields by merging the action's echoed `values` into the
+   * defaults *of the form this hook constructs*. A form you construct yourself was built
+   * before this hook ran and cannot see that result, so passing `form` **silently disables
+   * no-JS re-population** - a user without JS loses what they typed. If you only need
+   * starting values, pass {@link UseFormDefinitionOptions.defaultValues} instead and let
+   * the hook own the form; reach for `form` when you genuinely need the instance during
+   * render (a state bridge, cross-field effects) and either accept the loss or have no
+   * server action at all. Passing both `form` and `serverAction` warns in development.
    */
   form?: UseFormReturn<any>;
+  /**
+   * Initial values for the internally-created form - an edit form's stored record.
+   *
+   * Merged over the definition's own generated defaults, and *under* a failed server
+   * action's echoed `values`, so a no-JS validation-error round trip re-populates what the
+   * user typed rather than resetting to the record.
+   *
+   * **Prefer this to building the form yourself** when all you need is starting values.
+   * Passing `form` makes the consumer the owner of `defaultValues`, and the no-JS
+   * re-population above is applied where the internal form is constructed - so a
+   * consumer-supplied form silently loses it (see the `form` option). Ignored when `form`
+   * is passed, since there is nothing left to construct.
+   */
+  defaultValues?: FieldValues;
   config?: Partial<FormConfig>;
   /**
    * Server action for the form (e.g. a Next.js Server Action).
@@ -385,7 +410,14 @@ export interface RenderedFormProps<TFormData extends FieldValues> {
   onSuccess?: (result: FormActionResult<TFormData>) => void;
   /** Callback when the server action fails (client-side only). */
   onError?: (result: FormActionResult<TFormData>) => void;
-  /** Whether to show the actions slot (default: true). Ignored when `children` is provided. */
+  /**
+   * Whether to show the actions slot (default: true). Ignored when `children` is provided.
+   *
+   * @deprecated Configure the slot instead: `config: { components: { Actions: false } }` on
+   * the hook (or a custom component there to replace it). One mechanism, per form, already
+   * honored by the renderer - this boolean is a redundant second switch and will be removed
+   * in the next major.
+   */
   showActions?: boolean;
   /**
    * Custom layout for the form body. When provided, these children are rendered inside the
@@ -747,6 +779,12 @@ interface FormMessageSlotProps {
   control: Control<any>;
   /** Whole-form message from a server-action envelope, if any. */
   envelopeMessage?: string;
+  /**
+   * A message `RenderedForm` itself raised (today: the off-screen-errors notice). Lowest
+   * precedence - it only ever speaks when nothing else has anything to say, which is the
+   * situation it exists for.
+   */
+  localMessage?: string;
   /** Severity for the envelope message. */
   envelopeStatus?: FormMessageStatus;
 }
@@ -754,6 +792,7 @@ interface FormMessageSlotProps {
 const FormMessageSlot: React.FC<FormMessageSlotProps> = ({
   config,
   control,
+  localMessage,
   envelopeMessage,
   envelopeStatus,
 }) => {
@@ -767,6 +806,9 @@ const FormMessageSlot: React.FC<FormMessageSlotProps> = ({
     status = envelopeStatus ?? "error";
   } else if (rootError?.message) {
     message = rootError.message;
+    status = "error";
+  } else if (localMessage) {
+    message = localMessage;
     status = "error";
   }
 
@@ -870,6 +912,75 @@ const createRenderedField = <T extends FormDefinition>(
   return Component;
 };
 
+/**
+ * Whether to emit development-only diagnostics.
+ *
+ * Written as a literal `process.env.NODE_ENV` read, deliberately: bundler substitution
+ * (webpack's DefinePlugin, Vite/esbuild `define`) matches that exact member expression,
+ * so reaching it through `globalThis` would dodge the replacement and leave the check
+ * alive - and wrongly true - in a production browser bundle. The try/catch covers the
+ * unbundled browser, where `process` does not exist and the bare reference throws;
+ * defaulting to silent there is the safe side for a diagnostic. The ambient declaration
+ * exists because this package ships no Node types.
+ */
+declare const process: { env: { NODE_ENV?: string } };
+
+function isDevelopment(): boolean {
+  try {
+    return process.env.NODE_ENV !== 'production';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether a blocked submit would leave the user with nothing to look at.
+ *
+ * The submit gate validates the whole definition, but only part of the form may be on
+ * screen. When nothing that failed is visible the button simply appears dead: no error
+ * renders anywhere, and there is no feedback to act on. Any conditionally-rendered form can
+ * reach this; a tabbed one hits it constantly.
+ *
+ * Two things make the obvious implementation wrong, both found by running it:
+ *
+ *  - **Which fields failed cannot come from `form.formState.errors`.** It lags by a render
+ *    (`trigger()` publishes errors through react-hook-form's state subject, so a read taken
+ *    straight after awaiting it returns the *previous* render's object - empty on a first
+ *    submit), and it omits fields that were never registered, which is precisely the set at
+ *    issue: a field on a page the user never opened was never rendered, so `trigger()`
+ *    returns `false` while `errors` stays empty. Re-running the schema over the current
+ *    values answers both, and cannot disagree with the gate - it is the same schema the
+ *    resolver runs.
+ *  - **`form.elements` is the right source for "is this on screen".** It enumerates every
+ *    rendered control *including unchecked checkboxes*, which a `FormData` does not. It also
+ *    includes `disabled` controls, which do not post - correct here, since a disabled field
+ *    is still visible, but any use of this set as a *post* predicate would have to filter
+ *    them.
+ *
+ * Two contract edges of the `form.elements` source, both inherited by custom controls:
+ * a control counts as rendered only if it renders a **named native form element** (as
+ * every built-in does) - a binding rendering bare divs through the `Controller` is
+ * invisible to this test and would raise the notice spuriously next to its own visible
+ * error; and names starting with `$` are treated as framework bookkeeping (React's
+ * `$ACTION_*`), so definition keys must not start with `$`.
+ */
+function hasNoVisibleError<T extends FormDefinition>(
+  definition: T,
+  formElement: HTMLFormElement,
+  form: UseFormReturn<any>
+): boolean {
+  const parsed = generateSchemaFromBuilder(definition).safeParse(form.getValues());
+  if (parsed.success) return false;
+
+  const rendered = new Set(
+    Array.from(formElement.elements)
+      .map(element => (element as HTMLInputElement).name)
+      .filter(name => name && !name.startsWith('$'))
+  );
+
+  return !parsed.error.issues.some(issue => rendered.has(String(issue.path[0] ?? '')));
+}
+
 const createRenderedForm = <T extends FormDefinition>(
   ctxRef: React.MutableRefObject<RenderContext<T>>
 ): React.FC<RenderedFormProps<any>> => {
@@ -905,6 +1016,15 @@ const createRenderedForm = <T extends FormDefinition>(
     // Push server validation errors onto react-hook-form (so it owns + clears them on the
     // client) and fire success/error callbacks. Effects don't run during SSR / without JS -
     // there, errors are rendered straight from `actionState` (see `serverErrors` below).
+    // The off-screen-errors notice is ufd's OWN message, held in local state rather than
+    // pushed into react-hook-form as a `root` error. It was a root error first, and that was
+    // wrong twice over: `formState` is a read-subscribed proxy, so the handler could not
+    // reliably tell whether its own notice was still standing; and - found in a browser, not
+    // in review - a lingering root error combined with a router navigation left the next
+    // submit dead, the handler never firing at all. Neither happened alone. It is also
+    // simply the more honest model: this is not a validation error on a field, it is the
+    // form telling the user where to look.
+    const [offscreenNotice, setOffscreenNotice] = useState<string | null>(null);
     const lastSeenStateRef = useRef<FormActionResult<any> | null>(null);
     useEffect(() => {
       if (!actionState || actionState === lastSeenStateRef.current) return;
@@ -939,7 +1059,26 @@ const createRenderedForm = <T extends FormDefinition>(
     // of silently doing nothing.
     const handleClientSubmit = (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      form.handleSubmit(onSubmit ?? (() => {}))(e);
+      // Same capture as the server path: `currentTarget` reads back as null once the event
+      // finishes dispatching, and handleSubmit's callbacks run after an async validation
+      // pass.
+      const formElement = e.currentTarget;
+      form.handleSubmit(
+        async (data) => {
+          setOffscreenNotice(null);
+          await (onSubmit ?? (() => {}))(data);
+        },
+        // The dead-button failure is not server-action-specific: the resolver validates
+        // the whole definition here too, so every failing field can be off-screen (or
+        // never registered at all), leaving the user with nothing to look at.
+        () => {
+          setOffscreenNotice(
+            hasNoVisibleError(ctx.definition, formElement, form)
+              ? ctx.translateValidation('errorsNotVisible')
+              : null
+          );
+        }
+      )(e);
     };
 
     // Server-action submit handler (used with JS). We keep `action={formAction}` on the form so
@@ -955,13 +1094,22 @@ const createRenderedForm = <T extends FormDefinition>(
     const handleServerSubmit = async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       if (!formAction) return;
-      const formData = new globalThis.FormData(e.currentTarget);
+      // Captured before the `await` below: `currentTarget` is only valid while the event is
+      // being dispatched and reads back as null afterwards, so anything needing the form
+      // element after validation has to hold its own reference.
+      const formElement = e.currentTarget;
+      const formData = new globalThis.FormData(formElement);
       // Drop React's progressive-enhancement bookkeeping inputs ($ACTION_REF_*, $ACTION_*, ...) so
       // they don't leak into the validated data or the echoed `values`.
       for (const fieldKey of Array.from(formData.keys())) {
         if (fieldKey.startsWith('$ACTION')) formData.delete(fieldKey);
       }
       const valid = await form.trigger();
+      setOffscreenNotice(
+        !valid && hasNoVisibleError(ctx.definition, formElement, form)
+          ? ctx.translateValidation('errorsNotVisible')
+          : null
+      );
       if (!valid) return;
       // The `await` above left React's transition scope, so dispatch inside startTransition to
       // keep `isPending` working / avoid the "called outside a transition" warning.
@@ -1010,6 +1158,7 @@ const createRenderedForm = <T extends FormDefinition>(
       <FormMessageSlot
         config={ctx.config}
         control={form.control}
+        localMessage={offscreenNotice ?? undefined}
         envelopeMessage={envelopeMessage}
         envelopeStatus={envelopeStatus}
       />
@@ -1076,7 +1225,51 @@ export const useFormDefinition = <
   definition: T,
   options: UseFormDefinitionOptions<T> = {}
 ): UseFormDefinitionReturn<T, z.infer<ReturnType<typeof generateSchema<T>>>, Extras> => {
-  const { form: formOption, config: userConfig, serverAction } = options;
+  const {
+    form: formOption,
+    defaultValues: defaultValuesOption,
+    config: userConfig,
+    serverAction,
+  } = options;
+
+  // A consumer-supplied form is constructed before this hook runs, so the no-JS
+  // re-population merge below cannot reach it - the user silently loses what they typed on
+  // a validation-error round trip without JS. Silent, path-specific and invisible in
+  // development, so it gets a warning rather than a doc line alone. Once per hook
+  // instance - the condition is stable across renders, and renders happen per keystroke.
+  const warnedFormWithServerAction = useRef(false);
+  if (isDevelopment() && formOption && serverAction && !warnedFormWithServerAction.current) {
+    warnedFormWithServerAction.current = true;
+    console.warn(
+      '[use-form-definition] `form` and `serverAction` were both provided. The no-JS ' +
+        'validation-error round trip re-populates fields through the form this hook ' +
+        'constructs, so passing your own form disables it. If you only need starting ' +
+        'values, pass `defaultValues` instead and drop `form`.'
+    );
+  }
+
+  // A field-level `name` override is documented-but-broken (docs/follow-ups.md section 1:
+  // the field gets two react-hook-form slots, client validation fails with the field
+  // filled in, and the server reports it missing) and is deprecated ahead of removal. The
+  // JSDoc says so; this makes it visible at runtime, since a broken form otherwise reads
+  // as a server bug.
+  const warnedFieldNameOverride = useRef(false);
+  if (isDevelopment() && !warnedFieldNameOverride.current) {
+    const renamed = Object.entries(definition)
+      .filter(([key, field]) => field.name && field.name !== key)
+      .map(([key]) => key);
+    if (renamed.length > 0) {
+      warnedFieldNameOverride.current = true;
+      console.warn(
+        `[use-form-definition] field${renamed.length === 1 ? '' : 's'} ` +
+          `${renamed.map((key) => `\`${key}\``).join(', ')} set${renamed.length === 1 ? 's' : ''} ` +
+          'a `name` different from the definition key. The `name` override is deprecated: ' +
+          'it has never worked (the field cannot pass validation and the server reports ' +
+          'it missing) and is slated for removal. Drop the override and use the ' +
+          'definition key as the field name.'
+      );
+    }
+  }
 
   // Memoize schema generation - this is expensive and should only happen when definition changes
   const schema = useMemo(() => generateSchemaFromBuilder(definition), [definition]);
@@ -1096,11 +1289,18 @@ export const useFormDefinition = <
   const generatedOptions = useMemo(() => {
     type InferredType = z.infer<typeof schema>;
 
-    const baseDefaults = generateDefaultValues(definition);
-    // On a no-JS validation-error round-trip the page re-renders server-side with the action
-    // result in hand; seeding useForm() with the submitted raw values re-populates the fields.
-    // (No-op on the client: useForm only reads defaultValues at mount, and RHF already holds
-    // whatever the user typed.)
+    // Three tiers, widest first: the definition's own generated defaults, the consumer's
+    // starting values (an edit form's stored record), then - on a no-JS validation-error
+    // round-trip, where the page re-renders server-side with the action result in hand  - 
+    // the submitted raw values, so the fields re-populate with what the user typed rather
+    // than resetting to the record. (The last tier is a no-op on the client: useForm only
+    // reads defaultValues at mount, and RHF already holds whatever the user typed.)
+    // An inline `defaultValues` literal defeats this memo (fresh identity per render);
+    // harmless for the same mount-only reason, so not worth a deep-compare.
+    const baseDefaults = {
+      ...generateDefaultValues(definition),
+      ...(defaultValuesOption ?? {}),
+    };
     const mergedDefaults =
       actionState && actionState.success === false && actionState.values
         ? { ...baseDefaults, ...actionState.values }
@@ -1113,7 +1313,7 @@ export const useFormDefinition = <
       // otherwise round-trip to the server just to surface errors).
       ...(serverAction ? { mode: 'onTouched' as const } : {}),
     };
-  }, [schema, definition, actionState, serverAction]);
+  }, [schema, definition, actionState, serverAction, defaultValuesOption]);
 
   // Create internal form if none provided
   // Note: This must be called unconditionally to satisfy React's rules of hooks
@@ -1248,10 +1448,12 @@ export const useFormDefinition = <
     };
   };
 
-  const validateData = (formData: FormData) => {
-    const dataObject = Object.fromEntries(formData.entries());
-    return schema.safeParse(dataObject);
-  };
+  // Delegates rather than re-implementing, so this and `generateDataValidator` can never
+  // disagree about what a posted FormData means - two validators for one definition is
+  // exactly the sort of divergence that costs an afternoon six months later. Memoized
+  // because the validator regenerates the schema, the expensive step this hook otherwise
+  // caches.
+  const validateData = useMemo(() => generateDataValidator(definition), [definition]);
 
   // Default Form component (simple form element)
   const DefaultForm: React.FC<React.FormHTMLAttributes<HTMLFormElement>> = (props) => (

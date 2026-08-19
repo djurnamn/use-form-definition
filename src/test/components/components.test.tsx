@@ -264,7 +264,7 @@ describe('Component Testing', () => {
       
       fireEvent.click(checkbox);
       expect(mockOnChange).toHaveBeenCalled();
-      
+
       fireEvent.click(checkbox);
       expect(mockOnChange).toHaveBeenCalledTimes(2);
     });
