@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FormFieldDefinition, FormDefinition } from "../types";
+import { FormFieldDefinition, FormDefinition, SchemaOnlyRowProperty } from "../types";
 import { getValidationRule, createMessage } from "../validation";
 import { patterns } from "../../validation/patterns";
 import {
@@ -7,6 +7,7 @@ import {
   registerFieldTypeDefault,
 } from "../default-values";
 import { registerDeriveTransform, type DeriveTransform } from "../derive";
+import { registerFieldTypeMirror } from "../mirror";
 
 /**
  * Field schema generators for different field types
@@ -354,9 +355,38 @@ export const createSelectFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
 
 /**
  * Creates a multiselect field schema
+ *
+ * The wire encoding on a native post is one JSON string under the field's name - the
+ * repeater's convention, applied here for the same reason: `generateDataValidator`
+ * flattens a posted `FormData` with `Object.fromEntries`, which collapses duplicate
+ * names last-wins, so native multi-entry posting (`<select multiple>`'s default) cannot
+ * deliver an array. A multiselect control must post its selection as JSON in a single
+ * entry; the preprocess below decodes it, and client-side array values pass through
+ * untouched.
  */
 export const createMultiselectFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
-  let multiselectSchema: z.ZodTypeAny = z.array(z.string());
+  let multiselectSchema: z.ZodTypeAny = z.preprocess((value) => {
+    // A posted wire value: JSON string (or "" for an empty selection).
+    if (typeof value === "string") {
+      if (value.trim() === "") {
+        return [];
+      }
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch {
+        // Same failure shape as the repeater: a mangled wire value degrades to an
+        // empty selection with a warning, not a crashed parse.
+      }
+      console.warn("Invalid JSON in multiselect field, defaulting to empty selection");
+      return [];
+    }
+
+    // Client-side (react-hook-form) values are already arrays.
+    return value;
+  }, z.array(z.string()));
 
   // Validate against allowed options
   if (field.options && field.options.length > 0) {
@@ -464,6 +494,93 @@ export const createCustomFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
 };
 
 /**
+ * The definition keys that describe how a field *looks*. Meaningless on a schema-only row
+ * property - nothing renders it - so their presence is a misunderstanding worth naming
+ * rather than a no-op worth ignoring.
+ */
+const RENDERING_ONLY_KEYS = [
+  "type",
+  "label",
+  "placeholder",
+  "description",
+  "options",
+  "layout",
+  "readOnly",
+  "deriveFrom",
+  "deriveTransform",
+  "defaultValue",
+] as const;
+
+/**
+ * The schema for one schema-only row property.
+ *
+ * A property declares how its value *validates*, never how it looks: `valueType` for the
+ * built-in value semantics, or `validatesAs` to borrow the validator of a kind registered
+ * with `registerFieldType`. Both resolve to the same generators a cell of that kind would
+ * use, so a property's `validation` rules behave exactly as a field's do - and its issues
+ * nest in the row's error tree at `[rowIndex][propertyKey]`, reachable with `getNestedError`.
+ *
+ * `defaultsTo` becomes a zod default rather than a form default: no control renders a
+ * schema-only property and no repeater seeds one into a new row, so the parse is the only
+ * place a value can land - and it lands on both rails.
+ */
+export const createSchemaOnlyPropertySchema = (
+  propertyKey: string,
+  property: SchemaOnlyRowProperty,
+  context = `schemaOnlyRowProperties.${propertyKey}`
+): z.ZodTypeAny => {
+  const { valueType, validatesAs, validation, defaultsTo } = property;
+  const strayRendering = RENDERING_ONLY_KEYS.filter(key => key in property);
+
+  if (!valueType && !validatesAs) {
+    throw new Error(
+      `${context}: nothing here says how the value validates. ` +
+        (strayRendering.includes("type")
+          ? `\`type\` names a control, and a schema-only row property renders none. `
+          : "") +
+        `Declare \`valueType: "string" | "number" | "boolean" | "date"\`, or ` +
+        `\`validatesAs: "<a kind registered with registerFieldType>"\`.`
+    );
+  }
+
+  if (strayRendering.length > 0) {
+    console.warn(
+      `${context}: ${strayRendering.map(key => `\`${key}\``).join(", ")} ` +
+        `${strayRendering.length === 1 ? "is" : "are"} ignored - a schema-only row property ` +
+        `declares validation, not a control. ` +
+        (strayRendering.includes("defaultValue")
+          ? "Use `defaultsTo` for the value the parse fills in when a row omits this property. "
+          : "")
+    );
+  }
+
+  const generator = validatesAs
+    ? resolveRegisteredValidator(
+        validatesAs,
+        context,
+        "Register it with `registerFieldType` first (in both bundles), or use `valueType`."
+      )
+    : valueTypeSchemaGenerators[valueType as FieldValueType];
+
+  if (!generator) {
+    throw new Error(
+      `${context}: unknown valueType "${valueType}". ` +
+        `Expected one of: ${Object.keys(valueTypeSchemaGenerators).join(", ")}.`
+    );
+  }
+
+  // The generators read a field definition, so hand them the property's validation rules
+  // under the resolved kind. Everything else on a field definition is rendering vocabulary
+  // the generators do not consult.
+  const schema = generator({
+    type: validatesAs ?? (valueType as string),
+    validation,
+  } as FormFieldDefinition);
+
+  return defaultsTo !== undefined ? schema.default(defaultsTo) : schema;
+};
+
+/**
  * Creates a repeater field schema
  * 
  * This creates a schema for an array of objects where each object
@@ -492,6 +609,25 @@ export const createRepeaterFieldSchema = (field: FormFieldDefinition): z.ZodType
       fieldSchemas[fieldKey] = generator(subField);
     }
   });
+
+  // Merge the schema-only row properties: state every row carries that no cell renders.
+  // A plain `z.object` strips what it does not declare, so an undeclared property parses
+  // away silently - which is the whole reason this seam exists.
+  if (field.schemaOnlyRowProperties) {
+    Object.keys(field.schemaOnlyRowProperties).forEach(propertyKey => {
+      if (propertyKey in fieldSchemas) {
+        throw new Error(
+          `schemaOnlyRowProperties.${propertyKey}: "${propertyKey}" is already a rendered ` +
+            `cell of this repeater. A row property is the part of the row \`fields\` does ` +
+            `not cover - remove one of the two declarations.`
+        );
+      }
+      fieldSchemas[propertyKey] = createSchemaOnlyPropertySchema(
+        propertyKey,
+        field.schemaOnlyRowProperties![propertyKey]
+      );
+    });
+  }
 
   // Create the row schema (each item in the array)
   const rowSchema = z.object(fieldSchemas);
@@ -645,10 +781,35 @@ const valueTypeDefaults: Record<FieldValueType, unknown> = {
 };
 
 /**
- * How a custom field kind should validate. Provide exactly one of `valueType`, `schema`,
- * or `generator` (checked in that order of precedence: `generator` > `schema` > `valueType`).
- * A registration carrying only `deriveTransform` is also valid - it attaches the transform
- * to a kind whose validation is already registered (or a built-in) without touching it.
+ * The generator registered for a field kind, for the two places that *borrow* a kind's
+ * validator by name rather than by rendering a field of it: `registerFieldType`'s
+ * `validatesAs`, and a repeater's schema-only row properties.
+ *
+ * An unregistered kind resolves to `createCustomFieldSchema` (the `z.string()` fallback),
+ * which would silently validate the borrower as a string - so an unregistered name is an
+ * error here rather than a quiet degradation.
+ */
+const resolveRegisteredValidator = (
+  kind: string,
+  context: string,
+  remedy: string
+): ((field: FormFieldDefinition) => z.ZodTypeAny) => {
+  const registered =
+    fieldSchemaGenerators[kind as keyof typeof fieldSchemaGenerators];
+  if (!registered || registered === createCustomFieldSchema) {
+    throw new Error(
+      `${context}: no field kind "${kind}" is registered to borrow a validator from. ${remedy}`
+    );
+  }
+  return registered;
+};
+
+/**
+ * How a custom field kind should validate. Provide exactly one of `valueType`, `validatesAs`,
+ * or `generator` (checked in that order of precedence: `generator` > `validatesAs` >
+ * `valueType`). A registration carrying only `deriveTransform` is also valid - it attaches
+ * the transform to a kind whose validation is already registered (or a built-in) without
+ * touching it.
  */
 export interface FieldTypeRegistration {
   /**
@@ -657,10 +818,17 @@ export interface FieldTypeRegistration {
    */
   valueType?: FieldValueType;
   /**
-   * Alias an existing registered kind's validator by name (e.g. `"checkbox"`, `"select"`,
+   * Borrow an existing registered kind's validator by name (e.g. `"checkbox"`, `"select"`,
    * `"number"`). Use when you want a built-in kind's exact validator - including option/enum
-   * handling for `"select"` - rather than a bare value type. The aliased kind must already
+   * handling for `"select"` - rather than a bare value type. The named kind must already
    * be registered.
+   */
+  validatesAs?: string;
+  /**
+   * @deprecated Renamed to {@link FieldTypeRegistration.validatesAs}, which says what it
+   * does (borrow a registered kind's *validator*) and frees the word `schema` to mean a
+   * zod schema. Still honoured - `validatesAs` wins if both are set - and slated for
+   * removal in the next major.
    */
   schema?: string;
   /**
@@ -682,6 +850,16 @@ export interface FieldTypeRegistration {
    * server bundle, where `deriveFrom` is inert.
    */
   deriveTransform?: DeriveTransform;
+  /**
+   * Custom wire encoding for the kind's section value mirror (see `RenderedSection`) -
+   * how a field of this kind posts its value from an *inactive* section, where no
+   * control is mounted. Rarely needed: without it the encoding derives from the value's
+   * runtime type (boolean pair, JSON for arrays/objects, `String(value)` otherwise),
+   * which is correct for any kind whose control posts the conventional encodings.
+   * Provide it when the kind's control posts something the derivation would not
+   * reproduce; return `null` for "this value cannot mirror".
+   */
+  mirror?: import("../mirror").MirrorEncoder;
 }
 
 /**
@@ -709,15 +887,20 @@ export const registerFieldType = (
   fieldType: string,
   registration: FieldTypeRegistration
 ): void => {
-  const { valueType, schema, generator, defaultValue, deriveTransform } = registration;
+  const { valueType, generator, defaultValue, deriveTransform, mirror } = registration;
+  // `schema` is the deprecated spelling of `validatesAs`; the new name wins when both are set.
+  const validatesAs = registration.validatesAs ?? registration.schema;
 
   if (deriveTransform) {
     registerDeriveTransform(fieldType, deriveTransform);
   }
+  if (mirror) {
+    registerFieldTypeMirror(fieldType, mirror);
+  }
 
   // A deriveTransform-only registration attaches the transform without disturbing the
   // kind's existing (or built-in) validation and default value.
-  if (!generator && !schema && !valueType && deriveTransform) {
+  if (!generator && !validatesAs && !valueType && deriveTransform) {
     if (defaultValue !== undefined) {
       registerFieldTypeDefault(fieldType, defaultValue);
     }
@@ -730,17 +913,16 @@ export const registerFieldType = (
   if (generator) {
     resolvedGenerator = generator;
     resolvedDefault = "";
-  } else if (schema) {
-    const aliased =
-      fieldSchemaGenerators[schema as keyof typeof fieldSchemaGenerators];
-    if (!aliased || aliased === createCustomFieldSchema) {
-      throw new Error(
-        `registerFieldType("${fieldType}", { schema: "${schema}" }): no field type "${schema}" ` +
-          `is registered to alias. Register "${schema}" first, or use \`valueType\` / \`generator\`.`
-      );
-    }
-    resolvedGenerator = aliased;
-    resolvedDefault = getDefaultValueForField({ type: schema });
+  } else if (validatesAs) {
+    // Name the key the caller actually wrote - being told about `validatesAs` when you
+    // wrote `schema` reads as the wrong error.
+    const borrowKey = registration.validatesAs !== undefined ? "validatesAs" : "schema";
+    resolvedGenerator = resolveRegisteredValidator(
+      validatesAs,
+      `registerFieldType("${fieldType}", { ${borrowKey}: "${validatesAs}" })`,
+      "Register it first, or use `valueType` / `generator`."
+    );
+    resolvedDefault = getDefaultValueForField({ type: validatesAs });
   } else if (valueType) {
     const generatorForValueType = valueTypeSchemaGenerators[valueType];
     if (!generatorForValueType) {
@@ -753,7 +935,7 @@ export const registerFieldType = (
     resolvedDefault = valueTypeDefaults[valueType];
   } else {
     throw new Error(
-      `registerFieldType("${fieldType}"): provide one of \`valueType\`, \`schema\`, ` +
+      `registerFieldType("${fieldType}"): provide one of \`valueType\`, \`validatesAs\`, ` +
         `\`generator\`, or \`deriveTransform\`.`
     );
   }

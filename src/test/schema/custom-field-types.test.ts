@@ -89,9 +89,9 @@ describe('registerFieldType', () => {
       expect(getDefaultValueForField({ type: 'togglePrivate' })).toBe(false);
     });
 
-    it('throws when aliasing an unregistered field type', () => {
+    it('throws when aliasing an unregistered kind, naming the key the caller wrote', () => {
       expect(() => registerFieldType('bogus', { schema: 'does-not-exist' })).toThrow(
-        /no field type "does-not-exist"/
+        /\{ schema: "does-not-exist" \}\): no field kind "does-not-exist" is registered/
       );
     });
 

@@ -1,6 +1,9 @@
 import { FieldError, FieldValues } from "react-hook-form";
 import { ReactNode } from "react";
 import type { PluginRegistry } from "./plugin-system";
+// Type-only, so this stays erased at build time and the runtime cycle
+// (field-generators imports this module) never forms.
+import type { FieldValueType } from "./schema/field-generators";
 
 // Generic form action types (suitable for Next.js server actions and similar patterns)
 export interface FormActionResult<T extends FieldValues = FieldValues> {
@@ -128,8 +131,8 @@ export interface FormFieldDefinition {
    * ⚠ **Setting this to anything other than the definition key is broken - do not use
    * it.** Rendering keys by the name while defaults and the generated schema key by the
    * definition key, so the field ends up with two slots in react-hook-form, client
-   * validation fails with the field filled in, and the server reports it missing. Measured,
-   * with the cause and the decision it needs: `docs/follow-ups.md` section 1.
+   * validation fails with the field filled in, and the server reports it missing. Measured;
+   * see the `name` deprecation in the CHANGELOG for the cause and the decision it needs.
    *
    * @deprecated Setting a `name` different from the definition key has never worked and
    * is slated for removal; a development-mode warning fires when a definition does it.
@@ -200,6 +203,36 @@ export interface FormFieldDefinition {
   // For repeater fields - recursive field definitions
   fields?: FormDefinition;
 
+  /**
+   * For repeater fields - properties every row carries that no cell renders.
+   *
+   * A row's generated schema is a plain object over `fields`, and a plain object strips
+   * what it does not declare: a row carrying state beyond its cells parses *successfully*
+   * while losing everything undeclared, on both the client resolver and
+   * `generateDataValidator`. Declare that state here and it survives the parse, validated,
+   * with no rendering consequence - a repeater renders exactly `fields`, so an existing
+   * repeater component needs no change to honour this.
+   *
+   * Entries speak validation, not rendering (see {@link SchemaOnlyRowProperty}).
+   *
+   * @example A class row whose cells are `key` and `level`, carrying game state written elsewhere
+   * ```ts
+   * classes: {
+   *   type: "repeater",
+   *   fields: {
+   *     key: { type: "select", label: "labels.class" },
+   *     level: { type: "select", label: "labels.level" },
+   *   },
+   *   schemaOnlyRowProperties: {
+   *     subclass: { valueType: "string" },
+   *     hasAddedStartingEquipment: { valueType: "boolean", defaultsTo: false },
+   *     feature_selections: { validatesAs: "selectionMap" },
+   *   },
+   * }
+   * ```
+   */
+  schemaOnlyRowProperties?: Record<string, SchemaOnlyRowProperty>;
+
   // Repeater-specific options
   hideHeader?: boolean;
   disableAddRow?: boolean;
@@ -211,6 +244,47 @@ export interface FormFieldDefinition {
 export type FormDefinition = {
   [key: string]: FormFieldDefinition;
 };
+
+/**
+ * A property every row of a repeater carries that no cell renders - state written into the
+ * row by something other than the repeater's own controls.
+ *
+ * It declares how the value **validates**, never how it looks, so nothing here names a
+ * control: `valueType` for the built-in value semantics, or `validatesAs` to borrow the
+ * validator of a kind registered with `registerFieldType` (the same registry a rendered
+ * field's `type` reads). Provide exactly one. The rendering vocabulary a field definition
+ * carries - `type`, `label`, `options`, `layout` - is not accepted; a property block
+ * carrying it warns rather than silently doing nothing.
+ */
+export interface SchemaOnlyRowProperty {
+  /**
+   * The value's built-in semantics: validates like `text` / `number` / `checkbox` / `date`
+   * respectively, with the same coercions on the wire rail.
+   */
+  valueType?: FieldValueType;
+  /**
+   * A field kind registered with `registerFieldType` whose *validator* this property
+   * borrows - the path for a shape the built-in value types cannot express (an object, an
+   * array, a record). The kind must be registered wherever the schema is generated, which
+   * for a form validated on both rails means both bundles.
+   */
+  validatesAs?: string;
+  /**
+   * Validation rules, resolved exactly as a field's `validation` block is - including the
+   * translated message convention. Issues nest in the row's error tree at
+   * `[rowIndex][propertyKey]`, reachable with `getNestedError`.
+   */
+  validation?: BaseValidationRules;
+  /**
+   * The value the **parse** fills in when a row omits this property.
+   *
+   * Deliberately not `defaultValue`: a field's `defaultValue` seeds react-hook-form's
+   * defaults and never touches the schema, whereas nothing renders or seeds a schema-only
+   * property, so the parse is the only place a value can land. It lands on both rails,
+   * which is what gives a freshly added row its stamp.
+   */
+  defaultsTo?: unknown;
+}
 
 // Enhanced component configuration for internal use
 export interface ProcessedComponentConfig {
@@ -367,6 +441,16 @@ export interface TranslationConfigObject {
   descriptions?: TranslationCategoryConfig;
 
   /**
+   * Section label translation config (the `label` handed to the `Section` component slot
+   * for each declared section)
+   * - enabled: false by default
+   * - alwaysInclude: true by default when enabled (like labels - a section's label is its
+   *   primary presentation)
+   * - localePath: (key) => `form.sections.${key}` by default
+   */
+  sections?: TranslationCategoryConfig;
+
+  /**
    * Validation message translation config
    * - enabled: true by default
    * - localePath: (key) => `form.validation.${key}` by default
@@ -399,6 +483,17 @@ export interface FormConfig {
     LayoutContainer?: React.ComponentType<any> | false;
     LayoutItem?: React.ComponentType<any> | false;
     Actions?: React.ComponentType<any> | false;
+    /**
+     * Wrapper rendered around each section (see the `sections` hook option and
+     * `RenderedSection`). Receives `{ name, label, active, children }` - `label` resolves
+     * through the `sections` translation category (falling back to the section name), and
+     * `active` is false when the section's fields are rendering as value mirrors. Defaults
+     * to a plain fragment, so declaring sections changes no DOM until a wrapper is
+     * configured; the natural non-default implementation is
+     * `<fieldset><legend>{label}</legend>{children}</fieldset>`. Set to `false` to force
+     * the fragment explicitly.
+     */
+    Section?: React.ComponentType<any> | false;
   };
   translation?: TranslationConfig;
   /**

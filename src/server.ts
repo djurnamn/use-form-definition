@@ -53,6 +53,16 @@ export const parseErrorMessage = (
 /**
  * Parse all validation errors from a Zod SafeParseError result
  *
+ * Nested issue paths - a repeater cell, an item inside a custom structured kind -
+ * group under their top-level key: an issue at `classes.0.level` lands in
+ * `errors.classes`. This is deliberate, not a limitation to fix: the action envelope
+ * stays `Record<string, string[]>`, which is what `sectionsWithErrors` matches on and
+ * what the no-JS round trip renders (the field's own message region, plus the
+ * whole-form message naming the failing sections). Item *position* is therefore not
+ * part of the server envelope; on the JS path the client re-validates with the same
+ * schema and renders each item error at the item (see docs/repeaters.md), so the
+ * envelope's flat keying only decides what the no-JS fallback can say.
+ *
  * @example
  * ```typescript
  * const result = validator(formData);
@@ -146,6 +156,12 @@ export type {
 } from "./core/types";
 
 export { createField } from "./core/types";
+
+// The error-to-section helper, for an action that wants to put the failing sections in
+// its result envelope - on the no-JS round trip, a whole-form message naming them is the
+// only cross-section error surface the user gets.
+export { sectionsWithErrors, sectionOf } from "./core/sections";
+export type { FormSections } from "./core/sections";
 
 /**
  * The form's own submitted values, for echoing back as `FormActionResult.values` on a

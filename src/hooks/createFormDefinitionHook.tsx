@@ -1,6 +1,7 @@
 import React from "react";
 import { FieldValues, UseFormReturn } from "react-hook-form";
 import { FormDefinition, FormConfig, ProcessedComponentConfig, FormAction } from "../core/types";
+import type { FormSections } from "../core/sections";
 import type { InferFormType } from "../core/types-inference";
 import { useFormDefinition, type UseFormDefinitionReturn } from "./useFormDefinition";
 import { createFormConfig, getFormConfigWithDefaultFieldTypes } from "../configuration/createFormConfig";
@@ -122,6 +123,12 @@ export interface FormDefinitionHookOptions<T extends FieldValues = FieldValues> 
    * Ignored when `form` is passed.
    */
   defaultValues?: FieldValues;
+  /**
+   * The form's partition into named sections (section name to definition keys). See the
+   * `sections` option on `useFormDefinition` for the full contract: zero-config grouped
+   * rendering, value mirrors under `currentSection`, and the returned `sections` API.
+   */
+  sections?: Record<string, ReadonlyArray<string>>;
   config?: Partial<FormConfig>;
   /**
    * Server action for the form (e.g. a Next.js Server Action).
@@ -336,6 +343,10 @@ export const createFormDefinitionHook = (
     return useFormDefinition<T, Extras>(definition, {
       form: options.form,
       defaultValues: options.defaultValues,
+      // The factory's options interface is generic over the *data* shape, not the
+      // definition, so the per-key field-name checking lives on `useFormDefinition`'s
+      // own option; here the map is accepted by shape.
+      sections: options.sections as FormSections<T> | undefined,
       config: finalConfig,
       serverAction: options.serverAction,
     });

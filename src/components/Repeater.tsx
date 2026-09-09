@@ -2,6 +2,7 @@ import React, { forwardRef, useEffect, useState } from "react";
 import { FieldError } from "react-hook-form";
 import { FormDefinition, FormFieldDefinition, FormConfig, InternalComponentProps, NestedFieldRenderer } from "../core/types";
 import { getDefaultValueForField } from "../core/utilities";
+import { getNestedError, NestedFieldError, NestedFieldErrorMap } from "../core/nested-errors";
 
 export type { NestedFieldRenderer };
 
@@ -23,7 +24,13 @@ export interface RepeaterProps extends Partial<InternalComponentProps> {
   value?: RepeaterRowData[];
   onChange?: (value: RepeaterRowData[]) => void;
   fields: FormDefinition;
-  error?: FieldError | boolean;
+  /**
+   * The field's error. A flat `FieldError` carries a whole-list message (`minRows`,
+   * say); item-level errors arrive as a nested tree - an array of per-row error maps -
+   * and each cell's own error renders at the cell. `true` is the legacy "mark every
+   * cell, no message" form.
+   */
+  error?: FieldError | NestedFieldError | boolean;
   label?: string;
   hideHeader?: boolean;
   disableAddRow?: boolean;
@@ -242,9 +249,10 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
                   const fieldDefinition = fields[fieldKey];
                   const fieldValue = row[fieldKey];
 
-                  // Determine if this field has an error
-                  // For now, we'll use the boolean error approach
-                  const fieldError = error === true ? true : undefined;
+                  // This cell's own error, out of the nested tree (see the `error` prop).
+                  const cellError =
+                    typeof error === "object" ? getNestedError(error, [rowIndex, fieldKey]) : undefined;
+                  const fieldError = error === true ? true : cellError;
 
                   return (
                     <td key={fieldKey}>
@@ -256,6 +264,17 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
                           handleFieldChange(rowIndex, fieldKey, newValue),
                         fieldError,
                         rowIndex
+                      )}
+                      {/* The id matches the aria-describedby the built-in controls point
+                          at for this cell's name, so the message is announced with it. */}
+                      {cellError?.message && (
+                        <span
+                          id={`${name}[${rowIndex}].${fieldKey}-error`}
+                          role="alert"
+                          style={{ color: "red" }}
+                        >
+                          {cellError.message}
+                        </span>
                       )}
                     </td>
                   );
@@ -276,12 +295,20 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
           (!maxRows || internalValue.length < maxRows) &&
           (renderAddButton ? renderAddButton() : defaultAddButton())}
 
-        {/* Display error message if present */}
-        {error && typeof error === "object" && error.message && (
-          <span role="alert" style={{ color: "red" }}>
-            {error.message}
-          </span>
-        )}
+        {/* The whole-list message: a flat error carries it directly (minRows, maxRows,
+            required); an item-error tree may carry one under `root`. Item errors render
+            at their cells above, never here. */}
+        {(() => {
+          if (!error || typeof error !== "object") return null;
+          const ownMessage =
+            (error as FieldError).message ??
+            ((error as NestedFieldErrorMap).root as FieldError | undefined)?.message;
+          return ownMessage ? (
+            <span role="alert" style={{ color: "red" }}>
+              {ownMessage}
+            </span>
+          ) : null;
+        })()}
 
         {/* Hidden input with JSON stringified value for form submission */}
         <input type="hidden" name={name} value={JSON.stringify(internalValue)} />

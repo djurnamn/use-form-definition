@@ -8,6 +8,7 @@ const defaultLocalePaths = {
   options: (key: string) => `form.options.${key}`,
   placeholders: (key: string) => `form.placeholders.${key}`,
   descriptions: (key: string) => `form.descriptions.${key}`,
+  sections: (key: string) => `form.sections.${key}`,
   validation: (key: string) => `form.validation.${key}`,
 };
 
@@ -33,6 +34,11 @@ export interface NormalizedTranslationConfig {
     localePath: (key: string) => string;
   };
   descriptions: {
+    enabled: boolean;
+    alwaysInclude: boolean;
+    localePath: (key: string) => string;
+  };
+  sections: {
     enabled: boolean;
     alwaysInclude: boolean;
     localePath: (key: string) => string;
@@ -92,6 +98,11 @@ export const normalizeTranslationConfig = (config?: TranslationConfig): Normaliz
       enabled: configObj?.descriptions?.enabled ?? isEnabled(configObj?.descriptions),
       alwaysInclude: configObj?.descriptions?.alwaysInclude ?? false, // Require explicit opt-in
       localePath: configObj?.descriptions?.localePath ?? defaultLocalePaths.descriptions,
+    },
+    sections: {
+      enabled: configObj?.sections?.enabled ?? isEnabled(configObj?.sections),
+      alwaysInclude: configObj?.sections?.alwaysInclude ?? true, // Like labels - primary presentation
+      localePath: configObj?.sections?.localePath ?? defaultLocalePaths.sections,
     },
     validation: {
       enabled: configObj?.validation?.enabled ?? true, // Enabled by default

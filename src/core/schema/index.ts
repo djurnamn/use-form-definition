@@ -34,6 +34,7 @@ export {
   createMultiselectFieldSchema,
   createCheckboxFieldSchema,
   createCustomFieldSchema,
+  createSchemaOnlyPropertySchema,
   fieldSchemaGenerators,
   getFieldSchemaGenerator,
   registerFieldSchemaGenerator,

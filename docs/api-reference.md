@@ -87,6 +87,7 @@ interface TranslationConfig {
   placeholders?: { /* same as labels */ };
   descriptions?: { /* same as labels */ };
   options?: { /* same as labels */ };
+  sections?: { /* same as labels; resolves a section's label from form.sections.<name> */ };
   validation?: {
     enabled?: boolean;
     localePath?: (key: string) => string;
@@ -458,6 +459,39 @@ return (
 
 Each hand-placed `RenderedField` still shows the server action's field errors on SSR / no-JS, so progressive enhancement survives a bespoke layout. That is the difference from dropping down to [`Form`](#form) + `RenderedField`, which also gives full layout control but is client-only submission - it loses the server-action wiring. `showActions` is ignored in this mode; place `<Actions />` yourself.
 
+### Sections
+
+A form partitioned into named sections renders the active section's controls while
+every inactive section's fields render as hidden value mirrors, so the post carries the
+whole form on both submit paths. The surface, in brief; the full contract is in
+[docs/sections.md](./sections.md).
+
+```tsx
+const { RenderedForm, RenderedSection, RenderedField, sections } = useFormDefinition(
+  definition,
+  { sections: { general: ['name', 'email'], lore: ['bio'] } } // optional declared map
+);
+
+<RenderedForm currentSection={tab}>
+  <RenderedSection name="general">...</RenderedSection>
+  <RenderedSection name="lore">...</RenderedSection>
+</RenderedForm>
+```
+
+- **`sections` hook option** - the declared partition, `Record<name, fieldKey[]>`. With it
+  and no JSX sections, `RenderedForm` renders each section through the zero-config path.
+- **`currentSection` on `RenderedForm`** - the active section. Omitted, everything renders.
+- **`RenderedSection`** - `{ name, children }`; its fields render as controls when active
+  and as mirrors otherwise.
+- **`sections` on the return** (`SectionsApi`) - `validate(name)` validates one section's
+  fields with focus on the first error; `of(fieldKey)`, `fields(name)` and
+  `withErrors(errors)` answer membership questions so navigation stays app state.
+- **`components.Section`** (or `formComponents` on the factory) - the wrapper around each
+  section, receiving `{ name, label, active, children }`. A fragment by default.
+- **`mirror` on `registerFieldType`** - a custom wire encoding for a kind's value mirror
+  when the runtime-type derivation (boolean pair, JSON for arrays and objects,
+  `String(value)` otherwise) is not what the kind's control posts.
+
 ### Form
 
 Wrapper component for custom layouts.
@@ -590,6 +624,23 @@ if (result.success) {
 
 Some keys carry interpolation values. The count-based keys (`minLength`, `maxLength`, `min`, `max`, `minRows`, `maxRows`) pass a `{count}`, and the string keys `contains`, `startsWith`, and `endsWith` pass a `{value}` holding the constraint string - so a translation can read `Must contain "{value}"`. See the Next.js example's `messages/*.json` for the full set.
 
+Nested issue paths (a repeater cell, an item inside a custom structured kind) group under their top-level key: an issue at `classes.0.level` lands in `errors.classes`. The envelope stays flat and top-level-keyed by design - it is what `sectionsWithErrors` matches on and what the no-JS round trip renders. Item errors render at the item on the client, where validation re-runs with the same schema; see [Repeater fields](./repeaters.md#item-errors).
+
+### getNestedError
+
+Read one item's error out of a structured field's error tree. A structured field (the built-in repeater, or a custom kind whose schema is an array/object) receives its react-hook-form error as a nested tree with every message already translated; `getNestedError` resolves a path inside it to the leaf `FieldError`, or `undefined` when nothing failed there or the path stops at a branch (a whole row).
+
+```typescript
+import { getNestedError, type NestedFieldError } from 'use-form-definition';
+
+// Inside a custom structured field component:
+const cellError = getNestedError(error, [rowIndex, 'level']);
+// or the string form:
+const cellError2 = getNestedError(error, '0.level');
+
+cellError?.message; // display-ready, same translation as a top-level field
+```
+
 ---
 
 ## Plugin system
@@ -649,8 +700,13 @@ const rules = getAvailableValidationRules();
 
 ### Custom field kinds
 
-An unregistered field type validates as a string everywhere. To give a custom kind a
-different value type - so it validates correctly on **both** the client resolver
+An unregistered field type validates as a string everywhere - but it must still have a
+**component**: a field whose kind has none (`components` on `createFormDefinitionHook`, or `config.fieldTypes` on the call) renders
+nothing where it is active while its mirror keeps posting from inactive sections, so the
+hook throws at creation in development (and warns once in production) naming the field
+and kind. The component must also render a named native form element carrying its value,
+or the field posts nothing; in development a server-action submit warns when the form holds
+a value the post does not carry. To give a custom kind a different value type - so it validates correctly on **both** the client resolver
 (`generateOptions`) and the server data validator (`generateDataValidator`), and seeds the
 right default value - register it with `registerFieldType`:
 
@@ -662,8 +718,8 @@ import { z } from 'zod';
 // A public/private toggle whose value is a boolean, validated like a checkbox:
 registerFieldType('visibility', { valueType: 'boolean' });
 
-// Alias an existing kind's exact validator by name (incl. select's option/enum handling):
-registerFieldType('togglePrivate', { schema: 'checkbox' });
+// Borrow an existing kind's exact validator by name (incl. select's option/enum handling):
+registerFieldType('togglePrivate', { validatesAs: 'checkbox' });
 
 // Or a fully custom Zod generator (co-registered with a default value):
 registerFieldType('csv', {
@@ -675,8 +731,9 @@ registerFieldType('csv', {
 registerFieldType('slug', { deriveTransform: slugify });
 ```
 
-Provide exactly one of `valueType` (`"string" | "number" | "boolean" | "date"`), `schema`
-(alias a registered kind), or `generator`; `defaultValue` is optional and overrides the
+Provide exactly one of `valueType` (`"string" | "number" | "boolean" | "date"`), `validatesAs`
+(borrow a registered kind's validator; called `schema` until 2.8.0, still accepted and
+deprecated), or `generator`; `defaultValue` is optional and overrides the
 resolved default. `deriveTransform` can accompany any of them, or stand alone to attach a
 transform to a kind whose validation is already registered (or a built-in) without
 touching it. The rendering side still picks the field's component by kind (via the

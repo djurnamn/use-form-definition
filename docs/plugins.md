@@ -162,14 +162,19 @@ import { registerFieldType } from 'use-form-definition';
 // A public/private toggle: validates like a checkbox everywhere, defaults to `false`.
 registerFieldType('visibility', { valueType: 'boolean' });
 
-// Alias an existing kind's validator by name instead of a bare value type:
-registerFieldType('togglePrivate', { schema: 'checkbox' });
+// Borrow an existing kind's validator by name instead of a bare value type:
+registerFieldType('togglePrivate', { validatesAs: 'checkbox' });
 ```
 
-`valueType` accepts `"string" | "number" | "boolean" | "date"`. Use `schema` to reuse a
+`valueType` accepts `"string" | "number" | "boolean" | "date"`. Use `validatesAs` to borrow a
 registered kind's exact validator (e.g. `"select"` for its option/enum handling), or
 `generator` for a fully custom Zod schema (below). Register once at module scope, in code
 imported by both the client and server bundles.
+
+(`validatesAs` was called `schema` until 2.8.0. The old spelling still works and is
+deprecated: it read as "a zod schema goes here", which it never accepted. A kind registered
+this way is also what a repeater row property borrows with `validatesAs` - see
+[Row state the cells do not cover](./repeaters.md#row-state-the-cells-do-not-cover).)
 
 ### Custom field type
 
@@ -208,6 +213,60 @@ const configForm = {
   }
 };
 ```
+
+### Item errors in structured kinds
+
+A kind whose generator returns an array or object schema is a *structured* kind: a single
+definition key whose value has items of its own, each of which can fail validation
+individually. The resolver roots each item issue under the kind's top-level key, so the
+error the component receives on its `error` prop is a nested tree mirroring the value's
+shape - not a flat `FieldError`. Every `message` in the tree is already translated, the
+same way a top-level field's message is.
+
+Read item errors with `getNestedError` - the component never needs to reach into
+`formState.errors` itself:
+
+```tsx
+import { getNestedError, type NestedFieldError } from 'use-form-definition';
+import type { FieldError } from 'react-hook-form';
+
+interface StatListProps {
+  name: string;
+  value?: Array<{ key: string; level: string }>;
+  onChange: (value: unknown) => void;
+  error?: FieldError | NestedFieldError;
+}
+
+function StatList({ name, value = [], onChange, error }: StatListProps) {
+  return (
+    <div>
+      {value.map((item, index) => {
+        const levelError = getNestedError(error, [index, 'level']);
+        return (
+          <div key={index}>
+            {/* ...the item's controls... */}
+            {levelError?.message && <span role="alert">{levelError.message}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+```
+
+The path is relative to the field (`[index, 'level']`, or the string form
+`'0.level'`); the helper returns the leaf `FieldError` there, or `undefined` when
+nothing failed at that path or the path stops at a branch (a whole item's map of
+errors). A whole-value message - a `refine` on the array itself, say - sits on the
+error directly (`error.message` when the error is flat), so a structured kind that
+renders both covers every rule its schema can produce. The built-in repeater works
+exactly this way; [Repeater fields](./repeaters.md#item-errors) shows the rendered
+behaviour.
+
+Server-side, `parseValidationErrors` groups item issues under the top-level key
+without item position - the flat envelope is a stated boundary of the no-JS path,
+not something a kind should try to parse item positions out of. See the note on
+[`parseValidationErrors`](./api-reference.md#generatedatavalidator).
 
 ### File upload field type
 

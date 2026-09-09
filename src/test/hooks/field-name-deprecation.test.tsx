@@ -4,7 +4,8 @@ import { createFormDefinitionHook } from '../../hooks/createFormDefinitionHook';
 import type { FormDefinition } from '../../core/types';
 
 /**
- * A field-level `name` override has never worked (docs/follow-ups.md section 1) and is
+ * A field-level `name` override has never worked (see the `name` deprecation in the
+ * CHANGELOG) and is
  * deprecated ahead of removal. The JSDoc says so; the development warning is what makes
  * the breakage visible at runtime, where it otherwise reads as a server bug.
  */

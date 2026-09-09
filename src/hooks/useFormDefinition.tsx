@@ -15,6 +15,8 @@ import { deriveHtml5Attributes } from "../core/html5-attributes";
 import { resolveDeriveTransform } from "../core/derive";
 import { generateSchema as generateSchemaFromBuilder } from "../core/schema/schema-builder";
 import { generateDataValidator } from "../core/schema/data-validator";
+import { FormSections, sectionOf, sectionsWithErrors } from "../core/sections";
+import { mirrorWireValues } from "../core/mirror";
 import { createFormConfig } from "../configuration/createFormConfig";
 import {
   getFieldName,
@@ -51,6 +53,61 @@ const parseValidationError = (
 
   // Handle regular string - attempt translation
   return translateValidation(errorMessage);
+};
+
+/**
+ * Translate every message in a react-hook-form error node, preserving its shape.
+ *
+ * A flat field's error is a single `FieldError`; translating its `message` is the whole
+ * job. A structured field's (the repeater, a custom kind whose generator returns an
+ * array/object schema) is a nested tree: the resolver roots each item issue under the
+ * top-level key, so `errors.classes` is an array of per-item error objects. Walking the
+ * tree keeps item errors addressable (`error[0].level.message`) with the same translated
+ * messages a flat field gets - the previous flat-only handling reduced the tree to
+ * `message: undefined`, which is how item errors rendered nowhere.
+ *
+ * Server-tagged errors (`type: 'server'`) already carry display-ready strings and pass
+ * through untouched. `ref` values are react-hook-form's control handles, not error
+ * nodes, and are carried over without being walked into. `types` (criteriaMode 'all')
+ * holds messages keyed by rule, so its string values translate too.
+ */
+const translateErrorNode = (
+  node: unknown,
+  translateValidation: (key: string, options?: Record<string, any>) => string
+): any => {
+  if (Array.isArray(node)) {
+    return node.map((item) =>
+      item == null ? item : translateErrorNode(item, translateValidation)
+    );
+  }
+  if (!node || typeof node !== 'object') return node;
+
+  const source = node as Record<string, unknown>;
+  if (source.type === 'server') return node;
+
+  const translated: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    const value = source[key];
+    if (key === 'ref') {
+      translated[key] = value;
+    } else if (key === 'message' && typeof value === 'string') {
+      translated[key] = parseValidationError(value, translateValidation);
+    } else if (key === 'types' && value && typeof value === 'object') {
+      translated[key] = Object.fromEntries(
+        Object.entries(value).map(([rule, ruleMessage]) => [
+          rule,
+          typeof ruleMessage === 'string'
+            ? parseValidationError(ruleMessage, translateValidation)
+            : ruleMessage,
+        ])
+      );
+    } else if (value && typeof value === 'object') {
+      translated[key] = translateErrorNode(value, translateValidation);
+    } else {
+      translated[key] = value;
+    }
+  }
+  return translated;
 };
 
 /**
@@ -317,6 +374,33 @@ interface UseFormDefinitionOptions<T extends FormDefinition> {
    * is passed, since there is nothing left to construct.
    */
   defaultValues?: FieldValues;
+  /**
+   * The form's partition into named sections: section name to the definition keys it
+   * contains, in declared order. Purely presentational - the definition and the generated
+   * schema know nothing about it.
+   *
+   * What it enables, each activated by one more thing:
+   * - by itself, with a zero-config `<RenderedForm />`: the fields render grouped, each
+   *   group wrapped in the `Section` component slot (a fragment by default) - structural
+   *   grouping on one page.
+   * - with `currentSection` on `RenderedForm`: the active section renders its controls
+   *   and every other section renders its fields as **value mirrors** (hidden inputs
+   *   carrying the current values), so the posted `FormData` is always the whole form -
+   *   tabs and wizard steps post completely, on both the JS and no-JS submit paths,
+   *   with no extra mechanism.
+   * - the hook's returned `sections` API: per-section validation
+   *   (`sections.validate('lore')` for a wizard's Continue gate), membership lookups,
+   *   and `sections.withErrors(...)` for tab badges.
+   *
+   * With custom `children`, wrap each region in the returned `RenderedSection` instead of
+   * (or as well as) declaring this map - membership is then observed from rendering, and
+   * when both are present a development-mode check warns on drift between them.
+   *
+   * A field listed in no section renders as always-visible content. Never treat the
+   * partition as a server-side write filter: a posted `FormData` is client-supplied, so
+   * what was rendered is not a boundary the server can rely on.
+   */
+  sections?: FormSections<T>;
   config?: Partial<FormConfig>;
   /**
    * Server action for the form (e.g. a Next.js Server Action).
@@ -467,10 +551,46 @@ export interface RenderedFormProps<TFormData extends FieldValues> {
    * own action endpoint), and overriding it would break that path.
    */
   method?: 'get' | 'post';
+  /**
+   * The active section, when the form is partitioned (see the `sections` hook option and
+   * `RenderedSection`). Controlled by the app - tabs, wizard steps, a router param; the
+   * library never changes it, it only renders accordingly: the active section's fields
+   * as controls, every other section's fields as value mirrors (hidden inputs carrying
+   * their current values), so the post always contains the whole form.
+   *
+   * Omitted: every section renders its controls (structural grouping only). Matching no
+   * section: everything mirrors - coherent but almost certainly a typo, so development
+   * builds warn. Content outside any section always renders.
+   */
+  currentSection?: string;
   /** Additional props to pass to the form element */
   className?: string;
   /** Additional props to pass to the form element */
   style?: React.CSSProperties;
+}
+
+/**
+ * Membership questions about a partitioned form (see the `sections` hook option and
+ * `RenderedSection`), answered from the declared `sections` map when one was given,
+ * otherwise from membership observed while rendering. Navigation - which section is
+ * current, whether to advance - stays app state; this API only answers questions, which
+ * is what makes an app-owned wizard gate one line:
+ *
+ * ```ts
+ * const next = async () => {
+ *   if (await sections.validate(steps[step])) setStep(step + 1);
+ * };
+ * ```
+ */
+export interface SectionsApi {
+  /** Validate one section's fields (react-hook-form `trigger` with focus-on-first-error). Vacuously true for an unknown or empty section. */
+  validate: (name: string) => Promise<boolean>;
+  /** The section that declares a field, or `undefined` for a field in no section. */
+  of: (fieldKey: string) => string | undefined;
+  /** The sections carrying at least one of these errors, in declared order - tab badges, jump-to-first-failing. */
+  withErrors: (errors?: Record<string, unknown>) => string[];
+  /** The declared field list for a section. */
+  fields: (name: string) => string[];
 }
 
 export interface UseFormDefinitionReturn<
@@ -496,6 +616,25 @@ export interface UseFormDefinitionReturn<
    * @example <RenderedForm onSubmit={handleSubmit} />
    */
   RenderedForm: React.FC<RenderedFormProps<TFormData>>;
+
+  /**
+   * Wraps a region of a custom layout as a named section. With `currentSection` on
+   * `RenderedForm`, an inactive section's `RenderedField`s render as value mirrors
+   * (hidden inputs carrying their current values) instead of controls, so the post
+   * always contains the whole form; without it, sections are structural grouping only.
+   * Renders the `Section` component slot (a fragment by default) around its children.
+   * @example
+   * <RenderedSection name="lore">
+   *   <RenderedField name="summary" />
+   * </RenderedSection>
+   */
+  RenderedSection: React.FC<{ name: string; children?: ReactNode }>;
+
+  /**
+   * Membership questions about the form's sections - per-section validation for a
+   * wizard's Continue gate, error-to-section mapping for tab badges. See {@link SectionsApi}.
+   */
+  sections: SectionsApi;
 
   /**
    * Configured Form wrapper component for custom layouts
@@ -574,7 +713,97 @@ interface RenderContext<T extends FormDefinition> {
   actionState: FormActionResult<any> | null;
   formAction: ((formData: FormData) => void) | null;
   isPending: boolean;
+  /** The declared partition from the hook's `sections` option (undefined if not provided). */
+  sections: FormSections<any> | undefined;
+  /**
+   * The active section, written by `RenderedForm` from its `currentSection` prop during
+   * its own render - safe for `RenderedSection` to read, because children *execute*
+   * after the parent's function body even though their elements are constructed before.
+   */
+  currentSection: string | undefined;
+  /**
+   * Membership as observed from rendering: definition key -> section name. Under the
+   * mirror model every section's every field renders on every pass (as control or as
+   * mirror), so this is complete after first paint - which is what makes it a valid
+   * source for the sections API when no `sections` option was declared, and the
+   * declared-vs-rendered drift check in development. Lives on a ref so parent
+   * re-renders (which rebuild this ctx object) cannot wipe it.
+   */
+  sectionRegistry: Map<string, string>;
+  /** Section names seen during the current render pass - for the unmatched-`currentSection` warning. */
+  seenSectionNames: Set<string>;
 }
+
+/**
+ * Which section encloses the currently rendering `RenderedField`, and whether it is the
+ * active one. `null` outside any `RenderedSection`. Module-level: the value is scoped by
+ * the provider, so hook instances cannot leak into one another.
+ */
+const SectionContext = React.createContext<{ name: string; active: boolean } | null>(null);
+
+/**
+ * The `label` handed to the `Section` component slot: the section name resolved through
+ * the `sections` translation category (`form.sections.<name>` by default), falling back
+ * to the name itself when the category is disabled or no translator is configured.
+ */
+const resolveSectionLabel = (
+  name: string,
+  translationConfig: NormalizedTranslationConfig
+): string =>
+  resolveTranslatableValue(
+    undefined,
+    name,
+    translationConfig.sections,
+    translationConfig.function
+  ) ?? name;
+
+/**
+ * A field's value mirror: what renders in place of its control inside an inactive
+ * section. Hidden inputs carrying the wire encoding of the current value (see
+ * `core/mirror.ts` for the per-kind contract), marked `data-ufd-mirror` so the
+ * off-screen-errors visibility test can tell a mirror from a real control.
+ *
+ * Rendered through the same `Controller` as the control would be, deliberately: the
+ * field stays registered (so `trigger()` keeps its errors rather than dropping a
+ * never-registered field), and the mirror stays live when something writes the value
+ * while it is unmounted-as-a-control - `deriveFrom` into a field on another section
+ * being the case that matters.
+ */
+const FieldMirror = <T extends FormDefinition>({
+  ctx,
+  definitionKey,
+}: {
+  ctx: RenderContext<T>;
+  definitionKey: keyof T;
+}) => {
+  const field = ctx.definition[definitionKey as string];
+  if (!field) return null;
+  const fieldName = getFieldName(String(definitionKey), field);
+
+  return (
+    <Controller
+      name={fieldName as any}
+      control={ctx.form.control}
+      render={({ field: controllerField }) => {
+        const wire = mirrorWireValues(field.type, controllerField.value);
+        if (wire === null) return <></>;
+        return (
+          <>
+            {wire.map((value, index) => (
+              <input
+                key={index}
+                type="hidden"
+                name={fieldName}
+                value={value}
+                data-ufd-mirror=""
+              />
+            ))}
+          </>
+        );
+      }}
+    />
+  );
+};
 
 /**
  * Renders a single field. `serverErrors` (when provided by `RenderedForm`) is the error map
@@ -680,22 +909,18 @@ const renderField = <T extends FormDefinition>(
         const shouldIgnoreWrapper = componentConfig.ignoreFieldWrapper;
 
         // Resolve the error to display:
-        // - react-hook-form client errors carry a JSON-encoded message → parse + translate it
+        // - react-hook-form client errors carry JSON-encoded messages → parse + translate
+        //   them, through the whole tree: a structured field's error is a nested tree of
+        //   per-item errors, and it reaches the component with its shape intact so item
+        //   errors can render at the item (the built-in Repeater does; a custom kind
+        //   reads it with `getNestedError`)
         // - errors set from a server action result are tagged `type: 'server'` and already
         //   contain a display-ready string → show verbatim (don't re-translate)
         // - if there's no RHF error yet, fall back to the raw server error map (this is the
         //   path that runs during SSR / without JS, before the setError effect can run)
         let displayError: FieldError | undefined;
         if (fieldState.error) {
-          displayError =
-            fieldState.error.type === 'server'
-              ? fieldState.error
-              : {
-                  ...fieldState.error,
-                  message: fieldState.error.message
-                    ? parseValidationError(fieldState.error.message, translateValidation)
-                    : undefined,
-                };
+          displayError = translateErrorNode(fieldState.error, translateValidation) as FieldError;
         } else {
           const raw = serverErrors?.[key] ?? serverErrors?.[fieldName];
           if (raw) {
@@ -869,6 +1094,95 @@ const renderAllFields = <T extends FormDefinition>(
   return <>{fields}</>;
 };
 
+/**
+ * Zero-config rendering for a form with a declared `sections` partition - what
+ * `<RenderedForm />` renders instead of the flat `renderAllFields` grid when the hook
+ * received `sections`.
+ *
+ * Structure, in declared order: each section wrapped in the `Section` component slot
+ * (fragment by default), the *active* section's fields in their own `LayoutContainer`
+ * (per-section, so each section is its own grid), and every *inactive* section's fields
+ * as value mirrors. Fields listed in no section render after the sections, always as
+ * controls, in definition order - the safe default for chrome fields - followed by the
+ * actions. Without a `currentSection` every section is active: purely structural
+ * grouping on one page.
+ */
+const renderSectionedFields = <T extends FormDefinition>(
+  ctx: RenderContext<T>,
+  sections: FormSections,
+  showActions: boolean,
+  serverErrors?: Record<string, string | string[]>
+): ReactNode => {
+  const LayoutContainer = ctx.config.components.LayoutContainer;
+  const LayoutItem = ctx.config.components.LayoutItem;
+  const SectionSlot = ctx.config.components.Section;
+
+  const renderFieldWithLayout = (key: string) => {
+    const field = ctx.definition[key];
+    if (!field) return null;
+    const fieldElement = renderField(ctx, key as keyof T, {}, undefined, serverErrors);
+    if (!LayoutItem) return fieldElement;
+    return (
+      <LayoutItem key={key} {...(field.layout || {})}>
+        {fieldElement}
+      </LayoutItem>
+    );
+  };
+
+  const sectionElements = Object.entries(sections).map(([name, fieldKeys]) => {
+    // The declared map is membership's source of truth here; feeding the registry keeps
+    // the sections API and the drift check working identically in both rendering modes.
+    for (const key of fieldKeys) ctx.sectionRegistry.set(key, name);
+
+    const active = isSectionActive(ctx.currentSection, name);
+
+    const inner = active ? (
+      LayoutContainer ? (
+        <LayoutContainer>{fieldKeys.map(renderFieldWithLayout)}</LayoutContainer>
+      ) : (
+        <>{fieldKeys.map(renderFieldWithLayout)}</>
+      )
+    ) : (
+      <>
+        {fieldKeys.map((key) => (
+          <FieldMirror key={key} ctx={ctx} definitionKey={key as keyof T} />
+        ))}
+      </>
+    );
+
+    if (!SectionSlot) return <React.Fragment key={name}>{inner}</React.Fragment>;
+    return (
+      <SectionSlot
+        key={name}
+        name={name}
+        label={resolveSectionLabel(name, ctx.translationConfig)}
+        active={active}
+      >
+        {inner}
+      </SectionSlot>
+    );
+  });
+
+  const sectionedKeys = new Set(Object.values(sections).flat());
+  const unlisted = Object.keys(ctx.definition).filter((key) => !sectionedKeys.has(key));
+  const unlistedElements =
+    unlisted.length === 0 ? null : LayoutContainer ? (
+      <LayoutContainer>{unlisted.map(renderFieldWithLayout)}</LayoutContainer>
+    ) : (
+      <>{unlisted.map(renderFieldWithLayout)}</>
+    );
+
+  const actionsElement = showActions ? renderActions(ctx.config) : null;
+
+  return (
+    <>
+      {sectionElements}
+      {unlistedElements}
+      {actionsElement}
+    </>
+  );
+};
+
 const createRenderedField = <T extends FormDefinition>(
   ctxRef: React.MutableRefObject<RenderContext<T>>
 ): React.FC<RenderedFieldProps<T>> => {
@@ -900,6 +1214,18 @@ const createRenderedField = <T extends FormDefinition>(
     // in a custom `RenderedForm` layout still shows server-action errors on SSR / no-JS (before
     // the client setError effect runs). No-op without a server action or a successful result.
     const ctx = ctxRef.current;
+
+    // Inside a `RenderedSection`: record membership (idempotent - re-writing the same
+    // pair on every render is a no-op, which is what makes a write during render
+    // tolerable here), and render as a value mirror when the section is inactive.
+    const section = React.useContext(SectionContext);
+    if (section) {
+      ctx.sectionRegistry.set(String(name), section.name);
+      if (!section.active) {
+        return <FieldMirror ctx={ctx} definitionKey={name} />;
+      }
+    }
+
     const hasServerAction = !!ctx.formAction;
     const serverErrors =
       hasServerAction && ctx.actionState && ctx.actionState.success === false
@@ -909,6 +1235,43 @@ const createRenderedField = <T extends FormDefinition>(
     return <>{renderField(ctx, name, runtimeOverrides, render, serverErrors)}</>;
   };
   Component.displayName = 'RenderedField';
+  return Component;
+};
+
+/** Whether a section is the active one under the current `currentSection` value. */
+const isSectionActive = (currentSection: string | undefined, name: string): boolean =>
+  currentSection === undefined || currentSection === name;
+
+const createRenderedSection = <T extends FormDefinition>(
+  ctxRef: React.MutableRefObject<RenderContext<T>>
+): React.FC<{ name: string; children?: ReactNode }> => {
+  const Component: React.FC<{ name: string; children?: ReactNode }> = ({
+    name,
+    children,
+  }) => {
+    const ctx = ctxRef.current;
+    ctx.seenSectionNames.add(name);
+    const active = isSectionActive(ctx.currentSection, name);
+
+    const body = (
+      <SectionContext.Provider value={{ name, active }}>
+        {children}
+      </SectionContext.Provider>
+    );
+
+    const SectionSlot = ctx.config.components.Section;
+    if (!SectionSlot) return body;
+    return (
+      <SectionSlot
+        name={name}
+        label={resolveSectionLabel(name, ctx.translationConfig)}
+        active={active}
+      >
+        {body}
+      </SectionSlot>
+    );
+  };
+  Component.displayName = 'RenderedSection';
   return Component;
 };
 
@@ -931,6 +1294,79 @@ function isDevelopment(): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Every declared field whose kind has no registered component, repeater cells included
+ * (as `row.cell` paths). Such a field renders nothing where it is active - its mirror
+ * still posts while it is off screen, but the active section, the one being edited, has
+ * no control and so never reaches the post: every save silently keeps the stored value.
+ * Nothing else catches it (the definition type-checks, the schema validates, the mirror
+ * renders), so the hook checks it once, up front.
+ */
+function unregisteredKinds(
+  definition: FormDefinition,
+  fieldTypes: Record<string, unknown>,
+  prefix = ''
+): Array<{ path: string; type: string }> {
+  const missing: Array<{ path: string; type: string }> = [];
+  for (const [key, field] of Object.entries(definition)) {
+    const path = `${prefix}${key}`;
+    if (!fieldTypes[field.type]) missing.push({ path, type: field.type });
+    if (field.fields) missing.push(...unregisteredKinds(field.fields, fieldTypes, `${path}.`));
+  }
+  return missing;
+}
+
+function describeUnregisteredKinds(missing: Array<{ path: string; type: string }>): string {
+  const list = missing.map(({ path, type }) => `\`${path}\` (kind \`${type}\`)`).join(', ');
+  return (
+    `[use-form-definition] no component is registered for field${missing.length === 1 ? '' : 's'} ` +
+    `${list}. A field without a component renders nothing where it is active, so its value ` +
+    'never posts and every save keeps the stored one. Register a component for the kind ' +
+    'under `components` in `createFormDefinitionHook` (or `config.fieldTypes` on the hook ' +
+    'call), or remove the field from the definition.'
+  );
+}
+
+/**
+ * Declared fields holding a value in the model that the post does not carry. The DOM is
+ * the payload (D5), so a control that renders no named native element, or a custom kind
+ * with no mirror, posts nothing while the model says otherwise - and the server, seeing
+ * absence, keeps the stored value. An empty model value is not a loss: the browser posts
+ * nothing for an unchecked checkbox or an unselected radio group, and the server parses
+ * absence correctly. Only a non-empty value that failed to reach the post counts.
+ */
+function declaredFieldsMissingFromPost(
+  definition: FormDefinition,
+  formData: FormData,
+  values: Record<string, unknown>
+): string[] {
+  const missing: string[] = [];
+  for (const [key, field] of Object.entries(definition)) {
+    const name = getFieldName(key, field);
+    if (formData.has(name)) continue;
+    const value = values[name];
+    const empty =
+      value === undefined ||
+      value === null ||
+      value === '' ||
+      value === false ||
+      (Array.isArray(value) && value.length === 0);
+    if (!empty) missing.push(name);
+  }
+  return missing;
+}
+
+function describeMissingFromPost(missing: string[]): string {
+  const list = missing.map((name) => `\`${name}\``).join(', ');
+  return (
+    `[use-form-definition] the post carries no entry for field${missing.length === 1 ? '' : 's'} ` +
+    `${list}, but the form holds a value for ${missing.length === 1 ? 'it' : 'each'}. The DOM ` +
+    'is the payload: a control must render a named native form element carrying its value ' +
+    '(or the kind must declare a `mirror` via `registerFieldType`) for the value to reach ' +
+    'the server. As it stands, every save keeps the stored value.'
+  );
 }
 
 /**
@@ -974,6 +1410,12 @@ function hasNoVisibleError<T extends FormDefinition>(
 
   const rendered = new Set(
     Array.from(formElement.elements)
+      // A section value mirror is in `form.elements` under its field's name but shows
+      // the user nothing - exclude it, or an error on a mirrored field would suppress
+      // the notice while rendering nowhere. The marker is what distinguishes a mirror
+      // from a legitimate hidden transport input (the repeater's, e.g.), which does
+      // represent a visible control.
+      .filter(element => !(element as HTMLElement).hasAttribute('data-ufd-mirror'))
       .map(element => (element as HTMLInputElement).name)
       .filter(name => name && !name.startsWith('$'))
   );
@@ -993,11 +1435,62 @@ const createRenderedForm = <T extends FormDefinition>(
     children,
     noValidate: noValidateProp,
     method: methodProp,
+    currentSection,
     className,
     style,
   }) => {
     const ctx = ctxRef.current;
     const { form } = ctx;
+
+    // Publish the active section for `RenderedSection`s (and the zero-config renderer)
+    // to read - children execute after this body even though their elements were
+    // constructed before it. The seen-set is per render pass, so clear it here.
+    ctx.currentSection = currentSection;
+    ctx.seenSectionNames.clear();
+
+    // Development diagnostics for the partition. Effects run after the children have
+    // rendered, so both the seen-set and the registry are populated for this pass.
+    const warnedDiagnostics = useRef<Set<string>>(new Set());
+    useEffect(() => {
+      if (!isDevelopment()) return;
+      const warned = warnedDiagnostics.current;
+
+      // A `currentSection` matching no section mirrors everything - coherent, but a
+      // typo renders a form with no visible fields, so say so.
+      if (currentSection !== undefined) {
+        const known = new Set([
+          ...ctx.seenSectionNames,
+          ...(ctx.sections ? Object.keys(ctx.sections) : []),
+        ]);
+        const key = `unmatched:${currentSection}`;
+        if (known.size > 0 && !known.has(currentSection) && !warned.has(key)) {
+          warned.add(key);
+          console.warn(
+            `[use-form-definition] currentSection="${currentSection}" matches no section ` +
+              `(known: ${[...known].join(', ')}). Every section is rendering as value ` +
+              'mirrors, so the form shows no fields.'
+          );
+        }
+      }
+
+      // Declared map + JSX sections together: warn when they disagree about a field.
+      if (ctx.sections) {
+        for (const [fieldKey, observed] of ctx.sectionRegistry) {
+          const declared = sectionOf(ctx.sections, fieldKey);
+          const key = `drift:${fieldKey}`;
+          if (declared !== observed && !warned.has(key)) {
+            warned.add(key);
+            console.warn(
+              `[use-form-definition] field \`${fieldKey}\` rendered in section ` +
+                `"${observed}" but the \`sections\` option declares it ${
+                  declared ? `in "${declared}"` : 'in no section'
+                }. The declared map drives the sections API; the JSX drives rendering - ` +
+                'they should agree.'
+            );
+          }
+        }
+      }
+    });
 
     // A server action may be configured on the hook (preferred - also exposes `actionState`
     // and re-populates fields on no-JS error round-trips) or passed here as a prop (back-compat).
@@ -1111,6 +1604,17 @@ const createRenderedForm = <T extends FormDefinition>(
           : null
       );
       if (!valid) return;
+      // The post is about to go out: in development, say so if it is missing a value the
+      // model holds. Once per field, so a form saved repeatedly does not repeat itself.
+      if (isDevelopment()) {
+        const missing = declaredFieldsMissingFromPost(ctx.definition, formData, form.getValues()).filter(
+          (name) => !warnedDiagnostics.current.has(`post:${name}`)
+        );
+        if (missing.length > 0) {
+          for (const name of missing) warnedDiagnostics.current.add(`post:${name}`);
+          console.warn(describeMissingFromPost(missing));
+        }
+      }
       // The `await` above left React's transition scope, so dispatch inside startTransition to
       // keep `isPending` working / avoid the "called outside a transition" warning.
       startTransition(() => formAction(formData));
@@ -1140,7 +1644,11 @@ const createRenderedForm = <T extends FormDefinition>(
     // from the hook's `RenderedField`, which reads the same server errors from the render
     // context, so SSR / no-JS server-side errors still render per field.
     const formContent =
-      children !== undefined ? children : renderAllFields(ctx, showActions, serverErrors);
+      children !== undefined
+        ? children
+        : ctx.sections
+          ? renderSectionedFields(ctx, ctx.sections, showActions, serverErrors)
+          : renderAllFields(ctx, showActions, serverErrors);
 
     // The whole-form message region sits inside the form, above the fields, in both the
     // automatic-grid and custom-layout modes. It carries the server-action envelope `message`
@@ -1228,6 +1736,7 @@ export const useFormDefinition = <
   const {
     form: formOption,
     defaultValues: defaultValuesOption,
+    sections: sectionsOption,
     config: userConfig,
     serverAction,
   } = options;
@@ -1248,7 +1757,8 @@ export const useFormDefinition = <
     );
   }
 
-  // A field-level `name` override is documented-but-broken (docs/follow-ups.md section 1:
+  // A field-level `name` override is documented-but-broken (see the `name` deprecation in
+  // the CHANGELOG:
   // the field gets two react-hook-form slots, client validation fails with the field
   // filled in, and the server reports it missing) and is deprecated ahead of removal. The
   // JSDoc says so; this makes it visible at runtime, since a broken form otherwise reads
@@ -1390,6 +1900,23 @@ export const useFormDefinition = <
     [userConfig]
   );
 
+  // A declared kind with no component fails loudly at hook creation: a thrown error in
+  // development, a warning once in production (a production form should still render
+  // what it can). Only once the hook renders at all - the bare `useFormDefinition` with
+  // no components registered is the headless, schema-only use, where nothing renders
+  // and nothing can go missing.
+  const warnedUnregisteredKinds = useRef(false);
+  useMemo(() => {
+    if (Object.keys(config.fieldTypes).length === 0) return;
+    const missing = unregisteredKinds(definition, config.fieldTypes);
+    if (missing.length === 0) return;
+    if (isDevelopment()) throw new Error(describeUnregisteredKinds(missing));
+    if (!warnedUnregisteredKinds.current) {
+      warnedUnregisteredKinds.current = true;
+      console.warn(describeUnregisteredKinds(missing));
+    }
+  }, [definition, config.fieldTypes]);
+
   // Memoize translation config
   const translationConfig = useMemo(
     () => normalizeTranslationConfig(config.translation),
@@ -1401,6 +1928,12 @@ export const useFormDefinition = <
     () => createValidationTranslator(translationConfig.validation, translationConfig.function),
     [translationConfig.validation, translationConfig.function]
   );
+
+  // Section bookkeeping must survive the per-render ctx rebuild below, so both live on
+  // their own refs: the registry accumulates observed membership across renders, and the
+  // seen-set is cleared per pass by RenderedForm.
+  const sectionRegistryRef = useRef<Map<string, string>>(new Map());
+  const seenSectionNamesRef = useRef<Set<string>>(new Set());
 
   // Per-render render context, read by the (stable) RenderedField / RenderedForm components.
   const ctxRef = useRef<RenderContext<T>>(undefined as unknown as RenderContext<T>);
@@ -1414,19 +1947,32 @@ export const useFormDefinition = <
     actionState,
     formAction,
     isPending,
+    sections: sectionsOption,
+    // RenderedForm writes the real value from its prop during its render; between
+    // forms (or without one) there is no active section.
+    currentSection: undefined,
+    sectionRegistry: sectionRegistryRef.current,
+    seenSectionNames: seenSectionNamesRef.current,
   };
 
   // Create the rendered components exactly once per hook instance (stable identities).
   const componentsRef = useRef<{
     RenderedField: React.FC<RenderedFieldProps<T>>;
     RenderedForm: React.FC<RenderedFormProps<any>>;
-  }>(undefined as unknown as { RenderedField: React.FC<RenderedFieldProps<T>>; RenderedForm: React.FC<RenderedFormProps<any>> });
+    RenderedSection: React.FC<{ name: string; children?: ReactNode }>;
+  }>(undefined as unknown as {
+    RenderedField: React.FC<RenderedFieldProps<T>>;
+    RenderedForm: React.FC<RenderedFormProps<any>>;
+    RenderedSection: React.FC<{ name: string; children?: ReactNode }>;
+  });
   if (!componentsRef.current) {
     componentsRef.current = {
       RenderedField: createRenderedField(ctxRef),
       RenderedForm: createRenderedForm(ctxRef),
+      RenderedSection: createRenderedSection(ctxRef),
     };
   }
+  const RenderedSection = componentsRef.current.RenderedSection;
   // The runtime component filters extras via each field type's `additionalProps`
   // allowlist; `Extras` only re-labels its prop type for compile-time checking.
   const RenderedField = componentsRef.current.RenderedField as React.FC<
@@ -1479,10 +2025,36 @@ export const useFormDefinition = <
   const LayoutContainerComponent = config.components.LayoutContainer || null;
   const LayoutItemComponent = config.components.LayoutItem || null;
 
+  // The sections API: membership questions answered from the declared map when one was
+  // given, else from render-observed membership (complete after first paint - every
+  // section's every field renders on every pass, as control or as mirror). Navigation
+  // stays the app's; this only answers questions.
+  const sectionsApi = useMemo<SectionsApi>(() => {
+    const membershipOf = (): FormSections<any> => {
+      if (sectionsOption) return sectionsOption;
+      const observed: Record<string, string[]> = {};
+      for (const [fieldKey, sectionName] of sectionRegistryRef.current) {
+        (observed[sectionName] ??= []).push(fieldKey);
+      }
+      return observed;
+    };
+    return {
+      fields: (name) => [...(membershipOf()[name] ?? [])],
+      of: (fieldKey) => sectionOf(membershipOf(), fieldKey),
+      withErrors: (errors) => sectionsWithErrors(membershipOf(), errors),
+      validate: async (name) => {
+        const fields = membershipOf()[name];
+        if (!fields || fields.length === 0) return true;
+        return form.trigger(fields as any, { shouldFocus: true });
+      },
+    };
+  }, [sectionsOption, form]);
+
   return {
     form,
     RenderedField,
     RenderedForm,
+    RenderedSection,
     Form: FormComponent,
     Actions: ActionsComponent,
     FormMessage: FormMessageComponent,
@@ -1492,6 +2064,7 @@ export const useFormDefinition = <
     isPending,
     formAction,
     validateData,
+    sections: sectionsApi,
     generateSchema: schemaGenerator,
     generateOptions: optionsGenerator,
 

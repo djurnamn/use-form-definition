@@ -20,6 +20,7 @@ export * from "./core/types-inference";
 export { useFormDefinition } from "./hooks/useFormDefinition";
 export type {
   UseFormDefinitionReturn,
+  SectionsApi,
   RenderedFieldProps,
   RenderedFieldBaseProps,
   RenderedFormProps,
@@ -111,3 +112,11 @@ export {
 export type { NormalizedTranslationConfig } from "./core/utilities";
 
 export { createField } from "./core/types";
+
+// Sections: the partition type, and the error-to-section helper (also on ./server, for
+// actions putting the failing sections in a no-JS result envelope).
+export { sectionsWithErrors, sectionOf } from "./core/sections";
+export type { FormSections } from "./core/sections";
+export { getNestedError } from "./core/nested-errors";
+export type { NestedFieldError, NestedFieldErrorMap, NestedFieldErrorList } from "./core/nested-errors";
+export type { MirrorEncoder } from "./core/mirror";

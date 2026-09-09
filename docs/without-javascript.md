@@ -45,6 +45,10 @@ same action; the server validates either way and stays the source of truth.
   `values`, so a failed submit re-populates with the user's input, not the record.
 - **The whole-form message region.** A `message` in the action result renders from the
   envelope on the server pass.
+- **Sections' value mirrors** (see [Sections](./sections.md)). An inactive section's
+  fields are server-rendered as hidden inputs carrying the values the form was rendered
+  with, so a native post carries the whole form - and for a no-JS user, who cannot
+  switch sections anyway, render-time values are the only truth there is.
 
 ## What requires JavaScript
 
