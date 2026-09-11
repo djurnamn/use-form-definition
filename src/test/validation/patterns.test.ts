@@ -158,8 +158,8 @@ describe('Pattern Validation Rules', () => {
 
   describe('pattern registry', () => {
     beforeEach(() => {
-      // Clean up any test patterns
-      delete (patterns as any).testPattern;
+      // Clean up any test patterns (custom registrations live on the shared store)
+      delete (globalThis as any)[Symbol.for('use-form-definition:patterns')]?.testPattern;
     });
 
     describe('registerPattern', () => {
@@ -171,9 +171,10 @@ describe('Pattern Validation Rules', () => {
           description: 'Test pattern'
         });
         
-        expect(patterns.testPattern).toBeDefined();
-        expect(patterns.testPattern.pattern).toBe(pattern);
-        expect(patterns.testPattern.message).toBe('Must be custom');
+        expect(getPattern('testPattern')).toBeDefined();
+        expect(getPattern('testPattern')?.pattern).toBe(pattern);
+        expect(getPattern('testPattern')?.message).toBe('Must be custom');
+        expect(getAvailablePatterns()).toContain('testPattern');
       });
 
       it('should throw error for duplicate pattern name', () => {

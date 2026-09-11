@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-09-11
+
+### Added
+
+- **Validation messages can name their field.** Every message translation now receives `{field}` - the field's resolved label, or its definition key when it has none - and `{fieldKey}` alongside the message's own options (`{count}`, `{value}`), on the client through `RenderedField` and on the server through `parseValidationErrors(issues, translate, labels)`, whose new third argument maps definition keys to labels. A message can read `{field} is required`; ICU-style translators ignore values a message does not use, so existing translations and the built-in English defaults are unchanged. An error inside a structured field names the item field it belongs to: a repeater cell's message reads the column's label, with `{fieldKey}` as its key path (`classes.level`), on both rails. Found through a consumer whose every message names the field, and which had been re-encoding the library's translated output back into `[key, options]` to translate it once more with the label. (use-form-definition-dev#10)
+
+### Fixed
+
+- **A registered pattern's name type-checks in a definition.** `PatternKey` named only the built-in patterns, so `validation: { pattern: 'companyEmail' }` needed a cast for a pattern added with `registerPattern`. The type now accepts any string while keeping completion for the built-ins; an unknown name is still reported by the schema at run time. (use-form-definition-dev#11)
+- **`requiredWhen` raises the `required` message key, not its English text.** The cross-field rule was the one place a message left the `[key, options]` convention, so a translated form showed "This field is required" untranslated where every other rule spoke the app's language. It also judged only `type: "date"` values as Dates; a custom date-like kind (a working-day picker) that transforms its input into a Date was judged as a string and never satisfied. The check now looks at the value: a Date must be valid, anything else must be non-empty. (use-form-definition-dev#8)
+- **Registrations are shared between the two entry points.** `use-form-definition` and `use-form-definition/server` are built as separate bundles, and each carried its own copy of the module-level maps behind `registerFieldType`, `registerFieldSchemaGenerator`, `registerDeriveTransform`, `registerFieldTypeMirror` and `registerPattern`. A kind registered through the client entry was unknown to the server data validator (it validated as a string, or the built-in repeater took over a `repeater` override), so the two rails disagreed unless the consumer registered twice. Custom registrations now live on `globalThis` under a `Symbol.for` key (`core/registry.ts`), which every copy of the library in the process reads - the other entry point, and a duplicated `node_modules` copy alike. Built-in kinds and patterns stay module-local; a kind registration wins over a built-in of the same name everywhere. Because the store outlives a hot reload and is shared by both entry points, `registerPattern` now treats registering a name again with the same pattern and message as a no-op; a different definition under a taken name still throws. (use-form-definition-dev#9)
+
 ## [2.8.0] - 2026-09-09
 
 ### Added

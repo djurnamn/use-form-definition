@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ValidationRule } from "../core/types";
+import { sharedStore } from "../core/registry";
 
 /**
  * Pattern validation rules for common formats
@@ -68,6 +69,20 @@ export const patterns: Record<string, PatternDefinition> = {
 };
 
 /**
+ * Patterns registered by consumers. Shared with every copy of the library in the
+ * process (the other entry point included), see `core/registry`; the built-ins above
+ * stay module-local.
+ */
+const customPatterns = sharedStore<Record<string, PatternDefinition>>("patterns", () => ({}));
+
+/**
+ * Get pattern definition by name: a registered pattern, else a built-in
+ */
+export const getPattern = (name: string): PatternDefinition | undefined => {
+  return customPatterns[name] ?? patterns[name];
+};
+
+/**
  * Creates a pattern validation from a rule
  */
 export const createPatternValidation = (
@@ -82,7 +97,7 @@ export const createPatternValidation = (
   }
   
   if (typeof rule === "string") {
-    const pattern = patterns[rule];
+    const pattern = getPattern(rule);
     if (pattern) {
       return {
         pattern: pattern.pattern,
@@ -101,7 +116,7 @@ export const createPatternValidation = (
     }
     
     if (typeof rule.value === "string") {
-      const pattern = patterns[rule.value];
+      const pattern = getPattern(rule.value);
       if (pattern) {
         return {
           pattern: pattern.pattern,
@@ -127,31 +142,34 @@ export const applyPatternValidation = (
   return schema.regex(pattern, { message });
 };
 
+const samePattern = (a: PatternDefinition, b: PatternDefinition): boolean =>
+  a.pattern.source === b.pattern.source &&
+  a.pattern.flags === b.pattern.flags &&
+  a.message === b.message;
+
 /**
- * Register a custom pattern
+ * Register a custom pattern. The registration is shared with every copy of the library
+ * in the process and outlives a hot reload, so the same registration may run more than
+ * once: registering a name again with the same pattern and message is a no-op, while a
+ * different definition under a taken name (a built-in's included) is an error.
  */
 export const registerPattern = (
   name: string,
   definition: PatternDefinition
 ): void => {
-  if (patterns[name]) {
+  const existing = getPattern(name);
+  if (existing) {
+    if (samePattern(existing, definition)) return;
     throw new Error(`Pattern "${name}" is already registered`);
   }
-  patterns[name] = definition;
+  customPatterns[name] = definition;
 };
 
 /**
  * Get all available pattern names
  */
 export const getAvailablePatterns = (): string[] => {
-  return Object.keys(patterns);
-};
-
-/**
- * Get pattern definition by name
- */
-export const getPattern = (name: string): PatternDefinition | undefined => {
-  return patterns[name];
+  return Array.from(new Set([...Object.keys(patterns), ...Object.keys(customPatterns)]));
 };
 
 /**
@@ -161,7 +179,7 @@ export const validatePattern = (
   value: string,
   patternName: string
 ): boolean => {
-  const pattern = patterns[patternName];
+  const pattern = getPattern(patternName);
   if (!pattern) {
     return false;
   }

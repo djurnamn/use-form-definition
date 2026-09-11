@@ -25,6 +25,7 @@
  * React-free, so the `./server` entry could consume it if it ever needs to; the React
  * side renders the returned strings as hidden inputs marked `data-ufd-mirror`.
  */
+import { sharedStore } from "./registry";
 
 /**
  * A custom wire encoding for a registered field kind, set through `registerFieldType`'s
@@ -33,7 +34,8 @@
  */
 export type MirrorEncoder = (value: unknown) => string | string[] | null;
 
-const customMirrors: Record<string, MirrorEncoder> = {};
+// Shared with every copy of the library in the process, see ./registry.
+const customMirrors = sharedStore<Record<string, MirrorEncoder>>("mirror-encoders", () => ({}));
 
 /**
  * Record a custom mirror encoding for a field kind. Called by `registerFieldType`; not

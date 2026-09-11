@@ -1,5 +1,5 @@
 import { FormFieldDefinition, ValidationRule } from "./types";
-import { patterns } from "../validation/patterns";
+import { getPattern } from "../validation/patterns";
 
 /**
  * Derives native HTML5 validation attributes from a field's `validation` rules.
@@ -42,7 +42,7 @@ const ruleValue = <T>(rule: ValidationRule<T> | undefined): T | undefined => {
 const resolvePatternSource = (pattern: RegExp | string | undefined): string | undefined => {
   if (pattern instanceof RegExp) return pattern.source;
   if (typeof pattern === "string") {
-    const named = patterns[pattern];
+    const named = getPattern(pattern);
     return named ? named.pattern.source : undefined;
   }
   return undefined;

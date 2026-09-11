@@ -17,6 +17,7 @@
  * only ever *consulted* by the client-side derivation effect. Server validation treats
  * `deriveFrom` as inert.
  */
+import { sharedStore } from "./registry";
 
 /** Transform applied to the source field's value before mirroring it into the target. */
 export type DeriveTransform = (value: unknown) => unknown;
@@ -28,7 +29,8 @@ const identity: DeriveTransform = (value) => value;
  * the other extension points (`registerFieldType` / `registerFieldSchemaGenerator` /
  * `registerPattern`): field kinds are static app config, registered once at import time.
  */
-const kindDeriveTransforms: Record<string, DeriveTransform> = {};
+// Shared with every copy of the library in the process, see ./registry.
+const kindDeriveTransforms = sharedStore<Record<string, DeriveTransform>>("derive-transforms", () => ({}));
 
 /**
  * Register the derive transform for a field kind. Usually reached through

@@ -32,7 +32,9 @@ import { translateValidationMessage } from "./core/validation-messages";
  */
 export const parseErrorMessage = (
   errorMessage: string,
-  translate?: (key: string, options?: Record<string, unknown>) => string
+  translate?: (key: string, options?: Record<string, unknown>) => string,
+  /** Values merged under the message's own options - `parseValidationErrors` passes the field's label and key. */
+  extraOptions?: Record<string, unknown>
 ): string => {
   const t = translate ?? translateValidationMessage;
 
@@ -40,14 +42,14 @@ export const parseErrorMessage = (
   if (errorMessage.startsWith('[')) {
     try {
       const [errorKey, errorOptions] = JSON.parse(errorMessage);
-      return t(errorKey, errorOptions);
+      return t(errorKey, { ...(extraOptions ?? {}), ...(errorOptions ?? {}) });
     } catch {
       return errorMessage;
     }
   }
 
   // Handle regular string - attempt translation
-  return t(errorMessage);
+  return t(errorMessage, extraOptions);
 };
 
 /**
@@ -69,12 +71,22 @@ export const parseErrorMessage = (
  * if (!result.success) {
  *   const errors = parseValidationErrors(result.error.issues);
  *   // { name: ["This field is required"], email: ["Invalid format"] }
+ *   // With a translator and labels: parseValidationErrors(issues, t, { name: "Your name" })
+ *   // hands t("required", { field: "Your name", fieldKey: "name" })
  * }
  * ```
  */
 export const parseValidationErrors = (
   issues: Array<{ path: (string | number)[]; message: string }>,
-  translate?: (key: string, options?: Record<string, unknown>) => string
+  translate?: (key: string, options?: Record<string, unknown>) => string,
+  /**
+   * The fields' display labels, keyed by definition key; an item field inside a
+   * structured kind (a repeater column) by its key path, `classes.level`. Each message
+   * translation receives `{ field, fieldKey }` - the label (the key when none is given)
+   * and the key - so a message can read "{field} is required", the same values the
+   * client passes.
+   */
+  labels?: Record<string, string>
 ): Record<string, string[]> => {
   const errors: Record<string, string[]> = {};
 
@@ -83,7 +95,12 @@ export const parseValidationErrors = (
     if (!errors[field]) {
       errors[field] = [];
     }
-    errors[field].push(parseErrorMessage(issue.message, translate));
+    // An item issue inside a structured field (`classes.0.level`) names the item field
+    // by its key path, `classes.level`, the same key the client passes.
+    const fieldPath = issue.path.filter((segment) => typeof segment === "string").join(".") || field;
+    errors[field].push(
+      parseErrorMessage(issue.message, translate, { field: labels?.[fieldPath] ?? fieldPath, fieldKey: fieldPath })
+    );
   }
 
   return errors;

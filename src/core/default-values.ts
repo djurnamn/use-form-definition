@@ -7,6 +7,7 @@
  * into the server bundle. `utilities.ts` re-exports these for the existing import
  * surface.
  */
+import { sharedStore } from "./registry";
 
 /**
  * Default values for custom field kinds registered via `registerFieldType`, keyed by
@@ -18,7 +19,8 @@
  * `registerFieldSchemaGenerator` / `registerPattern`): field kinds are static app config,
  * registered once at import time, so the same registration serves every form instance.
  */
-const customFieldTypeDefaults: Record<string, unknown> = {};
+// Shared with every copy of the library in the process, see ./registry.
+const customFieldTypeDefaults = sharedStore<Record<string, unknown>>("field-type-defaults", () => ({}));
 
 /**
  * Record the default value for a custom field kind. Called by `registerFieldType`; not

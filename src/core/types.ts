@@ -46,6 +46,11 @@ export type ValidationRule<T> =
       message: string | ValidationMessage;
     };
 
+/**
+ * A named pattern: one of the built-ins, with completion, or the name of a pattern
+ * registered with `registerPattern`. An unknown name is reported by the schema at run
+ * time, not by the type.
+ */
 export type PatternKey =
   | "email"
   | "url"
@@ -56,7 +61,8 @@ export type PatternKey =
   | "numeric"
   | "alpha"
   | "postalCode"
-  | "hexColor";
+  | "hexColor"
+  | (string & {});
 
 /**
  * Select option - label is optional when translation.options is enabled

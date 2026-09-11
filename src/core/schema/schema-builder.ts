@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { FormDefinition, FormFieldDefinition, FormConfig } from "../types";
-import { getValidationRule } from "../validation";
+import { getValidationRule, createMessage } from "../validation";
 import { getFieldSchemaGenerator } from "./field-generators";
 import { applyPlugins, ValidationContext as PluginValidationContext, PluginRegistry } from "../plugin-system";
 
@@ -145,15 +145,15 @@ export const applyCrossFieldValidation = (
         (data: any) => {
           if (data[field] === value) {
             const val = data[key];
-            if (definition[key].type === "date") {
-              return val instanceof Date && !isNaN(val.getTime());
-            }
+            // A date kind (built-in or custom) has already turned its input into a Date;
+            // anything else counts when it is not empty.
+            if (val instanceof Date) return !isNaN(val.getTime());
             return val !== undefined && val !== null && val !== "";
           }
           return true;
         },
         {
-          message: "This field is required",
+          message: createMessage("required"),
           path: [key],
         }
       );

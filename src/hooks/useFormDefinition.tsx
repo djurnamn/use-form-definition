@@ -71,14 +71,50 @@ const parseValidationError = (
  * nodes, and are carried over without being walked into. `types` (criteriaMode 'all')
  * holds messages keyed by rule, so its string values translate too.
  */
-const translateErrorNode = (
-  node: unknown,
-  translateValidation: (key: string, options?: Record<string, any>) => string
-): any => {
-  if (Array.isArray(node)) {
-    return node.map((item) =>
-      item == null ? item : translateErrorNode(item, translateValidation)
+/**
+ * How a message learns which field it is for, at one level of an error tree.
+ * `translate` carries that field's label and key into every message's options;
+ * `item` steps into an item field declared under it (a repeater column), or returns
+ * nothing for a key that is not a declared item field, so that level keeps its scope.
+ */
+interface MessageScope {
+  translate: (key: string, options?: Record<string, any>) => string;
+  item?: (key: string) => MessageScope | undefined;
+}
+
+/**
+ * The message scope for a field: every message translation receives `field` (the
+ * resolved label, or the key when there is none) and `fieldKey` (the definition key)
+ * alongside its own options, so a translation can read "{field} is required"; one
+ * that does not use them is unaffected. An item error inside a structured field (a
+ * repeater cell) names the item field it belongs to, with its key path as the key
+ * (`classes.level`); a nested key that is not a declared item field keeps the parent's.
+ */
+const messageScopeFor = (
+  translateValidation: (key: string, options?: Record<string, any>) => string,
+  translationConfig: Parameters<typeof resolveFieldPresentationData>[2],
+  scopeKey: string,
+  definition: FormFieldDefinition,
+  label: string | undefined
+): MessageScope => ({
+  translate: (messageKey, options) =>
+    translateValidation(messageKey, { field: label ?? scopeKey, fieldKey: scopeKey, ...(options ?? {}) }),
+  item: (itemKey) => {
+    const itemField = definition.fields?.[itemKey];
+    if (!itemField) return undefined;
+    return messageScopeFor(
+      translateValidation,
+      translationConfig,
+      `${scopeKey}.${itemKey}`,
+      itemField,
+      resolveFieldPresentationData(itemField, itemKey, translationConfig).label
     );
+  },
+});
+
+const translateErrorNode = (node: unknown, scope: MessageScope): any => {
+  if (Array.isArray(node)) {
+    return node.map((item) => (item == null ? item : translateErrorNode(item, scope)));
   }
   if (!node || typeof node !== 'object') return node;
 
@@ -91,18 +127,18 @@ const translateErrorNode = (
     if (key === 'ref') {
       translated[key] = value;
     } else if (key === 'message' && typeof value === 'string') {
-      translated[key] = parseValidationError(value, translateValidation);
+      translated[key] = parseValidationError(value, scope.translate);
     } else if (key === 'types' && value && typeof value === 'object') {
       translated[key] = Object.fromEntries(
         Object.entries(value).map(([rule, ruleMessage]) => [
           rule,
           typeof ruleMessage === 'string'
-            ? parseValidationError(ruleMessage, translateValidation)
+            ? parseValidationError(ruleMessage, scope.translate)
             : ruleMessage,
         ])
       );
     } else if (value && typeof value === 'object') {
-      translated[key] = translateErrorNode(value, translateValidation);
+      translated[key] = translateErrorNode(value, scope.item?.(key) ?? scope);
     } else {
       translated[key] = value;
     }
@@ -918,9 +954,15 @@ const renderField = <T extends FormDefinition>(
         //   contain a display-ready string → show verbatim (don't re-translate)
         // - if there's no RHF error yet, fall back to the raw server error map (this is the
         //   path that runs during SSR / without JS, before the setError effect can run)
+        const { label: fieldLabel, placeholder: fieldPlaceholder, description: fieldDescription, options: resolvedOptions } =
+          resolveFieldPresentationData(field, key, translationConfig);
+
+        // Every message translation learns which field it is for, see `messageScopeFor`.
+        const messageScope = messageScopeFor(translateValidation, translationConfig, key, field, fieldLabel);
+
         let displayError: FieldError | undefined;
         if (fieldState.error) {
-          displayError = translateErrorNode(fieldState.error, translateValidation) as FieldError;
+          displayError = translateErrorNode(fieldState.error, messageScope) as FieldError;
         } else {
           const raw = serverErrors?.[key] ?? serverErrors?.[fieldName];
           if (raw) {
@@ -930,9 +972,6 @@ const renderField = <T extends FormDefinition>(
             } as FieldError;
           }
         }
-
-        const { label: fieldLabel, placeholder: fieldPlaceholder, description: fieldDescription, options: resolvedOptions } =
-          resolveFieldPresentationData(field, key, translationConfig);
 
         const fieldProps = {
           ...field,

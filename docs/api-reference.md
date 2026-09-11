@@ -624,6 +624,8 @@ if (result.success) {
 
 Some keys carry interpolation values. The count-based keys (`minLength`, `maxLength`, `min`, `max`, `minRows`, `maxRows`) pass a `{count}`, and the string keys `contains`, `startsWith`, and `endsWith` pass a `{value}` holding the constraint string - so a translation can read `Must contain "{value}"`. See the Next.js example's `messages/*.json` for the full set.
 
+Every message also receives `{field}` and `{fieldKey}`: the field's resolved label (the definition key when it has none) and the key itself, so a message can read `{field} is required`. On the client the label is the one the form renders; on the server pass the labels as the third argument, `parseValidationErrors(issues, t, { name: 'Your name' })`, and the key stands in for a field without one. A translation that does not use them is unaffected. An error inside a structured field names the item field it belongs to: a repeater cell's message receives the column's label, and its key path (`classes.level`) as `{fieldKey}`; on the server, key the label by that path (`{ 'classes.level': 'Level' }`).
+
 Nested issue paths (a repeater cell, an item inside a custom structured kind) group under their top-level key: an issue at `classes.0.level` lands in `errors.classes`. The envelope stays flat and top-level-keyed by design - it is what `sectionsWithErrors` matches on and what the no-JS round trip renders. Item errors render at the item on the client, where validation re-runs with the same schema; see [Repeater fields](./repeaters.md#item-errors).
 
 ### getNestedError
@@ -740,8 +742,10 @@ touching it. The rendering side still picks the field's component by kind (via t
 `components` / `fieldTypes` map) - this only declares how the kind *validates* (and,
 with `deriveTransform`, how it derives).
 
-Call it once at module scope, from code imported by both the client and server bundles, so
-the two validators agree.
+Call it once at module scope. Registrations are kept on `globalThis` and shared by every copy
+of the library in the process, so a kind registered through either entry point (`use-form-definition`
+or `use-form-definition/server`) is known to the other; there is no need to register twice, and a
+duplicated `node_modules` copy sees the same registry. `registerPattern` is shared the same way.
 
 ### Field schema generators
 

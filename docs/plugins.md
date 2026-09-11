@@ -168,8 +168,9 @@ registerFieldType('togglePrivate', { validatesAs: 'checkbox' });
 
 `valueType` accepts `"string" | "number" | "boolean" | "date"`. Use `validatesAs` to borrow a
 registered kind's exact validator (e.g. `"select"` for its option/enum handling), or
-`generator` for a fully custom Zod schema (below). Register once at module scope, in code
-imported by both the client and server bundles.
+`generator` for a fully custom Zod schema (below). Register once at module scope; the
+registration is shared with every copy of the library in the process, the other entry point
+included.
 
 (`validatesAs` was called `schema` until 2.8.0. The old spelling still works and is
 deprecated: it read as "a zod schema goes here", which it never accepted. A kind registered

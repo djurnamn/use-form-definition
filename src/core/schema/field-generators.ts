@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { sharedStore } from "../registry";
 import { FormFieldDefinition, FormDefinition, SchemaOnlyRowProperty } from "../types";
 import { getValidationRule, createMessage } from "../validation";
-import { patterns } from "../../validation/patterns";
+import { getPattern } from "../../validation/patterns";
 import {
   getDefaultValueForField,
   registerFieldTypeDefault,
@@ -78,7 +79,7 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
     );
 
     if (typeof value === "string") {
-      const pattern = patterns[value];
+      const pattern = getPattern(value);
       if (pattern) {
         if (hasConditionalRequired) {
           baseSchema = baseSchema.refine(
@@ -701,6 +702,14 @@ export const createRepeaterFieldSchema = (field: FormFieldDefinition): z.ZodType
 };
 
 /**
+ * Generators registered by consumers, keyed by kind. Shared across bundles and entry
+ * points; consulted before the built-ins below.
+ */
+const customFieldSchemaGenerators = sharedStore<
+  Record<string, (field: FormFieldDefinition) => z.ZodTypeAny>
+>("field-schema-generators", () => ({}));
+
+/**
  * Field schema generator registry
  * Maps field types to their schema generator functions
  */
@@ -736,17 +745,23 @@ export const fieldSchemaGenerators = {
  * Gets the appropriate schema generator for a field type
  */
 export const getFieldSchemaGenerator = (fieldType: string) => {
-  return fieldSchemaGenerators[fieldType as keyof typeof fieldSchemaGenerators] || fieldSchemaGenerators.default;
+  return (
+    customFieldSchemaGenerators[fieldType] ||
+    fieldSchemaGenerators[fieldType as keyof typeof fieldSchemaGenerators] ||
+    fieldSchemaGenerators.default
+  );
 };
 
 /**
- * Registers a custom field schema generator
+ * Registers a custom field schema generator. A registration wins over a built-in kind
+ * of the same name, and is shared with every copy of the library in the process (the
+ * other entry point included), see `core/registry`.
  */
 export const registerFieldSchemaGenerator = (
   fieldType: string,
   generator: (field: FormFieldDefinition) => z.ZodTypeAny
 ) => {
-  (fieldSchemaGenerators as any)[fieldType] = generator;
+  customFieldSchemaGenerators[fieldType] = generator;
 };
 
 /**
@@ -795,6 +810,7 @@ const resolveRegisteredValidator = (
   remedy: string
 ): ((field: FormFieldDefinition) => z.ZodTypeAny) => {
   const registered =
+    customFieldSchemaGenerators[kind] ??
     fieldSchemaGenerators[kind as keyof typeof fieldSchemaGenerators];
   if (!registered || registered === createCustomFieldSchema) {
     throw new Error(
