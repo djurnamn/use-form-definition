@@ -35,7 +35,12 @@ export interface FormMessageProps {
  * accessible role (`alert` for errors, `status` otherwise) plus `data-status` /
  * `data-form-message` hooks for styling.
  */
-export function FormMessage({ message, status = "error", className, children }: FormMessageProps) {
+export function FormMessage({
+  message,
+  status = "error",
+  className,
+  children,
+}: FormMessageProps) {
   if (!message) return null;
 
   return (

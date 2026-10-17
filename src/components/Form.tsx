@@ -30,7 +30,10 @@ import { FormAction } from "../core/types";
  * );
  * ```
  */
-export interface FormProps<T extends FieldValues> extends Omit<FormHTMLAttributes<HTMLFormElement>, 'action'> {
+export interface FormProps<T extends FieldValues> extends Omit<
+  FormHTMLAttributes<HTMLFormElement>,
+  "action"
+> {
   action?: FormAction<T> | string;
   children?: ReactNode;
   className?: string;
@@ -45,7 +48,7 @@ export function Form<T extends FieldValues>({
   return (
     <form
       className={className}
-      action={typeof action === 'string' ? action : undefined}
+      action={typeof action === "string" ? action : undefined}
       {...props}
     >
       {children}

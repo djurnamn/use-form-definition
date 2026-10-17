@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
-import { createFormDefinitionHook } from '../../hooks/createFormDefinitionHook';
-import type { FormDefinition } from '../../core/types';
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render } from "@testing-library/react";
+import { createFormDefinitionHook } from "../../hooks/createFormDefinitionHook";
+import type { FormDefinition } from "../../core/types";
 
 /**
  * A field-level `name` override has never worked (see the `name` deprecation in the
@@ -18,33 +18,35 @@ function Probe({ definition }: { definition: FormDefinition }) {
 }
 
 const nameWarnings = (warn: { mock: { calls: unknown[][] } }) =>
-  warn.mock.calls.filter(([message]) => String(message).includes('`name` different'));
+  warn.mock.calls.filter(([message]) =>
+    String(message).includes("`name` different"),
+  );
 
-describe('the deprecated field-level name override', () => {
+describe("the deprecated field-level name override", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('warns in development, naming the offending field', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it("warns in development, naming the offending field", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     render(
-      <Probe definition={{ email: { type: 'text', name: 'contactEmail' } }} />
+      <Probe definition={{ email: { type: "text", name: "contactEmail" } }} />,
     );
 
     const warnings = nameWarnings(warn);
     expect(warnings).toHaveLength(1);
-    expect(String(warnings[0][0])).toContain('`email`');
+    expect(String(warnings[0][0])).toContain("`email`");
   });
 
-  it('stays quiet when name matches the key or is omitted', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it("stays quiet when name matches the key or is omitted", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     render(
       <Probe
         definition={{
-          email: { type: 'text', name: 'email' },
-          plain: { type: 'text' },
+          email: { type: "text", name: "email" },
+          plain: { type: "text" },
         }}
-      />
+      />,
     );
 
     expect(nameWarnings(warn)).toHaveLength(0);

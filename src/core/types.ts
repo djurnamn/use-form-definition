@@ -1,8 +1,6 @@
 import { FieldError, FieldValues } from "react-hook-form";
 import { ReactNode } from "react";
 import type { PluginRegistry } from "./plugin-system";
-// Type-only, so this stays erased at build time and the runtime cycle
-// (field-generators imports this module) never forms.
 import type { FieldValueType } from "./schema/field-generators";
 
 // Generic form action types (suitable for Next.js server actions and similar patterns)
@@ -26,8 +24,8 @@ export interface FormActionResult<T extends FieldValues = FieldValues> {
 }
 
 export type FormAction<T extends FieldValues = FieldValues> = (
-  prevState: FormActionResult<T> | null,
-  formData: FormData
+  previousState: FormActionResult<T> | null,
+  formData: FormData,
 ) => Promise<FormActionResult<T>>;
 
 // Validation types
@@ -112,7 +110,19 @@ export interface BaseValidationRules extends CommonValidationRules {
   negative?: boolean;
   nonNegative?: boolean;
   nonPositive?: boolean;
+  /** The fewest rows a repeater accepts. */
+  minimumRows?: ValidationRule<number>;
+  /** The most rows a repeater accepts. */
+  maximumRows?: ValidationRule<number>;
+  /**
+   * @deprecated Use `minimumRows` instead. `minRows` keeps working until the next major
+   * version.
+   */
   minRows?: ValidationRule<number>;
+  /**
+   * @deprecated Use `maximumRows` instead. `maxRows` keeps working until the next major
+   * version.
+   */
   maxRows?: ValidationRule<number>;
   mustBeTrue?: boolean;
   mustBeFalse?: boolean;
@@ -126,7 +136,7 @@ export interface BaseValidationRules extends CommonValidationRules {
 }
 
 export interface FormFieldDefinition {
-  type: string; // Made extensible - no longer hardcoded union
+  type: string;
   /**
    * The form field's HTML `name` attribute.
    *
@@ -137,8 +147,8 @@ export interface FormFieldDefinition {
    * ⚠ **Setting this to anything other than the definition key is broken - do not use
    * it.** Rendering keys by the name while defaults and the generated schema key by the
    * definition key, so the field ends up with two slots in react-hook-form, client
-   * validation fails with the field filled in, and the server reports it missing. Measured;
-   * see the `name` deprecation in the CHANGELOG for the cause and the decision it needs.
+   * validation fails with the field filled in, and the server reports it missing. See the
+   * `name` deprecation in the CHANGELOG.
    *
    * @deprecated Setting a `name` different from the definition key has never worked and
    * is slated for removal; a development-mode warning fires when a definition does it.
@@ -173,9 +183,8 @@ export interface FormFieldDefinition {
    * - `"none"`: explicitly hide the description
    * - any other string: use as the translation key (when translation enabled) or as a literal description
    *
-   * Note: a field type can allowlist `description` in its `additionalProps` (as the
-   * djui binding does for `checkbox` and `switch`) - then it reaches the control
-   * itself as the control's own inline description, not the wrapper.
+   * Note: a field type can allowlist `description` in its `additionalProps` - then it
+   * reaches the control itself as the control's own inline description, not the wrapper.
    */
   description?: string | "auto" | "none";
   options?: SelectOptions;
@@ -217,7 +226,7 @@ export interface FormFieldDefinition {
    * while losing everything undeclared, on both the client resolver and
    * `generateDataValidator`. Declare that state here and it survives the parse, validated,
    * with no rendering consequence - a repeater renders exactly `fields`, so an existing
-   * repeater component needs no change to honour this.
+   * repeater component needs no change to honor this.
    *
    * Entries speak validation, not rendering (see {@link SchemaOnlyRowProperty}).
    *
@@ -293,20 +302,31 @@ export interface SchemaOnlyRowProperty {
 }
 
 // Enhanced component configuration for internal use
-export interface ProcessedComponentConfig {
+export interface ProcessedComponentConfiguration {
   component: React.ComponentType<any>;
   ignoreFieldWrapper: boolean;
   additionalProps: string[];
-  /** If true, the component receives the full form config for rendering nested fields */
+  /** If true, the component receives the full form configuration for rendering nested fields */
+  injectFormConfiguration?: boolean;
+  /**
+   * @deprecated Use `injectFormConfiguration` instead. `injectFormConfig` keeps working
+   * until the next major version.
+   */
   injectFormConfig?: boolean;
 }
+
+/**
+ * @deprecated Use `ProcessedComponentConfiguration` instead. `ProcessedComponentConfig` is kept as an alias until the next major
+ * version.
+ */
+export type ProcessedComponentConfig = ProcessedComponentConfiguration;
 
 /**
  * Nested field renderer function type
  *
  * Provided to components that need to render a nested field by name (e.g. Repeater
  * rendering each row's fields). Injected by useFormDefinition via the
- * `injectFormConfig` mechanism on a field type's `ProcessedComponentConfig`.
+ * `injectFormConfiguration` mechanism on a field type's `ProcessedComponentConfiguration`.
  */
 export type NestedFieldRenderer = (
   fieldKey: string,
@@ -314,15 +334,15 @@ export type NestedFieldRenderer = (
   value: unknown,
   onChange: (value: unknown) => void,
   error?: FieldError,
-  namePrefix?: string
+  namePrefix?: string,
 ) => ReactNode;
 
 /**
  * Internal props injected by `useFormDefinition` into a field component when its
- * `ProcessedComponentConfig` has `injectFormConfig: true`.
+ * `ProcessedComponentConfiguration` has `injectFormConfiguration: true`.
  *
  * These are how complex field components (e.g. Repeater) access the surrounding
- * form's config - so nested fields render with the same registered components,
+ * form's configuration - so nested fields render with the same registered components,
  * translation, and defaults as the parent form.
  *
  * The `__` prefix marks these as library-injected and not user-facing: end users
@@ -338,33 +358,44 @@ export type NestedFieldRenderer = (
  * }
  * ```
  *
- * And register the component with `injectFormConfig: true`:
+ * And register the component with `injectFormConfiguration: true`:
  * ```ts
  * myComplex: {
  *   component: MyComplexField,
- *   injectFormConfig: true,
+ *   injectFormConfiguration: true,
  *   // ...
  * }
  * ```
  */
 export interface InternalComponentProps {
-  /** The full form config, for resolving nested field types and translation. */
-  __formConfig: FormConfig;
+  /** The full form configuration, for resolving nested field types and translation. */
+  __formConfiguration: FormConfiguration;
+  /**
+   * @deprecated Read `__formConfiguration` instead. The same object is still injected as
+   * `__formConfig` until the next major version.
+   */
+  __formConfig: FormConfiguration;
   /** Renderer that emits a nested field with the same setup as the parent form. */
   __renderNestedField: NestedFieldRenderer;
   /** Default-value resolver, for seeding new rows / nested instances. */
-  __getDefaultValueForField: (field: { type: string; defaultValue?: unknown }) => unknown;
+  __getDefaultValueForField: (field: {
+    type: string;
+    defaultValue?: unknown;
+  }) => unknown;
   /**
-   * Resolve a nested field's display label with the parent form's translation config.
+   * Resolve a nested field's display label with the parent form's translation configuration.
    * Returns the translated string when a `translation.hook` is configured, the raw label
    * otherwise, or `undefined` when the field has no label. Lets a complex component (e.g.
    * a Repeater rendering its own column headers) translate labels the same way the cells do.
    */
-  __resolveFieldLabel: (fieldKey: string, fieldDefinition: FormFieldDefinition) => string | undefined;
+  __resolveFieldLabel: (
+    fieldKey: string,
+    fieldDefinition: FormFieldDefinition,
+  ) => string | undefined;
 }
 
 // Translation configuration types
-export interface TranslationCategoryConfig {
+export interface TranslationCategoryConfiguration {
   /** Whether this category is enabled for translation */
   enabled?: boolean;
   /** Whether to always include this value (when omitted in definition). Default varies by category. */
@@ -373,17 +404,32 @@ export interface TranslationCategoryConfig {
   localePath?: (key: string) => string;
 }
 
-export interface ValidationTranslationConfig {
+/**
+ * @deprecated Use `TranslationCategoryConfiguration` instead. `TranslationCategoryConfig` is kept as an alias until the next major
+ * version.
+ */
+export type TranslationCategoryConfig = TranslationCategoryConfiguration;
+
+export interface ValidationTranslationConfiguration {
   /** Whether validation messages should be translated. Default: true */
   enabled?: boolean;
   /** Function to generate the translation key from the validation rule key. Default: (key) => `form.validation.${key}` */
   localePath?: (key: string) => string;
 }
 
-/** Translation function signature - compatible with most i18n libraries */
-export type TranslationFunction = (key: string, options?: Record<string, any>) => string;
+/**
+ * @deprecated Use `ValidationTranslationConfiguration` instead. `ValidationTranslationConfig` is kept as an alias until the next major
+ * version.
+ */
+export type ValidationTranslationConfig = ValidationTranslationConfiguration;
 
-export interface TranslationConfigObject {
+/** Translation function signature - compatible with most i18n libraries */
+export type TranslationFunction = (
+  key: string,
+  options?: Record<string, any>,
+) => string;
+
+export interface TranslationConfigurationObject {
   /**
    * Hook that returns a translation function.
    * Called internally by the form hook - must return a function with signature: (key, options?) => string
@@ -410,59 +456,65 @@ export interface TranslationConfigObject {
    *
    * @example Override with specific namespace
    * const t = useTranslations('forms');
-   * useFormDefinition(definition, { config: { translation: { function: t } } });
+   * useFormDefinition(definition, { configuration: { translation: { function: t } } });
    */
   function?: TranslationFunction;
 
   /**
-   * Label translation config
+   * Label translation configuration
    * - enabled: false by default
    * - alwaysInclude: true by default (when enabled, labels are auto-generated unless explicitly false)
    * - localePath: (key) => `form.labels.${key}` by default
    */
-  labels?: TranslationCategoryConfig;
+  labels?: TranslationCategoryConfiguration;
 
   /**
-   * Select option label translation config
+   * Select option label translation configuration
    * - enabled: false by default
    * - alwaysInclude: true by default (when enabled, option labels use value as key unless label provided)
    * - localePath: (key) => `form.options.${key}` by default
    */
-  options?: TranslationCategoryConfig;
+  options?: TranslationCategoryConfiguration;
 
   /**
-   * Placeholder translation config
+   * Placeholder translation configuration
    * - enabled: false by default
    * - alwaysInclude: false by default (placeholders require explicit `placeholder: "auto"` or a string)
    * - localePath: (key) => `form.placeholders.${key}` by default
    */
-  placeholders?: TranslationCategoryConfig;
+  placeholders?: TranslationCategoryConfiguration;
 
   /**
-   * Field description translation config
+   * Field description translation configuration
    * - enabled: false by default
    * - alwaysInclude: false by default (descriptions require explicit `description: "auto"` or a string)
    * - localePath: (key) => `form.descriptions.${key}` by default
    */
-  descriptions?: TranslationCategoryConfig;
+  descriptions?: TranslationCategoryConfiguration;
 
   /**
-   * Section label translation config (the `label` handed to the `Section` component slot
+   * Section label translation configuration (the `label` handed to the `Section` component slot
    * for each declared section)
    * - enabled: false by default
    * - alwaysInclude: true by default when enabled (like labels - a section's label is its
    *   primary presentation)
    * - localePath: (key) => `form.sections.${key}` by default
    */
-  sections?: TranslationCategoryConfig;
+  sections?: TranslationCategoryConfiguration;
 
   /**
-   * Validation message translation config
+   * Validation message translation configuration
    * - enabled: true by default
    * - localePath: (key) => `form.validation.${key}` by default
    */
-  validation?: ValidationTranslationConfig;
+  validation?: ValidationTranslationConfiguration;
 }
+
+/**
+ * @deprecated Use `TranslationConfigurationObject` instead. `TranslationConfigObject` is kept as an alias until the next major
+ * version.
+ */
+export type TranslationConfigObject = TranslationConfigurationObject;
 
 /**
  * Translation configuration
@@ -471,11 +523,17 @@ export interface TranslationConfigObject {
  * - `true`: Enable all translation categories with defaults (labels, options, placeholders, validation)
  * - Object: Fine-grained control over each category
  */
-export type TranslationConfig = true | TranslationConfigObject;
+export type TranslationConfiguration = true | TranslationConfigurationObject;
+
+/**
+ * @deprecated Use `TranslationConfiguration` instead. `TranslationConfig` is kept as an alias until the next major
+ * version.
+ */
+export type TranslationConfig = TranslationConfiguration;
 
 // Configuration types
-export interface FormConfig {
-  fieldTypes: Record<string, ProcessedComponentConfig>;  // Now stores processed config
+export interface FormConfiguration {
+  fieldTypes: Record<string, ProcessedComponentConfiguration>;
   components: {
     Form?: React.ComponentType<any>;
     Field?: React.ComponentType<any>;
@@ -501,10 +559,11 @@ export interface FormConfig {
      */
     Section?: React.ComponentType<any> | false;
   };
-  translation?: TranslationConfig;
+  translation?: TranslationConfiguration;
   /**
-   * Optional plugin registry for SSR-safe plugin management.
-   * If not provided, the global plugin registry is used.
+   * A plugin registry to hand to `generateSchemaAsync(definition, formData, registry)`.
+   * The form's own validation does not run plugins, and there is no global registry:
+   * a plugin applies only where its registry is passed to `generateSchemaAsync`.
    */
   pluginRegistry?: PluginRegistry;
   /**
@@ -524,6 +583,11 @@ export interface FormConfig {
   emitHtml5Attributes?: boolean;
 }
 
+/**
+ * @deprecated Use `FormConfiguration` instead. `FormConfig` is kept as an alias until the next major
+ * version.
+ */
+export type FormConfig = FormConfiguration;
 
 // Field-specific validation rule types
 // Each extends CommonValidationRules to share required/requiredWhen.
@@ -560,7 +624,19 @@ export interface DateValidationRules extends CommonValidationRules {
 }
 
 export interface ArrayValidationRules extends CommonValidationRules {
+  /** The fewest rows a repeater accepts. */
+  minimumRows?: ValidationRule<number>;
+  /** The most rows a repeater accepts. */
+  maximumRows?: ValidationRule<number>;
+  /**
+   * @deprecated Use `minimumRows` instead. `minRows` keeps working until the next major
+   * version.
+   */
   minRows?: ValidationRule<number>;
+  /**
+   * @deprecated Use `maximumRows` instead. `maxRows` keeps working until the next major
+   * version.
+   */
   maxRows?: ValidationRule<number>;
   minLength?: ValidationRule<number>;
   maxLength?: ValidationRule<number>;
@@ -582,24 +658,24 @@ export type FieldTypeValidationMap = {
   url: StringValidationRules;
   tel: StringValidationRules;
   search: StringValidationRules;
-  
+
   number: NumberValidationRules;
   range: NumberValidationRules;
-  
+
   date: DateValidationRules;
-  'datetime-local': DateValidationRules;
+  "datetime-local": DateValidationRules;
   time: DateValidationRules;
   month: DateValidationRules;
   week: DateValidationRules;
-  
+
   select: SelectValidationRules;
   radio: SelectValidationRules;
-  
+
   checkbox: BooleanValidationRules;
-  
+
   repeater: ArrayValidationRules;
   multiselect: ArrayValidationRules;
-  
+
   file: StringValidationRules;
   hidden: StringValidationRules;
   color: StringValidationRules;
@@ -608,11 +684,15 @@ export type FieldTypeValidationMap = {
 // Helper to create a field definition with proper validation typing
 export function createField<T extends keyof FieldTypeValidationMap>(
   type: T,
-  config: Omit<FormFieldDefinition, 'type'> & { validation?: FieldTypeValidationMap[T] }
+  configuration: Omit<FormFieldDefinition, "type"> & {
+    validation?: FieldTypeValidationMap[T];
+  },
 ): FormFieldDefinition & { type: T; validation?: FieldTypeValidationMap[T] } {
   return {
     type,
-    ...config,
-  } as FormFieldDefinition & { type: T; validation?: FieldTypeValidationMap[T] };
+    ...configuration,
+  } as FormFieldDefinition & {
+    type: T;
+    validation?: FieldTypeValidationMap[T];
+  };
 }
-

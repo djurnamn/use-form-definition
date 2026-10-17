@@ -9,7 +9,7 @@
     "tagline": "Typsäkra formulärdefinitioner för React"
   },
   "home": {
-    "description": "Det här exemplet visar server-validering och internationalisering med next-intl.",
+    "description": "Det här exemplet visar server-validering och internationalizering med next-intl.",
     "examplesTitle": "Exempelformulär",
     "serverAction": {
       "title": "Feedbackformulär (Server Action)",
@@ -28,7 +28,7 @@
       "serverValidation": "Server-validering med generateDataValidator",
       "serverActions": "Integration med Next.js Server Actions",
       "apiRoutes": "API Route-validering",
-      "i18n": "Full internationalisering med next-intl",
+      "i18n": "Full internationalizering med next-intl",
       "translatedLabels": "Översatta formuläretiketter och felmeddelanden"
     }
   },

@@ -19,7 +19,7 @@ export type FormState = FormActionResult;
  * - Returns a success result that the client renders from `actionState`
  */
 export async function submitFeedback(
-  prevState: FormActionResult | null,
+  previousState: FormActionResult | null,
   formData: FormData
 ): Promise<FormActionResult> {
   // Simulate network delay

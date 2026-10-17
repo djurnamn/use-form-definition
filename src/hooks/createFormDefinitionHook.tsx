@@ -1,18 +1,36 @@
 import React from "react";
 import { FieldValues, UseFormReturn } from "react-hook-form";
-import { FormDefinition, FormConfig, ProcessedComponentConfig, FormAction } from "../core/types";
+import {
+  FormDefinition,
+  FormConfiguration,
+  ProcessedComponentConfiguration,
+  FormAction,
+} from "../core/types";
 import type { FormSections } from "../core/sections";
 import type { InferFormType } from "../core/types-inference";
-import { useFormDefinition, type UseFormDefinitionReturn } from "./useFormDefinition";
-import { createFormConfig, getFormConfigWithDefaultFieldTypes } from "../configuration/createFormConfig";
+import {
+  useFormDefinition,
+  type UseFormDefinitionReturn,
+} from "./useFormDefinition";
+import {
+  createFormConfiguration,
+  getFormConfigurationWithDefaultFieldTypes,
+} from "../configuration/createFormConfiguration";
 import type { PluginRegistry } from "../core/plugin-system";
 
 // Advanced component configuration
-export interface AdvancedComponentConfig<T = any> {
+export interface AdvancedComponentConfiguration<T = any> {
   component: React.ComponentType<T>;
   ignoreFieldWrapper?: boolean;
   additionalProps?: string[];
 }
+
+/**
+ * @deprecated Use `AdvancedComponentConfiguration` instead. `AdvancedComponentConfig` is kept as an alias until the next major
+ * version.
+ */
+export type AdvancedComponentConfig<T = any> =
+  AdvancedComponentConfiguration<T>;
 
 /**
  * Field types that correspond to HTML input types.
@@ -20,31 +38,38 @@ export interface AdvancedComponentConfig<T = any> {
  * so custom components receive the HTML input type (e.g., type="password").
  */
 const INPUT_TYPE_FIELD_TYPES = new Set([
-  'text',
-  'password',
-  'email',
-  'url',
-  'tel',
-  'search',
-  'number',
-  'date',
-  'datetime-local',
-  'time',
-  'month',
-  'week',
-  'range',
-  'color',
-  'file',
-  'hidden',
+  "text",
+  "password",
+  "email",
+  "url",
+  "tel",
+  "search",
+  "number",
+  "date",
+  "datetime-local",
+  "time",
+  "month",
+  "week",
+  "range",
+  "color",
+  "file",
+  "hidden",
 ]);
 
 // Simple component (backward compatible) or advanced configuration
-export type ComponentConfig = React.ComponentType<any> | AdvancedComponentConfig;
+export type ComponentConfiguration =
+  React.ComponentType<any> | AdvancedComponentConfiguration;
 
-export interface FormDefinitionHookConfig {
-  components?: Record<string, ComponentConfig>;
-  formComponents?: FormConfig['components'];
-  translation?: FormConfig['translation'];
+/**
+ * @deprecated Use `ComponentConfiguration` instead. `ComponentConfig` is kept as an alias until the next major
+ * version.
+ */
+export type ComponentConfig = ComponentConfiguration;
+
+export interface FormDefinitionHookConfiguration {
+  components?: Record<string, ComponentConfiguration>;
+  formComponents?: FormConfiguration["components"];
+  translation?: FormConfiguration["translation"];
   /**
    * Set `noValidate` on every rendered `<form>`, disabling the browser's built-in HTML5
    * constraint validation (e.g. the `<input type="email">` bubble) so react-hook-form / your
@@ -57,28 +82,26 @@ export interface FormDefinitionHookConfig {
    * `maxLength`, `min`, `max`) on every rendered input, derived from each field's
    * `validation` rules. Gives a no-JS HTML5 validation layer alongside
    * react-hook-form / your server action. Default: `false`. Overridable per form
-   * via the runtime `config.emitHtml5Attributes`.
+   * via the runtime `configuration.emitHtml5Attributes`.
    */
   emitHtml5Attributes?: boolean;
   /**
-   * Optional plugin registry for SSR-safe plugin management
-   * If not provided, uses the global plugin registry (client-side safe)
+   * A plugin registry carried on every form's configuration, to hand to
+   * `generateSchemaAsync(definition, formData, registry)`. The form's own
+   * validation does not run plugins, and there is no global registry: a plugin
+   * applies only where its registry is passed to `generateSchemaAsync`.
    *
    * @example
    * ```typescript
-   * import { createFormDefinitionHook, createPluginRegistry } from 'use-form-definition';
+   * import { createPluginRegistry, generateSchemaAsync } from 'use-form-definition';
    *
-   * // Create an isolated plugin registry for SSR
    * const registry = createPluginRegistry();
    * registry.register('my-plugin', myPlugin, metadata);
    *
-   * const useFormDefinition = createFormDefinitionHook({
-   *   components: { ... },
-   *   pluginRegistry: registry
-   * });
+   * const schema = await generateSchemaAsync(definition, formData, registry);
    * ```
    *
-   * @example Translation with hook (zero-config per form)
+   * @example Translation with hook (zero-configuration per form)
    * ```typescript
    * import { useTranslations } from 'next-intl';
    *
@@ -91,12 +114,18 @@ export interface FormDefinitionHookConfig {
    *   }
    * });
    *
-   * // In component - no translation config needed!
+   * // In component - no translation configuration needed!
    * const { RenderedForm } = useFormDefinition(definition);
    * ```
    */
   pluginRegistry?: PluginRegistry;
 }
+
+/**
+ * @deprecated Use `FormDefinitionHookConfiguration` instead. `FormDefinitionHookConfig` is kept as an alias until the next major
+ * version.
+ */
+export type FormDefinitionHookConfig = FormDefinitionHookConfiguration;
 
 /**
  * Options passed to the form definition hook at runtime
@@ -105,7 +134,9 @@ export interface FormDefinitionHookConfig {
  * 1. Omitted - useForm is called internally (simplest)
  * 2. Full UseFormReturn object - pass the entire useForm() result for full control
  */
-export interface FormDefinitionHookOptions<T extends FieldValues = FieldValues> {
+export interface FormDefinitionHookOptions<
+  T extends FieldValues = FieldValues,
+> {
   /**
    * Form instance from react-hook-form
    * - If omitted, useForm() is called internally with auto-generated options
@@ -125,11 +156,19 @@ export interface FormDefinitionHookOptions<T extends FieldValues = FieldValues> 
   defaultValues?: FieldValues;
   /**
    * The form's partition into named sections (section name to definition keys). See the
-   * `sections` option on `useFormDefinition` for the full contract: zero-config grouped
+   * `sections` option on `useFormDefinition` for the full contract: zero-configuration grouped
    * rendering, value mirrors under `currentSection`, and the returned `sections` API.
    */
   sections?: Record<string, ReadonlyArray<string>>;
-  config?: Partial<FormConfig>;
+  /**
+   * Per-form configuration overrides, merged over what the factory was set up with.
+   */
+  configuration?: Partial<FormConfiguration>;
+  /**
+   * @deprecated Use `configuration` instead. `config` keeps working until the next major
+   * version; when both are given, `configuration` wins.
+   */
+  config?: Partial<FormConfiguration>;
   /**
    * Server action for the form (e.g. a Next.js Server Action).
    *
@@ -146,21 +185,21 @@ export type FormDefinitionHook = <
   Extras extends Record<string, unknown> = Record<string, unknown>,
 >(
   definition: T,
-  options?: FormDefinitionHookOptions
+  options?: FormDefinitionHookOptions,
 ) => UseFormDefinitionReturn<T, InferFormType<T>, Extras>;
 
 /**
  * Factory function to create a pre-configured useFormDefinition hook
- * 
+ *
  * This allows users to set up their form configuration once and reuse it
  * across their application without having to pass configuration every time.
- * 
+ *
  * @example
  * ```typescript
- * // utilities/form/config.ts
+ * // utilities/form/configuration.ts
  * import { createFormDefinitionHook } from 'use-form-definition';
  * import { InputField, SelectField } from '@/components/form';
- * 
+ *
  * export const useFormDefinition = createFormDefinitionHook({
  *   components: {
  *     text: InputField,
@@ -174,7 +213,7 @@ export type FormDefinitionHook = <
  * });
  *
  * // app/form/MyForm.tsx
- * import { useFormDefinition } from '@/utilities/form/config';
+ * import { useFormDefinition } from '@/utilities/form/configuration';
  *
  * const { RenderedField, RenderedForm } = useFormDefinition(definition);
  *
@@ -183,62 +222,76 @@ export type FormDefinitionHook = <
  * <RenderedForm onSubmit={handleSubmit} />
  * ```
  */
-// Helper to process ComponentConfig into ProcessedComponentConfig
-const processComponentConfig = (config: ComponentConfig, fieldTypeKey: string): ProcessedComponentConfig => {
+// Helper to process ComponentConfiguration into ProcessedComponentConfiguration
+const processComponentConfiguration = (
+  configuration: ComponentConfiguration,
+  fieldTypeKey: string,
+): ProcessedComponentConfiguration => {
   // Determine if this field type should receive the `type` prop
   // (i.e., it corresponds to an HTML input type)
   const shouldPassType = INPUT_TYPE_FIELD_TYPES.has(fieldTypeKey);
 
   // Check if this is our controlled advanced configuration object
-  // (has 'component' property - our AdvancedComponentConfig shape)
-  if (config && typeof config === 'object' && 'component' in config) {
-    const additionalProps = config.additionalProps || [];
+  // (has 'component' property - our AdvancedComponentConfiguration shape)
+  if (
+    configuration &&
+    typeof configuration === "object" &&
+    "component" in configuration
+  ) {
+    const additionalProps = configuration.additionalProps || [];
 
     // Add 'type' to additionalProps if needed and not already present
-    if (shouldPassType && !additionalProps.includes('type')) {
-      additionalProps.push('type');
+    if (shouldPassType && !additionalProps.includes("type")) {
+      additionalProps.push("type");
     }
 
     return {
-      component: config.component,
-      ignoreFieldWrapper: config.ignoreFieldWrapper || false,
+      component: configuration.component,
+      ignoreFieldWrapper: configuration.ignoreFieldWrapper || false,
       additionalProps,
     };
   }
 
   // Everything else is a simple component (function, forwardRef, memo, etc.)
   return {
-    component: config as React.ComponentType<any>,
+    component: configuration as React.ComponentType<any>,
     ignoreFieldWrapper: false,
-    additionalProps: shouldPassType ? ['type'] : [],
+    additionalProps: shouldPassType ? ["type"] : [],
   };
 };
 
 export const createFormDefinitionHook = (
-  hookConfig: FormDefinitionHookConfig = {}
+  hookConfiguration: FormDefinitionHookConfiguration = {},
 ): FormDefinitionHook => {
   // Start with built-in field types, then merge user components
-  const formConfigWithDefaultFieldTypes = getFormConfigWithDefaultFieldTypes();
-  
-  // Process user components from ComponentConfig to ProcessedComponentConfig
-  const processedComponents: Record<string, ProcessedComponentConfig> = {};
-  Object.entries(hookConfig.components || {}).forEach(([key, config]) => {
-    processedComponents[key] = processComponentConfig(config, key);
-  });
-  
-  const baseConfig = createFormConfig({
+  const formConfigurationWithDefaultFieldTypes =
+    getFormConfigurationWithDefaultFieldTypes();
+
+  // Process user components from ComponentConfiguration to ProcessedComponentConfiguration
+  const processedComponents: Record<string, ProcessedComponentConfiguration> =
+    {};
+  Object.entries(hookConfiguration.components || {}).forEach(
+    ([key, configuration]) => {
+      processedComponents[key] = processComponentConfiguration(
+        configuration,
+        key,
+      );
+    },
+  );
+
+  const baseConfiguration = createFormConfiguration({
     fieldTypes: {
-      ...formConfigWithDefaultFieldTypes.fieldTypes,
+      ...formConfigurationWithDefaultFieldTypes.fieldTypes,
       ...processedComponents,
     },
     components: {
-      ...formConfigWithDefaultFieldTypes.components,
-      ...(hookConfig.formComponents || {}),
+      ...formConfigurationWithDefaultFieldTypes.components,
+      ...(hookConfiguration.formComponents || {}),
     },
-    translation: hookConfig.translation,
-    pluginRegistry: hookConfig.pluginRegistry,
-    noValidate: hookConfig.noValidate,
-    emitHtml5Attributes: hookConfig.emitHtml5Attributes,
+    translation: hookConfiguration.translation,
+    pluginRegistry: hookConfiguration.pluginRegistry,
+    noValidate: hookConfiguration.noValidate,
+    emitHtml5Attributes: hookConfiguration.emitHtml5Attributes,
   });
 
   // Return the configured hook function
@@ -247,24 +300,28 @@ export const createFormDefinitionHook = (
     Extras extends Record<string, unknown> = Record<string, unknown>,
   >(
     definition: T,
-    options: FormDefinitionHookOptions = {}
+    options: FormDefinitionHookOptions = {},
   ): UseFormDefinitionReturn<T, InferFormType<T>, Extras> => {
-    // For runtime config merging, we need to process any additional fieldTypes
-    // that might be passed in the runtime config
-    const runtimeFieldTypes: Record<string, ProcessedComponentConfig> = {};
-    if (options.config?.fieldTypes) {
-      Object.entries(options.config.fieldTypes).forEach(([key, config]) => {
-        runtimeFieldTypes[key] = config;
-      });
+    // For runtime configuration merging, we need to process any additional fieldTypes
+    // that might be passed in the runtime configuration
+    const runtimeConfiguration = options.configuration ?? options.config;
+    const runtimeFieldTypes: Record<string, ProcessedComponentConfiguration> =
+      {};
+    if (runtimeConfiguration?.fieldTypes) {
+      Object.entries(runtimeConfiguration.fieldTypes).forEach(
+        ([key, configuration]) => {
+          runtimeFieldTypes[key] = configuration;
+        },
+      );
     }
 
-    // Deep merge translation config to preserve nested category settings
+    // Deep merge translation configuration to preserve nested category settings
     // Handle both boolean shorthand (true) and object configs
     const mergedTranslation = (() => {
-      const runtimeTranslation = options.config?.translation;
-      const baseTranslation = baseConfig.translation;
+      const runtimeTranslation = runtimeConfiguration?.translation;
+      const baseTranslation = baseConfiguration.translation;
 
-      // No runtime config - use base
+      // No runtime configuration - use base
       if (runtimeTranslation === undefined) {
         return baseTranslation;
       }
@@ -275,29 +332,29 @@ export const createFormDefinitionHook = (
         if (baseTranslation === true || baseTranslation === undefined) {
           return true;
         }
-        // Base has config object, merge true with it (true enables all)
+        // Base has configuration object, merge true with it (true enables all)
         return baseTranslation;
       }
 
       // Runtime is object - merge with base
-      const baseObj = baseTranslation === true ? {} : baseTranslation;
+      const baseObject = baseTranslation === true ? {} : baseTranslation;
       return {
-        hook: runtimeTranslation.hook ?? baseObj?.hook,
-        function: runtimeTranslation.function ?? baseObj?.function,
+        hook: runtimeTranslation.hook ?? baseObject?.hook,
+        function: runtimeTranslation.function ?? baseObject?.function,
         labels: {
-          ...baseObj?.labels,
+          ...baseObject?.labels,
           ...runtimeTranslation.labels,
         },
         options: {
-          ...baseObj?.options,
+          ...baseObject?.options,
           ...runtimeTranslation.options,
         },
         placeholders: {
-          ...baseObj?.placeholders,
+          ...baseObject?.placeholders,
           ...runtimeTranslation.placeholders,
         },
         validation: {
-          ...baseObj?.validation,
+          ...baseObject?.validation,
           ...runtimeTranslation.validation,
         },
       };
@@ -311,35 +368,40 @@ export const createFormDefinitionHook = (
       }
 
       // Get translation function: runtime function > hook result > base function
-      let translationFn = mergedTranslation.function;
+      let translationFunction = mergedTranslation.function;
 
-      if (!translationFn && mergedTranslation.hook) {
+      if (!translationFunction && mergedTranslation.hook) {
         // Call the hook to get the translation function
-        translationFn = mergedTranslation.hook();
+        translationFunction = mergedTranslation.hook();
       }
 
       return {
         ...mergedTranslation,
-        function: translationFn,
+        function: translationFunction,
       };
     })();
 
-    const finalConfig: FormConfig = {
+    const finalConfiguration: FormConfiguration = {
       fieldTypes: {
-        ...baseConfig.fieldTypes,
+        ...baseConfiguration.fieldTypes,
         ...runtimeFieldTypes,
       },
       components: {
-        ...baseConfig.components,
-        ...(options.config?.components || {}),
+        ...baseConfiguration.components,
+        ...(runtimeConfiguration?.components || {}),
       },
       translation: resolvedTranslation,
-      pluginRegistry: options.config?.pluginRegistry || baseConfig.pluginRegistry,
-      noValidate: options.config?.noValidate ?? baseConfig.noValidate,
-      emitHtml5Attributes: options.config?.emitHtml5Attributes ?? baseConfig.emitHtml5Attributes,
+      pluginRegistry:
+        runtimeConfiguration?.pluginRegistry ||
+        baseConfiguration.pluginRegistry,
+      noValidate:
+        runtimeConfiguration?.noValidate ?? baseConfiguration.noValidate,
+      emitHtml5Attributes:
+        runtimeConfiguration?.emitHtml5Attributes ??
+        baseConfiguration.emitHtml5Attributes,
     };
 
-    // Use the existing useFormDefinition hook with merged config
+    // Use the existing useFormDefinition hook with merged configuration
     return useFormDefinition<T, Extras>(definition, {
       form: options.form,
       defaultValues: options.defaultValues,
@@ -347,7 +409,7 @@ export const createFormDefinitionHook = (
       // definition, so the per-key field-name checking lives on `useFormDefinition`'s
       // own option; here the map is accepted by shape.
       sections: options.sections as FormSections<T> | undefined,
-      config: finalConfig,
+      configuration: finalConfiguration,
       serverAction: options.serverAction,
     });
   };

@@ -23,7 +23,7 @@ export type FormSections<T extends FormDefinition = FormDefinition> = Record<
  */
 export const sectionOf = (
   sections: FormSections,
-  fieldKey: string
+  fieldKey: string,
 ): string | undefined => {
   for (const [name, fields] of Object.entries(sections)) {
     if (fields.includes(fieldKey)) return name;
@@ -39,7 +39,7 @@ export const sectionOf = (
  */
 export const sectionsWithErrors = (
   sections: FormSections,
-  errors?: Record<string, unknown>
+  errors?: Record<string, unknown>,
 ): string[] => {
   if (!errors) return [];
   return Object.entries(sections)

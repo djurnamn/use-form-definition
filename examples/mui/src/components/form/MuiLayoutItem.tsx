@@ -42,8 +42,8 @@ export interface MuiLayoutItemProps {
  * layout: { half: true }
  *
  * // MUI pattern - more expressive and responsive
- * layout: { xs: 12, sm: 6 }           // Full on mobile, half on tablet+
- * layout: { xs: 12, sm: 6, md: 4 }    // Responsive thirds on desktop
+ * layout: { xs: 12, sm: 6 }           // Full width below sm, half from sm up
+ * layout: { xs: 12, sm: 6, md: 4 }    // Thirds from md up
  * layout: { xs: 12 }                   // Always full width
  */
 export function MuiLayoutItem({

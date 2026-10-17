@@ -1,0 +1,15 @@
+# Documents are written by hand: tables, list markers and line breaks are
+# deliberate, and reformatting them churns every line for no reader.
+*.md
+*.mdx
+
+# Generated or built.
+pnpm-lock.yaml
+dist
+coverage
+
+# The example apps keep their own setup.
+examples
+
+# Local, untracked agent settings.
+.claude

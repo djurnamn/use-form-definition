@@ -1,8 +1,17 @@
 import React, { forwardRef, useEffect, useState } from "react";
 import { FieldError } from "react-hook-form";
-import { FormDefinition, FormFieldDefinition, FormConfig, InternalComponentProps, NestedFieldRenderer } from "../core/types";
+import {
+  FormDefinition,
+  FormFieldDefinition,
+  InternalComponentProps,
+  NestedFieldRenderer,
+} from "../core/types";
 import { getDefaultValueForField } from "../core/utilities";
-import { getNestedError, NestedFieldError, NestedFieldErrorMap } from "../core/nested-errors";
+import {
+  getNestedError,
+  NestedFieldError,
+  NestedFieldErrorMap,
+} from "../core/nested-errors";
 
 export type { NestedFieldRenderer };
 
@@ -15,9 +24,9 @@ export type RepeaterRowData = Record<string, unknown>;
  * Repeater component props
  *
  * Extends `Partial<InternalComponentProps>` to declare the library-injected props
- * (`__formConfig`, `__renderNestedField`, `__getDefaultValueForField`,
+ * (`__formConfiguration`, `__renderNestedField`, `__getDefaultValueForField`,
  * `__resolveFieldLabel`) that arrive when this component is registered with
- * `injectFormConfig: true`.
+ * `injectFormConfiguration: true`.
  */
 export interface RepeaterProps extends Partial<InternalComponentProps> {
   name: string;
@@ -25,7 +34,7 @@ export interface RepeaterProps extends Partial<InternalComponentProps> {
   onChange?: (value: RepeaterRowData[]) => void;
   fields: FormDefinition;
   /**
-   * The field's error. A flat `FieldError` carries a whole-list message (`minRows`,
+   * The field's error. A flat `FieldError` carries a whole-list message (`minimumRows`,
    * say); item-level errors arrive as a nested tree - an array of per-row error maps -
    * and each cell's own error renders at the cell. `true` is the legacy "mark every
    * cell, no message" form.
@@ -35,6 +44,12 @@ export interface RepeaterProps extends Partial<InternalComponentProps> {
   hideHeader?: boolean;
   disableAddRow?: boolean;
   disableRemoveRow?: boolean;
+  /** The most rows the add button allows. */
+  maximumRows?: number;
+  /**
+   * @deprecated Use `maximumRows` instead. `maxRows` keeps working until the next major
+   * version.
+   */
   maxRows?: number;
   className?: string;
 
@@ -45,7 +60,7 @@ export interface RepeaterProps extends Partial<InternalComponentProps> {
     value: unknown,
     onChange: (value: unknown) => void,
     error?: FieldError | boolean,
-    rowIndex?: number
+    rowIndex?: number,
   ) => React.ReactNode;
   renderAddButton?: () => React.ReactNode;
   renderRemoveButton?: (rowIndex: number) => React.ReactNode;
@@ -74,20 +89,23 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
       hideHeader = false,
       disableAddRow = false,
       disableRemoveRow = false,
+      maximumRows: maximumRowsProp,
       maxRows,
       className,
       renderField: customRenderField,
       renderAddButton,
       renderRemoveButton,
       // Injected props
-      __formConfig,
+      __formConfiguration: _formConfiguration,
       __renderNestedField,
       __getDefaultValueForField,
       __resolveFieldLabel,
     },
-    ref
+    ref,
   ) => {
-    const [internalValue, setInternalValue] = useState<RepeaterRowData[]>(value);
+    const maximumRows = maximumRowsProp ?? maxRows;
+    const [internalValue, setInternalValue] =
+      useState<RepeaterRowData[]>(value);
 
     // Sync with external value changes
     useEffect(() => {
@@ -101,12 +119,13 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
     };
 
     // Get default value for a field - use injected utility or fall back to imported one
-    const getDefaultValue = __getDefaultValueForField ?? getDefaultValueForField;
+    const getDefaultValue =
+      __getDefaultValueForField ?? getDefaultValueForField;
 
     // Add a new row
     const handleAddRow = () => {
       if (disableAddRow) return;
-      if (maxRows && internalValue.length >= maxRows) return;
+      if (maximumRows && internalValue.length >= maximumRows) return;
 
       // Create empty row with default values from field definitions
       const newRow = Object.keys(fields).reduce<RepeaterRowData>(
@@ -115,7 +134,7 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
           row[fieldKey] = getDefaultValue(field);
           return row;
         },
-        {}
+        {},
       );
 
       handleChange([...internalValue, newRow]);
@@ -133,7 +152,7 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
     const handleFieldChange = (
       rowIndex: number,
       fieldKey: string,
-      fieldValue: unknown
+      fieldValue: unknown,
     ) => {
       const newValue = [...internalValue];
       newValue[rowIndex] = {
@@ -150,7 +169,7 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
       fieldValue: unknown,
       onFieldChange: (value: unknown) => void,
       fieldError?: FieldError | boolean,
-      rowIndex?: number
+      rowIndex?: number,
     ): React.ReactNode => {
       // If we have the injected renderer, use it
       if (__renderNestedField) {
@@ -161,18 +180,17 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
           fieldValue,
           onFieldChange,
           fieldError as FieldError | undefined,
-          namePrefix
+          namePrefix,
         );
       }
 
       // Fallback: render a basic input (for standalone usage without form hook)
       console.warn(
         `Repeater: No field renderer available for "${fieldKey}". ` +
-          `For automatic field rendering, use the Repeater with useFormDefinition.`
+          `For automatic field rendering, use the Repeater with useFormDefinition.`,
       );
 
-      const inputType =
-        fieldDefinition.type === "number" ? "number" : "text";
+      const inputType = fieldDefinition.type === "number" ? "number" : "text";
 
       return (
         <input
@@ -180,14 +198,14 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
           type={inputType}
           name={`${name}[${rowIndex}].${fieldKey}`}
           value={String(fieldValue ?? "")}
-          onChange={(e) => {
-            const val =
+          onChange={(event) => {
+            const nextValue =
               inputType === "number"
-                ? e.target.value
-                  ? Number(e.target.value)
+                ? event.target.value
+                  ? Number(event.target.value)
                   : ""
-                : e.target.value;
-            onFieldChange(val);
+                : event.target.value;
+            onFieldChange(nextValue);
           }}
           style={{ width: "100%" }}
         />
@@ -202,7 +220,10 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
       <button
         type="button"
         onClick={handleAddRow}
-        disabled={disableAddRow || (maxRows !== undefined && internalValue.length >= maxRows)}
+        disabled={
+          disableAddRow ||
+          (maximumRows !== undefined && internalValue.length >= maximumRows)
+        }
       >
         +
       </button>
@@ -251,7 +272,9 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
 
                   // This cell's own error, out of the nested tree (see the `error` prop).
                   const cellError =
-                    typeof error === "object" ? getNestedError(error, [rowIndex, fieldKey]) : undefined;
+                    typeof error === "object"
+                      ? getNestedError(error, [rowIndex, fieldKey])
+                      : undefined;
                   const fieldError = error === true ? true : cellError;
 
                   return (
@@ -263,7 +286,7 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
                         (newValue) =>
                           handleFieldChange(rowIndex, fieldKey, newValue),
                         fieldError,
-                        rowIndex
+                        rowIndex,
                       )}
                       {/* The id matches the aria-describedby the built-in controls point
                           at for this cell's name, so the message is announced with it. */}
@@ -292,17 +315,18 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
         </table>
 
         {!disableAddRow &&
-          (!maxRows || internalValue.length < maxRows) &&
+          (!maximumRows || internalValue.length < maximumRows) &&
           (renderAddButton ? renderAddButton() : defaultAddButton())}
 
-        {/* The whole-list message: a flat error carries it directly (minRows, maxRows,
+        {/* The whole-list message: a flat error carries it directly (minimumRows, maximumRows,
             required); an item-error tree may carry one under `root`. Item errors render
             at their cells above, never here. */}
         {(() => {
           if (!error || typeof error !== "object") return null;
           const ownMessage =
             (error as FieldError).message ??
-            ((error as NestedFieldErrorMap).root as FieldError | undefined)?.message;
+            ((error as NestedFieldErrorMap).root as FieldError | undefined)
+              ?.message;
           return ownMessage ? (
             <span role="alert" style={{ color: "red" }}>
               {ownMessage}
@@ -311,10 +335,14 @@ export const Repeater = forwardRef<HTMLDivElement, RepeaterProps>(
         })()}
 
         {/* Hidden input with JSON stringified value for form submission */}
-        <input type="hidden" name={name} value={JSON.stringify(internalValue)} />
+        <input
+          type="hidden"
+          name={name}
+          value={JSON.stringify(internalValue)}
+        />
       </div>
     );
-  }
+  },
 );
 
 Repeater.displayName = "Repeater";

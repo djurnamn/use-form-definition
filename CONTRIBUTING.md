@@ -45,7 +45,7 @@ use-form-definition/
 │   ├── mui/            # Material UI integration
 │   ├── antd/           # Ant Design integration
 │   └── shadcn/         # shadcn/ui integration
-├── docs/               # Documentation
+├── documentation/      # Documentation
 └── tests/              # Test files
 ```
 

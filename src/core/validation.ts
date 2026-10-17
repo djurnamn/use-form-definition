@@ -15,7 +15,10 @@ import { ValidationRule } from "./types";
  */
 export const createMessage = (
   key: string,
-  options: { count?: number; [key: string]: string | number | boolean | undefined } = {}
+  options: {
+    count?: number;
+    [key: string]: string | number | boolean | undefined;
+  } = {},
 ): string => {
   return JSON.stringify([key, options]);
 };
@@ -24,6 +27,8 @@ export const createMessage = (
 const countValidationTypes = new Set([
   "minLength",
   "maxLength",
+  "minimumRows",
+  "maximumRows",
   "minRows",
   "maxRows",
   "min",
@@ -32,16 +37,12 @@ const countValidationTypes = new Set([
 
 // Validation types that include the constraint value in their message, so a
 // translation can say *what* the string must contain/start with/end with.
-const valueValidationTypes = new Set([
-  "contains",
-  "startsWith",
-  "endsWith",
-]);
+const valueValidationTypes = new Set(["contains", "startsWith", "endsWith"]);
 
 // Get validation rule helper
 export const getValidationRule = <T>(
   rule: ValidationRule<T> | undefined,
-  type: string
+  type: string,
 ): { value: T; message: string } => {
   if (
     rule &&

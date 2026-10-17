@@ -7,15 +7,17 @@ Factory function to create a pre-configured form hook for your project.
 ```typescript
 import { createFormDefinitionHook } from 'use-form-definition';
 
-const useFormDefinition = createFormDefinitionHook(config);
+const useFormDefinition = createFormDefinitionHook(configuration);
 ```
 
-### Config options
+### Configuration options
+
+The options type is `FormDefinitionHookConfiguration`. Its earlier name, `FormDefinitionHookConfig`, still works as a deprecated alias until the next major version, as do the other `...Config` type names below (`ComponentConfig`, `AdvancedComponentConfig`, `TranslationConfig`, `TranslationConfigObject`, `TranslationCategoryConfig`, `ValidationTranslationConfig`, `FormConfig`, `ProcessedComponentConfig`, `NormalizedTranslationConfig`) and the functions `createFormConfig`, `defaultFormConfig` and `normalizeTranslationConfig`.
 
 ```typescript
-interface FormDefinitionHookConfig {
+interface FormDefinitionHookConfiguration {
   // Field type components (naked inputs)
-  components?: Record<string, ComponentConfig>;
+  components?: Record<string, ComponentConfiguration>;
 
   // Form wrapper components
   formComponents?: {
@@ -30,12 +32,12 @@ interface FormDefinitionHookConfig {
   };
 
   // Translation configuration
-  translation?: TranslationConfig;
+  translation?: TranslationConfiguration;
 
   // Custom validation rules
   validation?: Record<string, ValidationRule<any>>;
 
-  // Plugin registry for async validation
+  // A plugin registry to pass to generateSchemaAsync; form validation runs no plugins
   pluginRegistry?: PluginRegistry;
 
   // Set `noValidate` on every rendered <form> (disables the browser's HTML5
@@ -52,26 +54,26 @@ interface FormDefinitionHookConfig {
 }
 ```
 
-### ComponentConfig
+### ComponentConfiguration
 
 ```typescript
 // Simple component
-type SimpleConfig = React.ComponentType<any>;
+type SimpleComponent = React.ComponentType<any>;
 
 // Advanced configuration
-interface AdvancedConfig {
+interface AdvancedComponentConfiguration {
   component: React.ComponentType<any>;
   ignoreFieldWrapper?: boolean;  // Skip Field wrapper
   additionalProps?: string[];    // Props to pass from definition
 }
 
-type ComponentConfig = SimpleConfig | AdvancedConfig;
+type ComponentConfiguration = SimpleComponent | AdvancedComponentConfiguration;
 ```
 
-### TranslationConfig
+### TranslationConfiguration
 
 ```typescript
-interface TranslationConfig {
+interface TranslationConfiguration {
   // Hook called automatically in each form (e.g., useTranslations)
   hook?: () => TranslationFunction;
 
@@ -128,7 +130,7 @@ const {
 | Field | Type | Description |
 |-------|------|-------------|
 | `form` | `UseFormReturn` | Bring your own `useForm()` instance instead of letting the hook create one |
-| `config` | `Partial<FormConfig>` | Per-call overrides (`components`, `translation`, `noValidate`, ...) |
+| `configuration` | `Partial<FormConfiguration>` | Per-call overrides (`components`, `translation`, `noValidate`, ...). The earlier name `config` still works as a deprecated alias until the next major version; when both are given, `configuration` wins. |
 | `serverAction` | `FormAction` | Server action for the form. When set, the hook owns `useActionState` and returns `actionState` / `isPending` / `formAction`, and `<RenderedForm>` becomes progressive-enhancement-capable (see [RenderedForm](#renderedform)). |
 
 ### Return value
@@ -290,6 +292,9 @@ interface ValidationRules {
   mustBeFalse?: boolean;
 
   // Repeater validations
+  minimumRows?: number | { value: number; message: string };
+  maximumRows?: number | { value: number; message: string };
+  // Deprecated spellings of the two above, read until the next major version
   minRows?: number | { value: number; message: string };
   maxRows?: number | { value: number; message: string };
 }
@@ -378,7 +383,7 @@ Auto-renders all fields with layout and an actions slot.
 | `onSuccess` / `onError` | `(result: FormActionResult) => void` | Client-side callbacks for a server-action result. (For SSR / no-JS, render from the hook's `actionState` instead - effects don't run there.) |
 | `showActions` | `boolean` | Render the actions slot (default `true`). Ignored when `children` is provided |
 | `children` | `ReactNode` | Custom form body, rendered instead of the automatic field grid while `RenderedForm` keeps all form wiring. Compose from `RenderedField` + `Actions`. See [Custom layout](#custom-layout) |
-| `noValidate` | `boolean` | Set `noValidate` on the `<form>`; overrides the hook/config `noValidate` for this form |
+| `noValidate` | `boolean` | Set `noValidate` on the `<form>`; overrides the hook/configuration `noValidate` for this form |
 | `method` | `'get' \| 'post'` | The `<form>`'s method. Client-only forms default to `'post'` - see [Why client-only forms POST](#why-client-only-forms-post). Pass `'get'` for search/filter forms. Ignored when a server action is configured. |
 | `className`, `style` | - | Passed to the `<form>` |
 
@@ -412,7 +417,7 @@ return <RenderedForm />;
 - **Without JavaScript** - the form posts natively to the server action, which validates with the same schema; the server's field errors render server-side, and fields repopulate from `FormActionResult.values` (return `values: Object.fromEntries(formData.entries())` from the action on a failed result).
 - **With JavaScript** - `<RenderedForm>` intercepts on submit, runs react-hook-form's client validation as a gate, then dispatches the action inside `startTransition` (so `isPending` updates). Server errors come back on the fields as `type: 'server'` errors. The internal `useForm` uses `mode: 'onTouched'` when a `serverAction` is configured.
 
-> **Custom `Form` component:** if you register your own wrapper via `config.components.Form`, it must spread its props onto the underlying `<form>` element (so `action` and `onSubmit` reach it). `<RenderedForm>` wires the server action through those props; a custom `Form` that drops them disables progressive enhancement silently - the form renders, but no-JS submission and client dispatch stop working. The default `Form` forwards them for you.
+> **Custom `Form` component:** if you register your own wrapper via `configuration.components.Form`, it must spread its props onto the underlying `<form>` element (so `action` and `onSubmit` reach it). `<RenderedForm>` wires the server action through those props; a custom `Form` that drops them disables progressive enhancement silently - the form renders, but no-JS submission and client dispatch stop working. The default `Form` forwards them for you.
 
 Server action shape (see also [`generateDataValidator`](#generatedatavalidator)):
 
@@ -464,7 +469,7 @@ Each hand-placed `RenderedField` still shows the server action's field errors on
 A form partitioned into named sections renders the active section's controls while
 every inactive section's fields render as hidden value mirrors, so the post carries the
 whole form on both submit paths. The surface, in brief; the full contract is in
-[docs/sections.md](./sections.md).
+[documentation/sections.md](./sections.md).
 
 ```tsx
 const { RenderedForm, RenderedSection, RenderedField, sections } = useFormDefinition(
@@ -479,7 +484,7 @@ const { RenderedForm, RenderedSection, RenderedField, sections } = useFormDefini
 ```
 
 - **`sections` hook option** - the declared partition, `Record<name, fieldKey[]>`. With it
-  and no JSX sections, `RenderedForm` renders each section through the zero-config path.
+  and no JSX sections, `RenderedForm` renders each section through the zero-configuration path.
 - **`currentSection` on `RenderedForm`** - the active section. Omitted, everything renders.
 - **`RenderedSection`** - `{ name, children }`; its fields render as controls when active
   and as mirrors otherwise.
@@ -595,12 +600,12 @@ const schema = generateSchema(definition);
 
 ### generateSchemaAsync
 
-Generate a Zod schema with plugin support (async).
+Generate a Zod schema with the plugins of a registry applied (async). Without a registry, no plugin runs.
 
 ```typescript
 import { generateSchemaAsync } from 'use-form-definition';
 
-const schema = await generateSchemaAsync(definition, formData);
+const schema = await generateSchemaAsync(definition, formData, registry);
 ```
 
 ### generateDataValidator
@@ -622,7 +627,7 @@ if (result.success) {
 
 `parseValidationErrors` resolves the library's message keys to English by default; pass a translate function (e.g. `next-intl`'s `getTranslations` result) as the second argument to localize them server-side.
 
-Some keys carry interpolation values. The count-based keys (`minLength`, `maxLength`, `min`, `max`, `minRows`, `maxRows`) pass a `{count}`, and the string keys `contains`, `startsWith`, and `endsWith` pass a `{value}` holding the constraint string - so a translation can read `Must contain "{value}"`. See the Next.js example's `messages/*.json` for the full set.
+Some keys carry interpolation values. The count-based keys (`minLength`, `maxLength`, `min`, `max`, `minimumRows`, `maximumRows`) pass a `{count}`, and the string keys `contains`, `startsWith`, and `endsWith` pass a `{value}` holding the constraint string - so a translation can read `Must contain "{value}"`. See the Next.js example's `messages/*.json` for the full set. A definition still using the deprecated `minRows` or `maxRows` rule raises the `minRows` or `maxRows` key, so existing translations keep resolving; add `minimumRows` and `maximumRows` translations when you switch a definition to the new names.
 
 Every message also receives `{field}` and `{fieldKey}`: the field's resolved label (the definition key when it has none) and the key itself, so a message can read `{field} is required`. On the client the label is the one the form renders; on the server pass the labels as the third argument, `parseValidationErrors(issues, t, { name: 'Your name' })`, and the key stands in for a field without one. A translation that does not use them is unaffected. An error inside a structured field names the item field it belongs to: a repeater cell's message receives the column's label, and its key path (`classes.level`) as `{fieldKey}`; on the server, key the label by that path (`{ 'classes.level': 'Level' }`).
 
@@ -703,7 +708,7 @@ const rules = getAvailableValidationRules();
 ### Custom field kinds
 
 An unregistered field type validates as a string everywhere - but it must still have a
-**component**: a field whose kind has none (`components` on `createFormDefinitionHook`, or `config.fieldTypes` on the call) renders
+**component**: a field whose kind has none (`components` on `createFormDefinitionHook`, or `configuration.fieldTypes` on the call) renders
 nothing where it is active while its mirror keeps posting from inactive sections, so the
 hook throws at creation in development (and warns once in production) naming the field
 and kind. The component must also render a named native form element carrying its value,

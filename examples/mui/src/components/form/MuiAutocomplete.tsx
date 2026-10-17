@@ -36,7 +36,7 @@ export const MuiAutocomplete = forwardRef<HTMLInputElement, MuiAutocompleteProps
     const errorMessage = error?.message;
 
     // Find the selected option object from the value
-    const selectedOption = options.find((opt) => opt.value === value) || null;
+    const selectedOption = options.find((option) => option.value === value) || null;
 
     const handleChange = (_event: unknown, newValue: AutocompleteOption | null) => {
       onChange(newValue?.value || '');
@@ -52,7 +52,7 @@ export const MuiAutocomplete = forwardRef<HTMLInputElement, MuiAutocompleteProps
           onChange={handleChange}
           options={options}
           getOptionLabel={(option) => option.label}
-          isOptionEqualToValue={(option, val) => option.value === val.value}
+          isOptionEqualToValue={(option, selected) => option.value === selected.value}
           disabled={disabled}
           readOnly={readOnly}
           renderInput={(params) => (

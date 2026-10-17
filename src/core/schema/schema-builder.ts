@@ -1,15 +1,24 @@
 import { z } from "zod";
-import { FormDefinition, FormFieldDefinition, FormConfig } from "../types";
+import type { AnyZodSchema } from "./any-schema";
+import { FormDefinition, FormFieldDefinition } from "../types";
 import { getValidationRule, createMessage } from "../validation";
 import { getFieldSchemaGenerator } from "./field-generators";
-import { applyPlugins, ValidationContext as PluginValidationContext, PluginRegistry } from "../plugin-system";
+import {
+  applyPlugins,
+  ValidationContext as PluginValidationContext,
+  PluginRegistry,
+} from "../plugin-system";
 
 /**
  * Cross-field validation rules that need to be applied at the schema level
  */
 interface CrossFieldValidation {
   matchValue: { firstKey: string; secondKey: string; message: string }[];
-  requiredWhen: { key: string; field: string; value: string | number | boolean }[];
+  requiredWhen: {
+    key: string;
+    field: string;
+    value: string | number | boolean;
+  }[];
 }
 
 /**
@@ -22,8 +31,8 @@ export const generateFieldSchema = async (
   crossFieldValidation: CrossFieldValidation,
   definition?: FormDefinition,
   formData?: Record<string, any>,
-  pluginRegistry?: PluginRegistry
-): Promise<z.ZodTypeAny> => {
+  pluginRegistry?: PluginRegistry,
+): Promise<AnyZodSchema> => {
   // Get the appropriate schema generator for this field type
   const schemaGenerator = getFieldSchemaGenerator(field.type);
 
@@ -51,7 +60,7 @@ export const generateFieldSchema = async (
   if (field.validation?.matchValue) {
     const { value, message } = getValidationRule(
       field.validation.matchValue,
-      "matchValue"
+      "matchValue",
     );
 
     crossFieldValidation.matchValue.push({
@@ -79,11 +88,11 @@ export const generateFieldSchema = async (
 export const generateFieldSchemaSync = (
   key: string,
   field: FormFieldDefinition,
-  crossFieldValidation: CrossFieldValidation
-): z.ZodTypeAny => {
+  crossFieldValidation: CrossFieldValidation,
+): AnyZodSchema => {
   // Get the appropriate schema generator for this field type
   const schemaGenerator = getFieldSchemaGenerator(field.type);
-  
+
   // Generate the base schema
   let fieldSchema = schemaGenerator(field);
 
@@ -91,7 +100,7 @@ export const generateFieldSchemaSync = (
   if (field.validation?.matchValue) {
     const { value, message } = getValidationRule(
       field.validation.matchValue,
-      "matchValue"
+      "matchValue",
     );
 
     crossFieldValidation.matchValue.push({
@@ -117,19 +126,23 @@ export const generateFieldSchemaSync = (
  * Applies cross-field validations (matchValue, requiredWhen) to the complete schema
  */
 export const applyCrossFieldValidation = (
-  schema: z.ZodTypeAny,
+  schema: AnyZodSchema,
   definition: FormDefinition,
-  crossFieldValidation: CrossFieldValidation
-): z.ZodTypeAny => {
+  crossFieldValidation: CrossFieldValidation,
+): AnyZodSchema => {
   let resultSchema = schema;
 
   // Apply value matching validation
   if (crossFieldValidation.matchValue.length > 0) {
-    for (const { firstKey, secondKey, message } of crossFieldValidation.matchValue) {
+    for (const {
+      firstKey,
+      secondKey,
+      message,
+    } of crossFieldValidation.matchValue) {
       resultSchema = resultSchema.superRefine((data: any, context) => {
         if (data[firstKey] !== data[secondKey]) {
           context.addIssue({
-            code: z.ZodIssueCode.custom,
+            code: "custom",
             message,
             path: [firstKey],
           });
@@ -144,18 +157,22 @@ export const applyCrossFieldValidation = (
       resultSchema = resultSchema.refine(
         (data: any) => {
           if (data[field] === value) {
-            const val = data[key];
+            const fieldValue = data[key];
             // A date kind (built-in or custom) has already turned its input into a Date;
             // anything else counts when it is not empty.
-            if (val instanceof Date) return !isNaN(val.getTime());
-            return val !== undefined && val !== null && val !== "";
+            if (fieldValue instanceof Date) return !isNaN(fieldValue.getTime());
+            return (
+              fieldValue !== undefined &&
+              fieldValue !== null &&
+              fieldValue !== ""
+            );
           }
           return true;
         },
         {
           message: createMessage("required"),
           path: [key],
-        }
+        },
       );
     }
   }
@@ -164,14 +181,15 @@ export const applyCrossFieldValidation = (
 };
 
 /**
- * Main schema generation function - refactored for modularity
- * Enhanced to support async plugin validation
+ * Main schema generation function, with async plugin validation
  */
-export const generateSchemaAsync = async <T extends FormDefinition = FormDefinition>(
+export const generateSchemaAsync = async <
+  T extends FormDefinition = FormDefinition,
+>(
   definition: T,
   formData?: Record<string, any>,
-  pluginRegistry?: PluginRegistry
-): Promise<z.ZodTypeAny> => {
+  pluginRegistry?: PluginRegistry,
+): Promise<AnyZodSchema> => {
   const crossFieldValidation: CrossFieldValidation = {
     matchValue: [],
     requiredWhen: [],
@@ -180,18 +198,28 @@ export const generateSchemaAsync = async <T extends FormDefinition = FormDefinit
   // Generate field schemas with plugin support
   const fieldSchemaPromises = Object.keys(definition).map(async (key) => {
     const field = definition[key];
-    const fieldSchema = await generateFieldSchema(key, field, crossFieldValidation, definition, formData, pluginRegistry);
+    const fieldSchema = await generateFieldSchema(
+      key,
+      field,
+      crossFieldValidation,
+      definition,
+      formData,
+      pluginRegistry,
+    );
     return { key, fieldSchema };
   });
 
   const fieldSchemaResults = await Promise.all(fieldSchemaPromises);
-  const fieldSchemas = fieldSchemaResults.reduce((accumulator, { key, fieldSchema }) => {
-    accumulator[key] = fieldSchema;
-    return accumulator;
-  }, {} as Record<string, z.ZodTypeAny>);
+  const fieldSchemas = fieldSchemaResults.reduce(
+    (accumulator, { key, fieldSchema }) => {
+      accumulator[key] = fieldSchema;
+      return accumulator;
+    },
+    {} as Record<string, AnyZodSchema>,
+  );
 
   // Create the base object schema
-  let schema: z.ZodTypeAny = z.object(fieldSchemas);
+  let schema: AnyZodSchema = z.object(fieldSchemas);
 
   // Apply cross-field validations
   schema = applyCrossFieldValidation(schema, definition, crossFieldValidation);
@@ -202,22 +230,31 @@ export const generateSchemaAsync = async <T extends FormDefinition = FormDefinit
 /**
  * Main schema generation function - synchronous for backward compatibility
  */
-export const generateSchema = <T extends FormDefinition = FormDefinition>(definition: T): z.ZodTypeAny => {
+export const generateSchema = <T extends FormDefinition = FormDefinition>(
+  definition: T,
+): AnyZodSchema => {
   const crossFieldValidation: CrossFieldValidation = {
     matchValue: [],
     requiredWhen: [],
   };
 
   // Generate field schemas (synchronous)
-  const fieldSchemas = Object.keys(definition).reduce((accumulator, key) => {
-    const field = definition[key];
-    const fieldSchema = generateFieldSchemaSync(key, field, crossFieldValidation);
-    accumulator[key] = fieldSchema;
-    return accumulator;
-  }, {} as Record<string, z.ZodTypeAny>);
+  const fieldSchemas = Object.keys(definition).reduce(
+    (accumulator, key) => {
+      const field = definition[key];
+      const fieldSchema = generateFieldSchemaSync(
+        key,
+        field,
+        crossFieldValidation,
+      );
+      accumulator[key] = fieldSchema;
+      return accumulator;
+    },
+    {} as Record<string, AnyZodSchema>,
+  );
 
   // Create the base object schema
-  let schema: z.ZodTypeAny = z.object(fieldSchemas);
+  let schema: AnyZodSchema = z.object(fieldSchemas);
 
   // Apply cross-field validations
   schema = applyCrossFieldValidation(schema, definition, crossFieldValidation);
@@ -239,8 +276,8 @@ export interface ValidationContext {
  * Custom field validator function type
  */
 export type CustomFieldValidator = (
-  context: ValidationContext
-) => z.ZodTypeAny | Promise<z.ZodTypeAny>;
+  context: ValidationContext,
+) => AnyZodSchema | Promise<AnyZodSchema>;
 
 /**
  * Registry for custom field validators
@@ -252,7 +289,7 @@ const customFieldValidators: Record<string, CustomFieldValidator> = {};
  */
 export const registerCustomFieldValidator = (
   fieldType: string,
-  validator: CustomFieldValidator
+  validator: CustomFieldValidator,
 ): void => {
   customFieldValidators[fieldType] = validator;
 };
@@ -261,7 +298,7 @@ export const registerCustomFieldValidator = (
  * Get custom field validator if registered
  */
 export const getCustomFieldValidator = (
-  fieldType: string
+  fieldType: string,
 ): CustomFieldValidator | undefined => {
   return customFieldValidators[fieldType];
 };
@@ -275,8 +312,8 @@ export const generateFieldSchemaWithCustomValidators = async (
   definition: FormDefinition,
   crossFieldValidation: CrossFieldValidation,
   formData?: Record<string, any>,
-  pluginRegistry?: PluginRegistry
-): Promise<z.ZodTypeAny> => {
+  pluginRegistry?: PluginRegistry,
+): Promise<AnyZodSchema> => {
   // Check for custom validator first
   const customValidator = getCustomFieldValidator(field.type);
 
@@ -292,5 +329,12 @@ export const generateFieldSchemaWithCustomValidators = async (
   }
 
   // Fall back to standard field schema generation
-  return await generateFieldSchema(key, field, crossFieldValidation, definition, formData, pluginRegistry);
+  return await generateFieldSchema(
+    key,
+    field,
+    crossFieldValidation,
+    definition,
+    formData,
+    pluginRegistry,
+  );
 };

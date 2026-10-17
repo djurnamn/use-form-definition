@@ -7,7 +7,10 @@ export interface SelectOption {
   label: string;
 }
 
-export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
+export interface SelectProps extends Omit<
+  SelectHTMLAttributes<HTMLSelectElement>,
+  "onChange"
+> {
   name: string;
   value?: string | number;
   onChange: (value: string) => void;
@@ -17,16 +20,19 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({
-    name,
-    value,
-    onChange,
-    options = [],
-    placeholder = "Select an option",
-    error,
-    id,
-    ...props
-  }, ref) => {
+  (
+    {
+      name,
+      value,
+      onChange,
+      options = [],
+      placeholder = "Select an option",
+      error,
+      id,
+      ...props
+    },
+    ref,
+  ) => {
     const fieldId = useFieldId(name, id);
 
     return (
@@ -34,8 +40,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         ref={ref}
         id={fieldId}
         name={name}
-        value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
+        value={value || ""}
+        onChange={(event) => onChange(event.target.value)}
         aria-invalid={!!error}
         aria-describedby={error ? `${name}-error` : undefined}
         {...props}
@@ -48,7 +54,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         ))}
       </select>
     );
-  }
+  },
 );
 
 Select.displayName = "Select";

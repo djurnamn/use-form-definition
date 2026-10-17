@@ -1,8 +1,6 @@
 /**
- * Default English messages for validation errors.
- * Shared between client (utilities.ts) and server (server.ts) code.
- *
- * This file intentionally has no React dependencies to support server-side usage.
+ * Default English messages for validation errors, shared by the client and the
+ * `./server` entry.
  */
 export const defaultValidationMessages: Record<
   string,
@@ -18,6 +16,10 @@ export const defaultValidationMessages: Record<
   matchValue: "Values do not match",
   mustBeTrue: "This must be checked",
   mustBeFalse: "This must not be checked",
+  minimumRows: (options) => `Must have at least ${options?.count ?? 0} rows`,
+  maximumRows: (options) =>
+    `Must have no more than ${options?.count ?? 0} rows`,
+  // The deprecated rule names' keys, emitted when a definition still uses them.
   minRows: (options) => `Must have at least ${options?.count ?? 0} rows`,
   maxRows: (options) => `Must have no more than ${options?.count ?? 0} rows`,
   contains: (options) => `Must contain "${options?.value ?? ""}"`,
@@ -44,7 +46,10 @@ export const defaultValidationMessages: Record<
 export const translateValidationMessage = (
   key: string,
   options?: Record<string, any>,
-  messages: Record<string, string | ((options?: Record<string, any>) => string)> = defaultValidationMessages
+  messages: Record<
+    string,
+    string | ((options?: Record<string, any>) => string)
+  > = defaultValidationMessages,
 ): string => {
   const message = messages[key];
 
@@ -60,6 +65,6 @@ export const translateValidationMessage = (
   const lastPart = parts[parts.length - 1];
   return lastPart
     .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (str) => str.toUpperCase())
+    .replace(/^./, (firstLetter) => firstLetter.toUpperCase())
     .trim();
 };

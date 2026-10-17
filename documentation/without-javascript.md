@@ -1,8 +1,7 @@
 # Without JavaScript
 
 What a form built with this library does before hydration, or with JavaScript disabled
-entirely. This contract was previously spread across changelog entries and JSDoc blocks;
-this page is the one place that states it.
+entirely. This page is the one place that states the contract.
 
 The short version: **a server-action form degrades to a working plain-HTML form; a
 client-only form does not.** Everything else on this page is the detail of where that

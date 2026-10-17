@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { AnyZodSchema } from "./schema/any-schema";
 import { FormDefinition, FormFieldDefinition } from "./types";
 
 /**
@@ -16,7 +17,7 @@ export interface ValidationContext {
  * Validation result from a plugin
  */
 export interface ValidationResult {
-  schema: z.ZodTypeAny;
+  schema: AnyZodSchema;
   dependencies?: string[];
   errorMessages?: Record<string, string>;
 }
@@ -25,7 +26,7 @@ export interface ValidationResult {
  * Plugin function type for custom validations
  */
 export type ValidationPlugin = (
-  context: ValidationContext
+  context: ValidationContext,
 ) => Promise<ValidationResult> | ValidationResult;
 
 /**
@@ -62,7 +63,7 @@ export class PluginRegistry {
     pluginName: string,
     plugin: ValidationPlugin,
     metadata: PluginMetadata,
-    fieldTypes?: string[]
+    fieldTypes?: string[],
   ): void {
     // Validate plugin name
     if (this.plugins.has(pluginName)) {
@@ -74,7 +75,7 @@ export class PluginRegistry {
 
     // Associate with field types if specified
     if (fieldTypes) {
-      fieldTypes.forEach(fieldType => {
+      fieldTypes.forEach((fieldType) => {
         if (!this.fieldTypePlugins.has(fieldType)) {
           this.fieldTypePlugins.set(fieldType, []);
         }
@@ -116,8 +117,8 @@ export class PluginRegistry {
   getForFieldType(fieldType: string): RegisteredPlugin[] {
     const pluginNames = this.fieldTypePlugins.get(fieldType) || [];
     return pluginNames
-      .map(name => this.plugins.get(name))
-      .filter(plugin => plugin !== undefined) as RegisteredPlugin[];
+      .map((name) => this.plugins.get(name))
+      .filter((plugin) => plugin !== undefined) as RegisteredPlugin[];
   }
 
   /**
@@ -164,7 +165,6 @@ export const createPluginRegistry = (): PluginRegistry => {
   return new PluginRegistry();
 };
 
-
 /**
  * Apply plugins to a field schema
  *
@@ -174,9 +174,9 @@ export const createPluginRegistry = (): PluginRegistry => {
  */
 export const applyPlugins = async (
   context: ValidationContext,
-  baseSchema: z.ZodTypeAny,
-  registry?: PluginRegistry
-): Promise<z.ZodTypeAny> => {
+  baseSchema: AnyZodSchema,
+  registry?: PluginRegistry,
+): Promise<AnyZodSchema> => {
   // If no registry is provided, return the base schema unchanged
   if (!registry) {
     return baseSchema;
@@ -236,7 +236,7 @@ export class ValidationComposer {
    */
   compose(): ValidationPlugin {
     return async (context: ValidationContext): Promise<ValidationResult> => {
-      let composedSchema: z.ZodTypeAny = z.any();
+      let composedSchema: AnyZodSchema = z.any();
       const allDependencies: string[] = [];
       const allErrorMessages: Record<string, string> = {};
 
@@ -244,15 +244,15 @@ export class ValidationComposer {
       for (const rule of this.rules) {
         try {
           const result = await rule(context);
-          
+
           // Intersect schemas for stricter validation
           composedSchema = composedSchema.and(result.schema);
-          
+
           // Collect dependencies and error messages
           if (result.dependencies) {
             allDependencies.push(...result.dependencies);
           }
-          
+
           if (result.errorMessages) {
             Object.assign(allErrorMessages, result.errorMessages);
           }
@@ -282,13 +282,14 @@ export class ValidationComposer {
  */
 export const createAsyncValidationRule = (
   validator: (value: unknown, context: ValidationContext) => Promise<boolean>,
-  errorMessage: string
+  errorMessage: string,
 ): ValidationPlugin => {
   return async (context: ValidationContext): Promise<ValidationResult> => {
-    const schema = z.any().refine(
-      async (value) => await validator(value, context),
-      { message: errorMessage }
-    );
+    const schema = z
+      .any()
+      .refine(async (value) => await validator(value, context), {
+        message: errorMessage,
+      });
 
     return {
       schema,
@@ -302,8 +303,12 @@ export const createAsyncValidationRule = (
  */
 export const createDependentValidationRule = (
   dependencies: string[],
-  validator: (value: unknown, dependentValues: Record<string, unknown>, context: ValidationContext) => boolean,
-  errorMessage: string
+  validator: (
+    value: unknown,
+    dependentValues: Record<string, unknown>,
+    context: ValidationContext,
+  ) => boolean,
+  errorMessage: string,
 ): ValidationPlugin => {
   return (context: ValidationContext): ValidationResult => {
     const schema = z.any().refine(
@@ -313,13 +318,13 @@ export const createDependentValidationRule = (
         }
 
         const dependentValues: Record<string, unknown> = {};
-        dependencies.forEach(dep => {
+        dependencies.forEach((dep) => {
           dependentValues[dep] = context.formData![dep];
         });
 
         return validator(value, dependentValues, context);
       },
-      { message: errorMessage }
+      { message: errorMessage },
     );
 
     return {
@@ -339,17 +344,19 @@ export const builtInPlugins = {
    */
   emailDomain: (allowedDomains: string[]): ValidationPlugin => {
     return (context: ValidationContext): ValidationResult => {
-      if (context.field.type !== 'email') {
+      if (context.field.type !== "email") {
         return { schema: z.any() };
       }
 
       const schema = z.string().refine(
         (email) => {
           if (!email) return true; // Let required validation handle empty values
-          const domain = email.split('@')[1];
+          const domain = email.split("@")[1];
           return allowedDomains.includes(domain);
         },
-        { message: `Email must be from one of these domains: ${allowedDomains.join(', ')}` }
+        {
+          message: `Email must be from one of these domains: ${allowedDomains.join(", ")}`,
+        },
       );
 
       return { schema };
@@ -364,33 +371,36 @@ export const builtInPlugins = {
     requireUppercase = true,
     requireLowercase = true,
     requireNumbers = true,
-    requireSpecialChars = true
+    requireSpecialChars = true,
   ): ValidationPlugin => {
     return (context: ValidationContext): ValidationResult => {
-      if (context.field.type !== 'password') {
+      if (context.field.type !== "password") {
         return { schema: z.any() };
       }
 
       const schema = z.string().refine(
         (password) => {
           if (!password) return true; // Let required validation handle empty values
-          
+
           if (password.length < minLength) return false;
           if (requireUppercase && !/[A-Z]/.test(password)) return false;
           if (requireLowercase && !/[a-z]/.test(password)) return false;
           if (requireNumbers && !/\d/.test(password)) return false;
-          if (requireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(password)) return false;
-          
+          if (requireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(password))
+            return false;
+
           return true;
         },
         {
           message: `Password must be at least ${minLength} characters and include ${[
-            requireUppercase && 'uppercase letters',
-            requireLowercase && 'lowercase letters',
-            requireNumbers && 'numbers',
-            requireSpecialChars && 'special characters'
-          ].filter(Boolean).join(', ')}`
-        }
+            requireUppercase && "uppercase letters",
+            requireLowercase && "lowercase letters",
+            requireNumbers && "numbers",
+            requireSpecialChars && "special characters",
+          ]
+            .filter(Boolean)
+            .join(", ")}`,
+        },
       );
 
       return { schema };
@@ -404,8 +414,7 @@ export const builtInPlugins = {
     return createDependentValidationRule(
       [confirmFieldKey],
       (value, dependentValues) => value === dependentValues[confirmFieldKey],
-      `Must match ${confirmFieldKey}`
+      `Must match ${confirmFieldKey}`,
     );
   },
 };
-

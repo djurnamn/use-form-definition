@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 const AVAILABLE_COMPONENTS = {
-  'text-input': 'TextInput.tsx',
-  'select': 'Select.tsx',
-  'textarea': 'Textarea.tsx',
-  'checkbox': 'Checkbox.tsx',
-  'date-input': 'DateInput.tsx',
-  'number-input': 'NumberInput.tsx',
-  'repeater': 'Repeater.tsx',
-  'form': 'Form.tsx',
-  'field': 'Field.tsx',
-  'layout-container': 'LayoutContainer.tsx',
-  'layout-item': 'LayoutItem.tsx',
-  'actions': 'Actions.tsx',
-  'form-message': 'FormMessage.tsx',
+  "text-input": "TextInput.tsx",
+  select: "Select.tsx",
+  textarea: "Textarea.tsx",
+  checkbox: "Checkbox.tsx",
+  "date-input": "DateInput.tsx",
+  "number-input": "NumberInput.tsx",
+  repeater: "Repeater.tsx",
+  form: "Form.tsx",
+  field: "Field.tsx",
+  "layout-container": "LayoutContainer.tsx",
+  "layout-item": "LayoutItem.tsx",
+  actions: "Actions.tsx",
+  "form-message": "FormMessage.tsx",
 };
 
 function showHelp() {
@@ -27,7 +27,9 @@ Usage:
   npx use-form-definition copy [component-name] [destination]
   
 Available components:
-  ${Object.keys(AVAILABLE_COMPONENTS).map(name => `- ${name}`).join('\n  ')}
+  ${Object.keys(AVAILABLE_COMPONENTS)
+    .map((name) => `- ${name}`)
+    .join("\n  ")}
   - all (copies all components)
 
 Examples:
@@ -38,17 +40,25 @@ Examples:
 }
 
 function copyComponent(componentName, destination) {
-  const packageDir = path.dirname(__dirname);
+  const packageDirectory = path.dirname(__dirname);
   const componentFile = AVAILABLE_COMPONENTS[componentName];
-  
+
   if (!componentFile) {
-    console.error(`❌ Component "${componentName}" not found.`);
-    console.log('\nAvailable components:', Object.keys(AVAILABLE_COMPONENTS).join(', '));
+    console.error(`Error: Component "${componentName}" not found.`);
+    console.log(
+      "\nAvailable components:",
+      Object.keys(AVAILABLE_COMPONENTS).join(", "),
+    );
     return false;
   }
 
-  const sourcePath = path.join(packageDir, 'src', 'components', componentFile);
-  const destPath = path.join(destination, componentFile);
+  const sourcePath = path.join(
+    packageDirectory,
+    "src",
+    "components",
+    componentFile,
+  );
+  const destinationPath = path.join(destination, componentFile);
 
   try {
     // Ensure destination directory exists
@@ -60,37 +70,39 @@ function copyComponent(componentName, destination) {
     // (../core/utilities, ../core/types, ...) to the package root, which
     // re-exports everything the components use. A verbatim copy would only
     // compile in a tree that mirrors this repo's layout.
-    const source = fs.readFileSync(sourcePath, 'utf8');
+    const source = fs.readFileSync(sourcePath, "utf8");
     const rewritten = source.replace(
       /from (["'])\.\.\/core\/[^"']+\1/g,
-      'from "use-form-definition"'
+      'from "use-form-definition"',
     );
-    fs.writeFileSync(destPath, rewritten);
-    console.log(`✅ Copied ${componentFile} to ${destPath}`);
+    fs.writeFileSync(destinationPath, rewritten);
+    console.log(`Copied ${componentFile} to ${destinationPath}`);
     return true;
   } catch (error) {
-    console.error(`❌ Failed to copy ${componentFile}:`, error.message);
+    console.error(`Error: Failed to copy ${componentFile}:`, error.message);
     return false;
   }
 }
 
 function copyAllComponents(destination) {
-  console.log('📦 Copying all components...\n');
-  
+  console.log("Copying all components...\n");
+
   let successCount = 0;
   const componentNames = Object.keys(AVAILABLE_COMPONENTS);
-  
+
   for (const componentName of componentNames) {
     if (copyComponent(componentName, destination)) {
       successCount++;
     }
   }
-  
-  console.log(`\n🎉 Successfully copied ${successCount}/${componentNames.length} components!`);
-  
+
+  console.log(
+    `\nSuccessfully copied ${successCount}/${componentNames.length} components!`,
+  );
+
   if (successCount === componentNames.length) {
     console.log(`
-📝 Next steps:
+Next steps:
 1. Review and customize the copied components
 2. Update your form configuration to use these components
 3. Check the documentation for usage examples
@@ -99,34 +111,39 @@ function copyAllComponents(destination) {
 }
 
 function main() {
-  const args = process.argv.slice(2);
-  
-  if (args.length === 0 || args[0] === 'help' || args[0] === '--help' || args[0] === '-h') {
+  const argumentList = process.argv.slice(2);
+
+  if (
+    argumentList.length === 0 ||
+    argumentList[0] === "help" ||
+    argumentList[0] === "--help" ||
+    argumentList[0] === "-h"
+  ) {
     showHelp();
     return;
   }
 
-  if (args[0] !== 'copy') {
-    console.error('❌ Unknown command. Use "copy" to copy components.');
+  if (argumentList[0] !== "copy") {
+    console.error('Error: Unknown command. Use "copy" to copy components.');
     showHelp();
     return;
   }
 
-  const componentName = args[1];
-  const destination = args[2] || './src/components/';
+  const componentName = argumentList[1];
+  const destination = argumentList[2] || "./src/components/";
 
   if (!componentName) {
-    console.error('❌ Please specify a component name.');
+    console.error("Error: Please specify a component name.");
     showHelp();
     return;
   }
 
-  if (componentName === 'all') {
+  if (componentName === "all") {
     copyAllComponents(destination);
   } else {
     if (copyComponent(componentName, destination)) {
-      console.log(`\n✨ Component copied successfully!`);
-      console.log(`\n📝 Don't forget to:`);
+      console.log(`\nComponent copied successfully!`);
+      console.log(`\nDon't forget to:`);
       console.log(`1. Import and use the component in your form configuration`);
       console.log(`2. Customize the styling and behavior as needed`);
     }

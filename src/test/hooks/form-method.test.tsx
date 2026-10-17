@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
-import { createFormDefinitionHook } from '../../hooks/createFormDefinitionHook';
-import type { FormDefinition, FormActionResult } from '../../core/types';
+import { describe, it, expect } from "vitest";
+import { render } from "@testing-library/react";
+import { createFormDefinitionHook } from "../../hooks/createFormDefinitionHook";
+import type { FormDefinition, FormActionResult } from "../../core/types";
 
 /**
  * The rendered `<form>`'s `method`.
@@ -17,49 +17,53 @@ import type { FormDefinition, FormActionResult } from '../../core/types';
 const useFormDefinition = createFormDefinitionHook({});
 
 const signInDefinition: FormDefinition = {
-  email: { type: 'email', validation: { required: true } },
-  password: { type: 'password', validation: { required: true } },
+  email: { type: "email", validation: { required: true } },
+  password: { type: "password", validation: { required: true } },
 };
 
-function ClientOnlyForm({ method }: { method?: 'get' | 'post' }) {
+function ClientOnlyForm({ method }: { method?: "get" | "post" }) {
   const { RenderedForm } = useFormDefinition(signInDefinition);
   return <RenderedForm onSubmit={() => {}} method={method} />;
 }
 
-function ServerActionForm({ method }: { method?: 'get' | 'post' }) {
-  const serverAction = async (): Promise<FormActionResult> => ({ success: true });
-  const { RenderedForm } = useFormDefinition(signInDefinition, { serverAction });
+function ServerActionForm({ method }: { method?: "get" | "post" }) {
+  const serverAction = async (): Promise<FormActionResult> => ({
+    success: true,
+  });
+  const { RenderedForm } = useFormDefinition(signInDefinition, {
+    serverAction,
+  });
   return <RenderedForm method={method} />;
 }
 
 const formIn = (container: HTMLElement): HTMLFormElement => {
-  const form = container.querySelector('form');
-  if (!form) throw new Error('no form rendered');
+  const form = container.querySelector("form");
+  if (!form) throw new Error("no form rendered");
   return form;
 };
 
-describe('rendered form method', () => {
-  it('defaults a client-only form to POST, so a pre-hydration submit cannot put fields in the URL', () => {
+describe("rendered form method", () => {
+  it("defaults a client-only form to POST, so a pre-hydration submit cannot put fields in the URL", () => {
     const { container } = render(<ClientOnlyForm />);
     // getAttribute, not `.method`: the DOM property normalizes an absent attribute to "get",
     // which would make the assertion pass even if nothing were emitted.
-    expect(formIn(container).getAttribute('method')).toBe('post');
+    expect(formIn(container).getAttribute("method")).toBe("post");
   });
 
-  it('lets a form opt into GET, for search and filter forms', () => {
+  it("lets a form opt into GET, for search and filter forms", () => {
     const { container } = render(<ClientOnlyForm method="get" />);
-    expect(formIn(container).getAttribute('method')).toBe('get');
+    expect(formIn(container).getAttribute("method")).toBe("get");
   });
 
-  it('leaves a server-action form alone, so React keeps owning its POST endpoint', () => {
+  it("leaves a server-action form alone, so React keeps owning its POST endpoint", () => {
     const { container } = render(<ServerActionForm />);
     const form = formIn(container);
     // React renders its own action wiring here; the library must not emit a competing method.
-    expect(form.getAttribute('method')).not.toBe('get');
+    expect(form.getAttribute("method")).not.toBe("get");
   });
 
-  it('ignores an explicit method on a server-action form rather than breaking its action', () => {
+  it("ignores an explicit method on a server-action form rather than breaking its action", () => {
     const { container } = render(<ServerActionForm method="get" />);
-    expect(formIn(container).getAttribute('method')).not.toBe('get');
+    expect(formIn(container).getAttribute("method")).not.toBe("get");
   });
 });

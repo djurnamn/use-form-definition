@@ -1,11 +1,5 @@
 /**
  * Default-value resolution for form fields.
- *
- * Deliberately React-free (no `useId` etc.) and split out of `utilities.ts` so the
- * schema layer - reached by the React-free `./server` entry through
- * `field-generators` → `registerFieldType` - can consult it without dragging React
- * into the server bundle. `utilities.ts` re-exports these for the existing import
- * surface.
  */
 import { sharedStore } from "./registry";
 
@@ -20,7 +14,10 @@ import { sharedStore } from "./registry";
  * registered once at import time, so the same registration serves every form instance.
  */
 // Shared with every copy of the library in the process, see ./registry.
-const customFieldTypeDefaults = sharedStore<Record<string, unknown>>("field-type-defaults", () => ({}));
+const customFieldTypeDefaults = sharedStore<Record<string, unknown>>(
+  "field-type-defaults",
+  () => ({}),
+);
 
 /**
  * Record the default value for a custom field kind. Called by `registerFieldType`; not
@@ -28,7 +25,7 @@ const customFieldTypeDefaults = sharedStore<Record<string, unknown>>("field-type
  */
 export const registerFieldTypeDefault = (
   fieldType: string,
-  defaultValue: unknown
+  defaultValue: unknown,
 ): void => {
   customFieldTypeDefaults[fieldType] = defaultValue;
 };
@@ -75,9 +72,9 @@ export const getDefaultValueForField = (field: {
  * @returns An object with default values for each field
  */
 export const generateDefaultValues = <
-  T extends Record<string, { type: string; defaultValue?: unknown }>
+  T extends Record<string, { type: string; defaultValue?: unknown }>,
 >(
-  definition: T
+  definition: T,
 ): Record<string, unknown> => {
   return Object.keys(definition).reduce((accumulator, key) => {
     const field = definition[key];

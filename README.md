@@ -27,7 +27,7 @@ npm install use-form-definition react react-hook-form zod
 
 - React >= 19.0.0
 - React Hook Form >= 7.55.0
-- Zod >= 3.0.0 < 4.0.0
+- Zod 3.25 or later, or Zod 4
 
 ## Quick start
 
@@ -114,7 +114,7 @@ return (
 
 The same pattern applies to per-field runtime props like `disabled` or `options`: pass them as props on `<RenderedField>` and the prop wins over the definition default. See [examples/basic-react/src/pages/ContactPage.tsx](./examples/basic-react/src/pages/ContactPage.tsx) for a working example.
 
-One difference from `RenderedForm`: `<Form>` is a plain passthrough and does not default `method="post"`, so a submit that lands before React hydrates falls back to the browser's native GET and serializes the fields into the URL. On any form that handles credentials, pass `method="post"` yourself - see [Why client-only forms POST](./docs/api-reference.md#why-client-only-forms-post).
+One difference from `RenderedForm`: `<Form>` is a plain passthrough and does not default `method="post"`, so a submit that lands before React hydrates falls back to the browser's native GET and serializes the fields into the URL. On any form that handles credentials, pass `method="post"` yourself - see [Why client-only forms POST](./documentation/api-reference.md#why-client-only-forms-post).
 
 `<Form>` submits client-side only. If the form has a `serverAction` and you still want a custom layout (conditional fields, multi-column sections, an image beside the inputs), pass `children` to `<RenderedForm>` instead: your body renders in place of the automatic field grid, but `RenderedForm` keeps the whole progressive-enhancement path - `<form action>`, no-JS submission, and server errors on the fields. Compose it from the hook's `RenderedField` and `Actions`:
 
@@ -132,7 +132,7 @@ return (
 );
 ```
 
-See [Custom layout](./docs/api-reference.md#custom-layout) for details.
+See [Custom layout](./documentation/api-reference.md#custom-layout) for details.
 
 To type custom props your field components accept (anything beyond the standard overrides), pass a second type argument to the hook: `useFormDefinition<typeof definition, { tooltip?: string }>(definition)`. Those props are then checked on `<RenderedField>`, so a typo or wrong value type is a compile error. Without it they stay permissively typed; either way they're filtered at runtime against each field type's allowlist.
 
@@ -158,7 +158,7 @@ The transform comes from the field kind - register it once with
 `deriveTransform` function on the definition. With neither, the value is mirrored
 verbatim. Derivation is client-side only: server validation ignores `deriveFrom`, so the
 definition stays shareable with server code. See
-[Derived fields](./docs/api-reference.md#derived-fields-derivefrom) for details.
+[Derived fields](./documentation/api-reference.md#derived-fields-derivefrom) for details.
 
 ## Copy and customize components
 
@@ -175,12 +175,12 @@ npx use-form-definition copy field ./src/components/
 
 ## Documentation
 
-- [API Reference](./docs/api-reference.md) - Complete API documentation
-- [Plugin System](./docs/plugins.md) - Extending validation and field types
-- [Repeater Fields](./docs/repeaters.md) - Dynamic list fields
-- [Type Inference](./docs/type-inference.md) - Automatic TypeScript types
-- [Sections](./docs/sections.md) - Partition a form for tabs and wizards; inactive sections post through value mirrors
-- [Without JavaScript](./docs/without-javascript.md) - What works before hydration or with JS disabled, and where the boundaries run
+- [API Reference](./documentation/api-reference.md) - Complete API documentation
+- [Plugin System](./documentation/plugins.md) - Extending validation and field types
+- [Repeater Fields](./documentation/repeaters.md) - Dynamic list fields
+- [Type Inference](./documentation/type-inference.md) - Automatic TypeScript types
+- [Sections](./documentation/sections.md) - Partition a form for tabs and wizards; inactive sections post through value mirrors
+- [Without JavaScript](./documentation/without-javascript.md) - What works before hydration or with JS disabled, and where the boundaries run
 
 ## Examples
 
@@ -240,7 +240,7 @@ export function NewUserForm() {
 
 (`isPending` reflects the in-flight submission. Passing `serverAction` as a `<RenderedForm serverAction={...}>` prop also works, but only the hook option exposes `actionState`.)
 
-If you register a custom `Form` wrapper via `config.components.Form`, spread its props onto the underlying `<form>` so `action` and `onSubmit` reach it - a wrapper that drops them disables progressive enhancement silently. The default `Form` forwards them.
+If you register a custom `Form` wrapper via `configuration.components.Form`, spread its props onto the underlying `<form>` so `action` and `onSubmit` reach it - a wrapper that drops them disables progressive enhancement silently. The default `Form` forwards them.
 
 ## Validation
 
@@ -257,12 +257,14 @@ validation: {
   mustBeTrue: true,        // For checkboxes
   min: 0,
   max: 100,
+  minimumRows: 1,          // For repeaters (formerly minRows, still accepted)
+  maximumRows: 10,
 }
 ```
 
 ### HTML5 validation attributes
 
-By default the rendered inputs carry no native HTML5 constraint attributes. Set `emitHtml5Attributes: true` (on the `createFormDefinitionHook(...)` config or the per-call `config`) and each input gets `required`, `pattern`, `minLength`/`maxLength`, `min`/`max`, and `step` derived from its `validation`, emitted only where they're valid for the input type. This adds a no-JS validation layer alongside react-hook-form or a server action; it's the counterpart to `noValidate`.
+By default the rendered inputs carry no native HTML5 constraint attributes. Set `emitHtml5Attributes: true` (on the `createFormDefinitionHook(...)` configuration or the per-call `configuration` option, which earlier versions called `config`; that name still works as a deprecated alias until the next major version) and each input gets `required`, `pattern`, `minLength`/`maxLength`, `min`/`max`, and `step` derived from its `validation`, emitted only where they're valid for the input type. This adds a no-JS validation layer alongside react-hook-form or a server action; it's the counterpart to `noValidate`.
 
 ## Contributing
 

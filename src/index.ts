@@ -28,10 +28,14 @@ export type {
 export { createFormDefinitionHook } from "./hooks/createFormDefinitionHook";
 export type {
   FormDefinitionHook,
-  FormDefinitionHookConfig,
+  FormDefinitionHookConfiguration,
   FormDefinitionHookOptions,
+  AdvancedComponentConfiguration,
+  ComponentConfiguration,
+  // Deprecated aliases, kept until the next major version
+  FormDefinitionHookConfig,
   AdvancedComponentConfig,
-  ComponentConfig
+  ComponentConfig,
 } from "./hooks/createFormDefinitionHook";
 
 // Component exports
@@ -49,7 +53,7 @@ export {
   builtInPlugins,
   ValidationComposer,
   createAsyncValidationRule,
-  createDependentValidationRule
+  createDependentValidationRule,
 } from "./core/plugin-system";
 
 // Validation exports
@@ -79,6 +83,7 @@ export type {
 export type {
   FormDefinition,
   FormFieldDefinition,
+  FormConfiguration,
   FormConfig,
   FormActionResult,
   FormAction,
@@ -94,22 +99,31 @@ export type {
   BooleanValidationRules,
   FieldTypeValidationMap,
   // Translation types
+  TranslationConfiguration,
+  TranslationConfigurationObject,
+  TranslationCategoryConfiguration,
+  ValidationTranslationConfiguration,
+  TranslationFunction,
+  // Deprecated aliases, kept until the next major version
   TranslationConfig,
   TranslationConfigObject,
   TranslationCategoryConfig,
   ValidationTranslationConfig,
-  TranslationFunction,
 } from "./core/types";
 
 // Re-export translation utilities
 export {
+  normalizeTranslationConfiguration,
   normalizeTranslationConfig,
   resolveTranslatableValue,
   resolveSelectOptions,
   createValidationTranslator,
 } from "./core/utilities";
 
-export type { NormalizedTranslationConfig } from "./core/utilities";
+export type {
+  NormalizedTranslationConfiguration,
+  NormalizedTranslationConfig,
+} from "./core/utilities";
 
 export { createField } from "./core/types";
 
@@ -118,5 +132,9 @@ export { createField } from "./core/types";
 export { sectionsWithErrors, sectionOf } from "./core/sections";
 export type { FormSections } from "./core/sections";
 export { getNestedError } from "./core/nested-errors";
-export type { NestedFieldError, NestedFieldErrorMap, NestedFieldErrorList } from "./core/nested-errors";
+export type {
+  NestedFieldError,
+  NestedFieldErrorMap,
+  NestedFieldErrorList,
+} from "./core/nested-errors";
 export type { MirrorEncoder } from "./core/mirror";

@@ -1,6 +1,7 @@
 import { z } from "zod";
+import type { AnyZodSchema } from "./any-schema";
 import { sharedStore } from "../registry";
-import { FormFieldDefinition, FormDefinition, SchemaOnlyRowProperty } from "../types";
+import { FormFieldDefinition, SchemaOnlyRowProperty } from "../types";
 import { getValidationRule, createMessage } from "../validation";
 import { getPattern } from "../../validation/patterns";
 import {
@@ -30,10 +31,34 @@ const blankToUndefined = (value: unknown): unknown =>
   typeof value === "string" && value.trim() === "" ? undefined : value;
 
 /**
+ * Reads a key missing from the input as the given empty value, before the schema runs.
+ *
+ * A required field must fail when its key is absent, the way it fails when the control
+ * posts an empty value. Zod 4 does not run an optional schema for a missing key at all,
+ * so a required check inside one is skipped; and a missing key fails a non-optional
+ * schema with Zod's own message instead of the library's message key. Turning an absent
+ * key into the empty value a control would post gives both Zod versions the same input.
+ * The schema must not be optional: Zod 4 treats a preprocess around an optional schema as
+ * optional too, and skips it for a missing key.
+ */
+const absentAs = (empty: unknown, schema: AnyZodSchema): AnyZodSchema =>
+  z.preprocess((value) => (value === undefined ? empty : value), schema);
+
+/**
+ * Fails an absent value with the given message, before the schema it pipes into runs.
+ * A required check that sits inside an optional schema is skipped by Zod 4 for a missing
+ * key, so a required coerced field checks presence first, outside it.
+ */
+const presentOr = (message: string, schema: AnyZodSchema): AnyZodSchema =>
+  z.custom((value) => value !== undefined, { message }).pipe(schema);
+
+/**
  * Creates a string field schema (text, email, password, etc.)
  */
-export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
-  let baseSchema: z.ZodTypeAny = z.string();
+export const createStringFieldSchema = (
+  field: FormFieldDefinition,
+): AnyZodSchema => {
+  let baseSchema: AnyZodSchema = z.string();
 
   // Check if field uses conditional required (requiredWhen)
   // If so, we need to skip validations on empty values
@@ -43,13 +68,13 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.minLength) {
     const { value, message } = getValidationRule(
       field.validation.minLength,
-      "minLength"
+      "minLength",
     );
     if (hasConditionalRequired) {
       // Use refine to skip validation on empty strings for conditional fields
       baseSchema = baseSchema.refine(
-        (val) => val === "" || val.length >= value,
-        { message }
+        (input) => input === "" || input.length >= value,
+        { message },
       );
     } else {
       baseSchema = (baseSchema as z.ZodString).min(value, { message });
@@ -59,13 +84,13 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.maxLength) {
     const { value, message } = getValidationRule(
       field.validation.maxLength,
-      "maxLength"
+      "maxLength",
     );
     if (hasConditionalRequired) {
       // Use refine to skip validation on empty strings for conditional fields
       baseSchema = baseSchema.refine(
-        (val) => val === "" || val.length <= value,
-        { message }
+        (input) => input === "" || input.length <= value,
+        { message },
       );
     } else {
       baseSchema = (baseSchema as z.ZodString).max(value, { message });
@@ -75,7 +100,7 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.pattern) {
     const { value, message } = getValidationRule(
       field.validation.pattern,
-      "pattern"
+      "pattern",
     );
 
     if (typeof value === "string") {
@@ -83,8 +108,8 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
       if (pattern) {
         if (hasConditionalRequired) {
           baseSchema = baseSchema.refine(
-            (val) => val === "" || pattern.pattern.test(val),
-            { message: createMessage("invalidFormat") }
+            (input) => input === "" || pattern.pattern.test(input),
+            { message: createMessage("invalidFormat") },
           );
         } else {
           baseSchema = (baseSchema as z.ZodString).regex(pattern.pattern, {
@@ -95,8 +120,8 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
     } else {
       if (hasConditionalRequired) {
         baseSchema = baseSchema.refine(
-          (val) => val === "" || value.test(val),
-          { message }
+          (input) => input === "" || value.test(input),
+          { message },
         );
       } else {
         baseSchema = (baseSchema as z.ZodString).regex(value, { message });
@@ -108,18 +133,17 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.contains) {
     const { value, message } = getValidationRule(
       field.validation.contains,
-      "contains"
+      "contains",
     );
     if (hasConditionalRequired) {
       baseSchema = baseSchema.refine(
-        (val) => val === "" || val.includes(value),
-        { message }
+        (input) => input === "" || input.includes(value),
+        { message },
       );
     } else {
-      baseSchema = baseSchema.refine(
-        (val) => val.includes(value),
-        { message }
-      );
+      baseSchema = baseSchema.refine((input) => input.includes(value), {
+        message,
+      });
     }
   }
 
@@ -127,18 +151,17 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.startsWith) {
     const { value, message } = getValidationRule(
       field.validation.startsWith,
-      "startsWith"
+      "startsWith",
     );
     if (hasConditionalRequired) {
       baseSchema = baseSchema.refine(
-        (val) => val === "" || val.startsWith(value),
-        { message }
+        (input) => input === "" || input.startsWith(value),
+        { message },
       );
     } else {
-      baseSchema = baseSchema.refine(
-        (val) => val.startsWith(value),
-        { message }
-      );
+      baseSchema = baseSchema.refine((input) => input.startsWith(value), {
+        message,
+      });
     }
   }
 
@@ -146,18 +169,17 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.endsWith) {
     const { value, message } = getValidationRule(
       field.validation.endsWith,
-      "endsWith"
+      "endsWith",
     );
     if (hasConditionalRequired) {
       baseSchema = baseSchema.refine(
-        (val) => val === "" || val.endsWith(value),
-        { message }
+        (input) => input === "" || input.endsWith(value),
+        { message },
       );
     } else {
-      baseSchema = baseSchema.refine(
-        (val) => val.endsWith(value),
-        { message }
-      );
+      baseSchema = baseSchema.refine((input) => input.endsWith(value), {
+        message,
+      });
     }
   }
 
@@ -165,19 +187,18 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.noWhitespace) {
     const { value, message } = getValidationRule(
       field.validation.noWhitespace,
-      "noWhitespace"
+      "noWhitespace",
     );
     if (value) {
       if (hasConditionalRequired) {
         baseSchema = baseSchema.refine(
-          (val) => val === "" || !/\s/.test(val),
-          { message }
+          (input) => input === "" || !/\s/.test(input),
+          { message },
         );
       } else {
-        baseSchema = baseSchema.refine(
-          (val) => !/\s/.test(val),
-          { message }
-        );
+        baseSchema = baseSchema.refine((input) => !/\s/.test(input), {
+          message,
+        });
       }
     }
   }
@@ -186,18 +207,18 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.uppercase) {
     const { value, message } = getValidationRule(
       field.validation.uppercase,
-      "uppercase"
+      "uppercase",
     );
     if (value) {
       if (hasConditionalRequired) {
         baseSchema = baseSchema.refine(
-          (val) => val === "" || val === val.toUpperCase(),
-          { message }
+          (input) => input === "" || input === input.toUpperCase(),
+          { message },
         );
       } else {
         baseSchema = baseSchema.refine(
-          (val) => val === val.toUpperCase(),
-          { message }
+          (input) => input === input.toUpperCase(),
+          { message },
         );
       }
     }
@@ -207,18 +228,18 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.lowercase) {
     const { value, message } = getValidationRule(
       field.validation.lowercase,
-      "lowercase"
+      "lowercase",
     );
     if (value) {
       if (hasConditionalRequired) {
         baseSchema = baseSchema.refine(
-          (val) => val === "" || val === val.toLowerCase(),
-          { message }
+          (input) => input === "" || input === input.toLowerCase(),
+          { message },
         );
       } else {
         baseSchema = baseSchema.refine(
-          (val) => val === val.toLowerCase(),
-          { message }
+          (input) => input === input.toLowerCase(),
+          { message },
         );
       }
     }
@@ -228,9 +249,12 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.required) {
     const { value, message } = getValidationRule(
       field.validation.required,
-      "required"
+      "required",
     );
-    return (baseSchema as z.ZodString).min(value ? 1 : 0, { message });
+    return absentAs(
+      "",
+      (baseSchema as z.ZodString).min(value ? 1 : 0, { message }),
+    );
   } else if (!field.validation?.requiredWhen) {
     return baseSchema.optional();
   }
@@ -241,68 +265,67 @@ export const createStringFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
 /**
  * Creates a number field schema
  */
-export const createNumberFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
+export const createNumberFieldSchema = (
+  field: FormFieldDefinition,
+): AnyZodSchema => {
   // A blank/whitespace value means "no number set". Normalize it to undefined *before*
   // coercion - `Number("")` is `0`, so without this an optional blank would submit as `0`
   // and a required blank would slip past the required check as `0`. A real "0" (or any
   // other non-blank value) is untouched and still coerces to its number.
-  let numberSchema: z.ZodTypeAny = z.preprocess(
-    blankToUndefined,
-    z.coerce.number().optional()
-  );
+  let numberSchema: AnyZodSchema = z.coerce.number();
 
   // Apply numeric validations
   if (field.validation?.min !== undefined) {
-    const { value: minValue, message: minMessage } = getValidationRule(
+    const { value: minimumValue, message: minimumMessage } = getValidationRule(
       field.validation.min,
-      "min"
+      "min",
     );
 
-    numberSchema = numberSchema.refine(
-      (val) => val === undefined || val >= minValue,
-      { message: minMessage }
-    );
+    numberSchema = numberSchema.refine((input) => input >= minimumValue, {
+      message: minimumMessage,
+    });
   }
 
   if (field.validation?.max !== undefined) {
-    const { value: maxValue, message: maxMessage } = getValidationRule(
+    const { value: maximumValue, message: maximumMessage } = getValidationRule(
       field.validation.max,
-      "max"
+      "max",
     );
 
-    numberSchema = numberSchema.refine(
-      (val) => val === undefined || val <= maxValue,
-      { message: maxMessage }
-    );
+    numberSchema = numberSchema.refine((input) => input <= maximumValue, {
+      message: maximumMessage,
+    });
   }
 
   // Handle required validation
   if (field.validation?.required) {
-    numberSchema = numberSchema.refine((val) => val !== undefined, {
-      message: createMessage("required"),
-    });
+    return z.preprocess(
+      blankToUndefined,
+      presentOr(createMessage("required"), numberSchema),
+    );
   }
 
-  return numberSchema;
+  return z.preprocess(blankToUndefined, numberSchema.optional());
 };
 
 /**
  * Creates a date field schema
  */
-export const createDateFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
+export const createDateFieldSchema = (
+  field: FormFieldDefinition,
+): AnyZodSchema => {
   // Coerce a string or Date to a Date. `.optional()` lets a genuinely-absent value through
   // so the blank-normalization below (undefined) doesn't hit the string/date union.
   const toDate = z
     .string()
     .or(z.date())
-    .transform((arg) => new Date(arg))
-    .optional();
+    .transform((dateInput) => new Date(dateInput));
 
   // Handle required validation
   if (field.validation?.required) {
-    const { value, message } = getValidationRule(
+    const { message } = getValidationRule(
       field.validation.required,
-      "required"
+      "required",
     );
     // A blank/whitespace value means "no date set". Normalize it to undefined *before* the
     // Date transform - `new Date("")` is an Invalid Date, which `.optional()` (guarding only
@@ -310,28 +333,31 @@ export const createDateFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny 
     // message instead of leaking an Invalid Date.
     return z.preprocess(
       blankToUndefined,
-      toDate.refine(
-        (val) => val instanceof Date && !isNaN(val.getTime()),
-        { message }
-      )
+      presentOr(
+        message,
+        toDate.refine(
+          (input) => input instanceof Date && !isNaN(input.getTime()),
+          { message },
+        ),
+      ),
     );
   }
 
   // Optional (and requiredWhen, which the schema builder makes optional + adds its cross-field
   // rule to): a blank stays absent instead of becoming an Invalid Date.
-  return z.preprocess(blankToUndefined, toDate);
+  return z.preprocess(blankToUndefined, toDate.optional());
 };
 
 /**
  * Creates a select field schema
  */
-export const createSelectFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
-  let selectSchema: z.ZodTypeAny;
+export const createSelectFieldSchema = (
+  field: FormFieldDefinition,
+): AnyZodSchema => {
+  let selectSchema: AnyZodSchema;
 
   if (field.options) {
-    const allowedValues = field.options.map((option) =>
-      String(option.value)
-    );
+    const allowedValues = field.options.map((option) => String(option.value));
 
     selectSchema = z.enum(allowedValues as [string, ...string[]], {
       message: createMessage("invalidSelection"),
@@ -342,11 +368,11 @@ export const createSelectFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
 
   // Handle required validation
   if (field.validation?.required) {
-    const { value, message } = getValidationRule(
+    const { message } = getValidationRule(
       field.validation.required,
-      "required"
+      "required",
     );
-    selectSchema = selectSchema.refine((val) => !!val, { message });
+    selectSchema = selectSchema.refine((input) => !!input, { message });
   } else {
     selectSchema = selectSchema.optional();
   }
@@ -365,8 +391,10 @@ export const createSelectFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
  * entry; the preprocess below decodes it, and client-side array values pass through
  * untouched.
  */
-export const createMultiselectFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
-  let multiselectSchema: z.ZodTypeAny = z.preprocess((value) => {
+export const createMultiselectFieldSchema = (
+  field: FormFieldDefinition,
+): AnyZodSchema => {
+  let multiselectSchema: AnyZodSchema = z.preprocess((value) => {
     // A posted wire value: JSON string (or "" for an empty selection).
     if (typeof value === "string") {
       if (value.trim() === "") {
@@ -381,7 +409,9 @@ export const createMultiselectFieldSchema = (field: FormFieldDefinition): z.ZodT
         // Same failure shape as the repeater: a mangled wire value degrades to an
         // empty selection with a warning, not a crashed parse.
       }
-      console.warn("Invalid JSON in multiselect field, defaulting to empty selection");
+      console.warn(
+        "Invalid JSON in multiselect field, defaulting to empty selection",
+      );
       return [];
     }
 
@@ -391,16 +421,14 @@ export const createMultiselectFieldSchema = (field: FormFieldDefinition): z.ZodT
 
   // Validate against allowed options
   if (field.options && field.options.length > 0) {
-    const allowedValues = field.options.map((option) =>
-      String(option.value)
-    );
+    const allowedValues = field.options.map((option) => String(option.value));
 
     multiselectSchema = multiselectSchema.refine(
       (values: string[]) =>
         values?.every((value: string) => allowedValues.includes(value)),
       {
         message: createMessage("invalidSelections"),
-      }
+      },
     );
   }
 
@@ -408,35 +436,43 @@ export const createMultiselectFieldSchema = (field: FormFieldDefinition): z.ZodT
   if (field.validation?.required) {
     const { value, message } = getValidationRule(
       field.validation.required,
-      "required"
+      "required",
     );
     if (value) {
-      return multiselectSchema.refine(
-        (arr) => arr && arr.length > 0,
-        { message }
+      return absentAs(
+        [],
+        multiselectSchema.refine(
+          (selection) => selection && selection.length > 0,
+          { message },
+        ),
       );
     }
   }
-  
+
   return multiselectSchema.optional();
 };
 
 /**
  * Creates a checkbox field schema
  */
-export const createCheckboxFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
-  let checkboxSchema: z.ZodTypeAny = z.coerce.boolean();
+export const createCheckboxFieldSchema = (
+  field: FormFieldDefinition,
+): AnyZodSchema => {
+  // An unchecked checkbox is absent from a post. Zod 3 coerced the missing value to
+  // `false`; Zod 4 fails a missing key before coercing, so the absence is read as
+  // `false` first, on both.
+  let checkboxSchema: AnyZodSchema = absentAs(false, z.coerce.boolean());
 
   // Handle mustBeTrue validation (checkbox must be checked)
   if (field.validation?.mustBeTrue) {
-    checkboxSchema = checkboxSchema.refine((val) => val === true, {
+    checkboxSchema = checkboxSchema.refine((input) => input === true, {
       message: createMessage("mustBeTrue"),
     });
   }
 
   // Handle mustBeFalse validation (checkbox must be unchecked)
   if (field.validation?.mustBeFalse) {
-    checkboxSchema = checkboxSchema.refine((val) => val === false, {
+    checkboxSchema = checkboxSchema.refine((input) => input === false, {
       message: createMessage("mustBeFalse"),
     });
   }
@@ -445,10 +481,10 @@ export const createCheckboxFieldSchema = (field: FormFieldDefinition): z.ZodType
   if (field.validation?.required) {
     const { value, message } = getValidationRule(
       field.validation.required,
-      "required"
+      "required",
     );
 
-    return checkboxSchema.refine((val) => val === value, {
+    return checkboxSchema.refine((input) => input === value, {
       message,
     });
   }
@@ -459,7 +495,9 @@ export const createCheckboxFieldSchema = (field: FormFieldDefinition): z.ZodType
 /**
  * Creates a custom field schema (fallback for unknown types)
  */
-export const createCustomFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
+export const createCustomFieldSchema = (
+  field: FormFieldDefinition,
+): AnyZodSchema => {
   // For custom fields, we start with a basic string schema
   // Users can override this by providing their own field schema generators
   let customSchema = z.string();
@@ -468,7 +506,7 @@ export const createCustomFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.minLength) {
     const { value, message } = getValidationRule(
       field.validation.minLength,
-      "minLength"
+      "minLength",
     );
     customSchema = customSchema.min(value, { message });
   }
@@ -476,7 +514,7 @@ export const createCustomFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.maxLength) {
     const { value, message } = getValidationRule(
       field.validation.maxLength,
-      "maxLength"
+      "maxLength",
     );
     customSchema = customSchema.max(value, { message });
   }
@@ -484,9 +522,9 @@ export const createCustomFieldSchema = (field: FormFieldDefinition): z.ZodTypeAn
   if (field.validation?.required) {
     const { value, message } = getValidationRule(
       field.validation.required,
-      "required"
+      "required",
     );
-    return customSchema.min(value ? 1 : 0, { message });
+    return absentAs("", customSchema.min(value ? 1 : 0, { message }));
   } else if (!field.validation?.requiredWhen) {
     return customSchema.optional();
   }
@@ -528,10 +566,10 @@ const RENDERING_ONLY_KEYS = [
 export const createSchemaOnlyPropertySchema = (
   propertyKey: string,
   property: SchemaOnlyRowProperty,
-  context = `schemaOnlyRowProperties.${propertyKey}`
-): z.ZodTypeAny => {
+  context = `schemaOnlyRowProperties.${propertyKey}`,
+): AnyZodSchema => {
   const { valueType, validatesAs, validation, defaultsTo } = property;
-  const strayRendering = RENDERING_ONLY_KEYS.filter(key => key in property);
+  const strayRendering = RENDERING_ONLY_KEYS.filter((key) => key in property);
 
   if (!valueType && !validatesAs) {
     throw new Error(
@@ -540,18 +578,18 @@ export const createSchemaOnlyPropertySchema = (
           ? `\`type\` names a control, and a schema-only row property renders none. `
           : "") +
         `Declare \`valueType: "string" | "number" | "boolean" | "date"\`, or ` +
-        `\`validatesAs: "<a kind registered with registerFieldType>"\`.`
+        `\`validatesAs: "<a kind registered with registerFieldType>"\`.`,
     );
   }
 
   if (strayRendering.length > 0) {
     console.warn(
-      `${context}: ${strayRendering.map(key => `\`${key}\``).join(", ")} ` +
+      `${context}: ${strayRendering.map((key) => `\`${key}\``).join(", ")} ` +
         `${strayRendering.length === 1 ? "is" : "are"} ignored - a schema-only row property ` +
         `declares validation, not a control. ` +
         (strayRendering.includes("defaultValue")
           ? "Use `defaultsTo` for the value the parse fills in when a row omits this property. "
-          : "")
+          : ""),
     );
   }
 
@@ -559,14 +597,14 @@ export const createSchemaOnlyPropertySchema = (
     ? resolveRegisteredValidator(
         validatesAs,
         context,
-        "Register it with `registerFieldType` first (in both bundles), or use `valueType`."
+        "Register it with `registerFieldType` first (in both bundles), or use `valueType`.",
       )
     : valueTypeSchemaGenerators[valueType as FieldValueType];
 
   if (!generator) {
     throw new Error(
       `${context}: unknown valueType "${valueType}". ` +
-        `Expected one of: ${Object.keys(valueTypeSchemaGenerators).join(", ")}.`
+        `Expected one of: ${Object.keys(valueTypeSchemaGenerators).join(", ")}.`,
     );
   }
 
@@ -583,28 +621,30 @@ export const createSchemaOnlyPropertySchema = (
 
 /**
  * Creates a repeater field schema
- * 
+ *
  * This creates a schema for an array of objects where each object
  * matches the structure defined by the repeater's fields
  */
-export const createRepeaterFieldSchema = (field: FormFieldDefinition): z.ZodTypeAny => {
+export const createRepeaterFieldSchema = (
+  field: FormFieldDefinition,
+): AnyZodSchema => {
   if (!field.fields) {
-    console.warn('Repeater field missing fields definition, defaulting to array of any');
+    console.warn(
+      "Repeater field missing fields definition, defaulting to array of any",
+    );
     return z.array(z.any()).optional();
   }
 
-  // We need to import generateSchema to avoid circular dependency
-  // For now, we'll create a simple object schema
-  const fieldSchemas: Record<string, z.ZodTypeAny> = {};
-  
+  const fieldSchemas: Record<string, AnyZodSchema> = {};
+
   // Generate schema for each field in the repeater
-  Object.keys(field.fields).forEach(fieldKey => {
+  Object.keys(field.fields).forEach((fieldKey) => {
     const subField = field.fields![fieldKey];
     const generator = getFieldSchemaGenerator(subField.type);
-    
+
     // Prevent infinite recursion by limiting nested repeaters
-    if (subField.type === 'repeater') {
-      console.warn('Nested repeaters not yet supported, using any array');
+    if (subField.type === "repeater") {
+      console.warn("Nested repeaters not yet supported, using any array");
       fieldSchemas[fieldKey] = z.array(z.any()).optional();
     } else {
       fieldSchemas[fieldKey] = generator(subField);
@@ -613,28 +653,28 @@ export const createRepeaterFieldSchema = (field: FormFieldDefinition): z.ZodType
 
   // Merge the schema-only row properties: state every row carries that no cell renders.
   // A plain `z.object` strips what it does not declare, so an undeclared property parses
-  // away silently - which is the whole reason this seam exists.
+  // away silently - which is the whole reason schemaOnlyRowProperties exists.
   if (field.schemaOnlyRowProperties) {
-    Object.keys(field.schemaOnlyRowProperties).forEach(propertyKey => {
+    Object.keys(field.schemaOnlyRowProperties).forEach((propertyKey) => {
       if (propertyKey in fieldSchemas) {
         throw new Error(
           `schemaOnlyRowProperties.${propertyKey}: "${propertyKey}" is already a rendered ` +
             `cell of this repeater. A row property is the part of the row \`fields\` does ` +
-            `not cover - remove one of the two declarations.`
+            `not cover - remove one of the two declarations.`,
         );
       }
       fieldSchemas[propertyKey] = createSchemaOnlyPropertySchema(
         propertyKey,
-        field.schemaOnlyRowProperties![propertyKey]
+        field.schemaOnlyRowProperties![propertyKey],
       );
     });
   }
 
   // Create the row schema (each item in the array)
   const rowSchema = z.object(fieldSchemas);
-  
+
   // Create array schema with preprocessing for JSON strings
-  let repeaterSchema: z.ZodTypeAny = z.preprocess((value) => {
+  let repeaterSchema: AnyZodSchema = z.preprocess((value) => {
     // Handle JSON string input (from hidden form field)
     if (typeof value === "string") {
       if (value.trim() === "") {
@@ -646,40 +686,53 @@ export const createRepeaterFieldSchema = (field: FormFieldDefinition): z.ZodType
           return parsed;
         }
       } catch {
-        console.warn('Invalid JSON in repeater field, defaulting to empty array');
+        console.warn(
+          "Invalid JSON in repeater field, defaulting to empty array",
+        );
         return [];
       }
     }
-    
+
     // Handle array input
     if (Array.isArray(value)) {
       return value;
     }
-    
+
     // Default to empty array
     return [];
   }, z.array(rowSchema));
 
   // Apply row count validations
-  if (field.validation?.minRows !== undefined) {
-    const { value: minRows, message } = getValidationRule(
-      field.validation.minRows,
-      "minRows"
+  // `minRows` and `maxRows` are the deprecated spellings, read until the next major. The
+  // message key follows the spelling the definition used, so existing translations of
+  // `minRows` / `maxRows` keep resolving.
+  const minimumRowsKey =
+    field.validation?.minimumRows !== undefined ? "minimumRows" : "minRows";
+  const minimumRowsRule =
+    field.validation?.minimumRows ?? field.validation?.minRows;
+  if (minimumRowsRule !== undefined) {
+    const { value: minimumRows, message } = getValidationRule(
+      minimumRowsRule,
+      minimumRowsKey,
     );
     repeaterSchema = repeaterSchema.refine(
-      (rows) => rows.length >= minRows,
-      { message }
+      (rows) => rows.length >= minimumRows,
+      { message },
     );
   }
 
-  if (field.validation?.maxRows !== undefined) {
-    const { value: maxRows, message } = getValidationRule(
-      field.validation.maxRows,
-      "maxRows"
+  const maximumRowsKey =
+    field.validation?.maximumRows !== undefined ? "maximumRows" : "maxRows";
+  const maximumRowsRule =
+    field.validation?.maximumRows ?? field.validation?.maxRows;
+  if (maximumRowsRule !== undefined) {
+    const { value: maximumRows, message } = getValidationRule(
+      maximumRowsRule,
+      maximumRowsKey,
     );
     repeaterSchema = repeaterSchema.refine(
-      (rows) => rows.length <= maxRows,
-      { message }
+      (rows) => rows.length <= maximumRows,
+      { message },
     );
   }
 
@@ -687,14 +740,11 @@ export const createRepeaterFieldSchema = (field: FormFieldDefinition): z.ZodType
   if (field.validation?.required) {
     const { value, message } = getValidationRule(
       field.validation.required,
-      "required"
+      "required",
     );
-    
+
     if (value) {
-      return repeaterSchema.refine(
-        (rows) => rows.length > 0,
-        { message }
-      );
+      return repeaterSchema.refine((rows) => rows.length > 0, { message });
     }
   }
 
@@ -706,7 +756,7 @@ export const createRepeaterFieldSchema = (field: FormFieldDefinition): z.ZodType
  * points; consulted before the built-ins below.
  */
 const customFieldSchemaGenerators = sharedStore<
-  Record<string, (field: FormFieldDefinition) => z.ZodTypeAny>
+  Record<string, (field: FormFieldDefinition) => AnyZodSchema>
 >("field-schema-generators", () => ({}));
 
 /**
@@ -719,24 +769,24 @@ export const fieldSchemaGenerators = {
   email: createStringFieldSchema,
   password: createStringFieldSchema,
   textarea: createStringFieldSchema,
-  
+
   // Numeric fields
   number: createNumberFieldSchema,
-  
+
   // Date fields
   date: createDateFieldSchema,
   "datetime-local": createDateFieldSchema,
-  
+
   // Selection fields
   select: createSelectFieldSchema,
   multiselect: createMultiselectFieldSchema,
-  
+
   // Boolean fields
   checkbox: createCheckboxFieldSchema,
-  
+
   // Array fields
   repeater: createRepeaterFieldSchema,
-  
+
   // Default fallback
   default: createCustomFieldSchema,
 };
@@ -759,7 +809,7 @@ export const getFieldSchemaGenerator = (fieldType: string) => {
  */
 export const registerFieldSchemaGenerator = (
   fieldType: string,
-  generator: (field: FormFieldDefinition) => z.ZodTypeAny
+  generator: (field: FormFieldDefinition) => AnyZodSchema,
 ) => {
   customFieldSchemaGenerators[fieldType] = generator;
 };
@@ -779,7 +829,7 @@ export type FieldValueType = "string" | "number" | "boolean" | "date";
 /** Maps a declared value type to the built-in generator that validates it. */
 const valueTypeSchemaGenerators: Record<
   FieldValueType,
-  (field: FormFieldDefinition) => z.ZodTypeAny
+  (field: FormFieldDefinition) => AnyZodSchema
 > = {
   string: createStringFieldSchema,
   number: createNumberFieldSchema,
@@ -807,14 +857,14 @@ const valueTypeDefaults: Record<FieldValueType, unknown> = {
 const resolveRegisteredValidator = (
   kind: string,
   context: string,
-  remedy: string
-): ((field: FormFieldDefinition) => z.ZodTypeAny) => {
+  remedy: string,
+): ((field: FormFieldDefinition) => AnyZodSchema) => {
   const registered =
     customFieldSchemaGenerators[kind] ??
     fieldSchemaGenerators[kind as keyof typeof fieldSchemaGenerators];
   if (!registered || registered === createCustomFieldSchema) {
     throw new Error(
-      `${context}: no field kind "${kind}" is registered to borrow a validator from. ${remedy}`
+      `${context}: no field kind "${kind}" is registered to borrow a validator from. ${remedy}`,
     );
   }
   return registered;
@@ -843,7 +893,7 @@ export interface FieldTypeRegistration {
   /**
    * @deprecated Renamed to {@link FieldTypeRegistration.validatesAs}, which says what it
    * does (borrow a registered kind's *validator*) and frees the word `schema` to mean a
-   * zod schema. Still honoured - `validatesAs` wins if both are set - and slated for
+   * zod schema. Still honored - `validatesAs` wins if both are set - and slated for
    * removal in the next major.
    */
   schema?: string;
@@ -851,7 +901,7 @@ export interface FieldTypeRegistration {
    * A fully custom Zod generator, for when neither a value type nor an alias fits. Equivalent
    * to {@link registerFieldSchemaGenerator}, but co-registered with the default value below.
    */
-  generator?: (field: FormFieldDefinition) => z.ZodTypeAny;
+  generator?: (field: FormFieldDefinition) => AnyZodSchema;
   /**
    * Override the field's default value. Defaults to the resolved value type's natural default
    * (`""` / `0` / `false`), the aliased kind's default, or `""` for a bare `generator`.
@@ -862,7 +912,7 @@ export interface FieldTypeRegistration {
    * declares `deriveFrom: "<sibling>"`, changes to the sibling mirror
    * `deriveTransform(sourceValue)` into it while it is unclaimed (see
    * `FormFieldDefinition.deriveFrom`). A per-field `deriveTransform` on the definition
-   * takes precedence. Client-side behaviour only - the registration is harmless in a
+   * takes precedence. Client-side behavior only - the registration is harmless in a
    * server bundle, where `deriveFrom` is inert.
    */
   deriveTransform?: DeriveTransform;
@@ -901,9 +951,10 @@ export interface FieldTypeRegistration {
  */
 export const registerFieldType = (
   fieldType: string,
-  registration: FieldTypeRegistration
+  registration: FieldTypeRegistration,
 ): void => {
-  const { valueType, generator, defaultValue, deriveTransform, mirror } = registration;
+  const { valueType, generator, defaultValue, deriveTransform, mirror } =
+    registration;
   // `schema` is the deprecated spelling of `validatesAs`; the new name wins when both are set.
   const validatesAs = registration.validatesAs ?? registration.schema;
 
@@ -923,7 +974,7 @@ export const registerFieldType = (
     return;
   }
 
-  let resolvedGenerator: (field: FormFieldDefinition) => z.ZodTypeAny;
+  let resolvedGenerator: (field: FormFieldDefinition) => AnyZodSchema;
   let resolvedDefault: unknown;
 
   if (generator) {
@@ -932,11 +983,12 @@ export const registerFieldType = (
   } else if (validatesAs) {
     // Name the key the caller actually wrote - being told about `validatesAs` when you
     // wrote `schema` reads as the wrong error.
-    const borrowKey = registration.validatesAs !== undefined ? "validatesAs" : "schema";
+    const borrowKey =
+      registration.validatesAs !== undefined ? "validatesAs" : "schema";
     resolvedGenerator = resolveRegisteredValidator(
       validatesAs,
       `registerFieldType("${fieldType}", { ${borrowKey}: "${validatesAs}" })`,
-      "Register it first, or use `valueType` / `generator`."
+      "Register it first, or use `valueType` / `generator`.",
     );
     resolvedDefault = getDefaultValueForField({ type: validatesAs });
   } else if (valueType) {
@@ -944,7 +996,7 @@ export const registerFieldType = (
     if (!generatorForValueType) {
       throw new Error(
         `registerFieldType("${fieldType}"): unknown valueType "${valueType}". ` +
-          `Expected one of: ${Object.keys(valueTypeSchemaGenerators).join(", ")}.`
+          `Expected one of: ${Object.keys(valueTypeSchemaGenerators).join(", ")}.`,
       );
     }
     resolvedGenerator = generatorForValueType;
@@ -952,13 +1004,13 @@ export const registerFieldType = (
   } else {
     throw new Error(
       `registerFieldType("${fieldType}"): provide one of \`valueType\`, \`validatesAs\`, ` +
-        `\`generator\`, or \`deriveTransform\`.`
+        `\`generator\`, or \`deriveTransform\`.`,
     );
   }
 
   registerFieldSchemaGenerator(fieldType, resolvedGenerator);
   registerFieldTypeDefault(
     fieldType,
-    defaultValue !== undefined ? defaultValue : resolvedDefault
+    defaultValue !== undefined ? defaultValue : resolvedDefault,
   );
 };

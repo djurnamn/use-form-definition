@@ -7,16 +7,12 @@ export interface ActionsProps {
 }
 
 export function Actions({
-  children = 'Submit',
+  children = "Submit",
   className,
   ...customProps
 }: ActionsProps) {
   return (
-    <button
-      type="submit"
-      className={className}
-      {...customProps}
-    >
+    <button type="submit" className={className} {...customProps}>
       {children}
     </button>
   );

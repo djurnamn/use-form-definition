@@ -56,7 +56,7 @@ export const orderFormDefinition: FormDefinition = {
       },
       notes: {
         type: 'text',
-        label: 'Notes (pot colour, etc.)',
+        label: 'Notes (pot color, etc.)',
         // Optional field, no validation
       },
     },

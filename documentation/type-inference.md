@@ -69,7 +69,7 @@ const form = createFormDefinition({
       value: { type: 'text', validation: { required: true } },
       enabled: { type: 'checkbox' }
     },
-    validation: { minRows: 1 }
+    validation: { minimumRows: 1 }
   }
 });
 
@@ -180,4 +180,4 @@ export async function createProduct(
 
 ## Why it's set up this way
 
-The definition is the single source for the form's shape, so the type can't drift from it the way a hand-written interface can - rename a field or change its rules and the type updates with it, with autocomplete and compile errors following. The same definition also drives a Zod schema, so the values are validated at runtime, not only checked at compile time.
+The definition is the single source for the form's shape, so the type can't drift from it the way a hand-written interface can - rename a field or change its rules and the type updates with it, with autocomplete and compile errors following. The same definition also drives a Zod schema, so the values are validated at runtime as well as checked at compile time.

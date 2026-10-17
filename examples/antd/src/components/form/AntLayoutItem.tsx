@@ -45,8 +45,8 @@ export interface AntLayoutItemProps {
  * layout: { half: true }
  *
  * // Ant Design pattern - more expressive and responsive
- * layout: { xs: 24, sm: 12 }           // Full on mobile, half on tablet+
- * layout: { xs: 24, sm: 12, md: 8 }    // Responsive thirds on desktop
+ * layout: { xs: 24, sm: 12 }           // Full width below sm, half from sm up
+ * layout: { xs: 24, sm: 12, md: 8 }    // Thirds from md up
  * layout: { xs: 24 }                   // Always full width
  */
 export function AntLayoutItem({

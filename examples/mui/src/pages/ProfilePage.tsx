@@ -33,7 +33,7 @@ export function ProfilePage() {
           <Box
             component="pre"
             sx={{
-              bgcolor: 'grey.100',
+              bgcolor: 'gray.100',
               p: 2,
               borderRadius: 1,
               overflow: 'auto',

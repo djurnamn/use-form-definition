@@ -1,6 +1,6 @@
 # Plugin system
 
-Plugins extend the schema the library generates. Register an async validation rule, a custom field type, or a cross-field check, and it runs when the schema is built.
+Plugins extend the schema the library generates. Register an async validation rule, a custom field type, or a cross-field check in a registry, and it runs when `generateSchemaAsync` builds the schema with that registry. The schema a form validates with is built without plugins, so a plugin rule applies where you call `generateSchemaAsync` yourself, such as in a server action.
 
 ## Table of contents
 
@@ -53,12 +53,6 @@ registry.register(
   },
   ['text']
 );
-
-// Pass the registry to your form hook
-const useFormDefinition = createFormDefinitionHook({
-  components: { /* your components */ },
-  pluginRegistry: registry
-});
 ```
 
 ### Using async schema generation
@@ -74,8 +68,9 @@ const formDefinition = {
   }
 };
 
-// Use async schema generation to enable plugin validation
-const schema = await generateSchemaAsync(formDefinition);
+// Pass the registry to apply its plugins; without one, no plugin runs. The
+// second argument is the form's values, for plugins that read other fields.
+const schema = await generateSchemaAsync(formDefinition, undefined, registry);
 ```
 
 ## Validation rule registry
@@ -262,7 +257,7 @@ errors). A whole-value message - a `refine` on the array itself, say - sits on t
 error directly (`error.message` when the error is flat), so a structured kind that
 renders both covers every rule its schema can produce. The built-in repeater works
 exactly this way; [Repeater fields](./repeaters.md#item-errors) shows the rendered
-behaviour.
+behavior.
 
 Server-side, `parseValidationErrors` groups item issues under the top-level key
 without item position - the flat envelope is a stated boundary of the no-JS path,

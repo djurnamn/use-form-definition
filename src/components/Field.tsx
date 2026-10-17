@@ -15,34 +15,20 @@ export interface FieldProps<T = any> {
 }
 
 const Field = <T,>(
-  {
-    label,
-    name,
-    id,
-    error,
-    description,
-    className,
-    children,
-  }: FieldProps<T>,
-  ref: Ref<T>
+  { label, name, id, error, description, className, children }: FieldProps<T>,
+  ref: Ref<T>,
 ) => {
   // Error message is already parsed by useFormDefinition
   const errorMessage = error?.message || null;
 
   // Generate the same ID that the input component would use
-  const fieldId = generateFieldId(name || '', id);
+  const fieldId = generateFieldId(name || "", id);
 
   return (
     <div className={className} data-field-name={name}>
-      {label && (
-        <label htmlFor={fieldId}>
-          {label}
-        </label>
-      )}
+      {label && <label htmlFor={fieldId}>{label}</label>}
 
-      <div>
-        {children}
-      </div>
+      <div>{children}</div>
 
       {errorMessage && (
         <div id={`${name}-error`} role="alert" aria-live="polite">
@@ -50,15 +36,11 @@ const Field = <T,>(
         </div>
       )}
 
-      {description && (
-        <div id={`${fieldId}-description`}>
-          {description}
-        </div>
-      )}
+      {description && <div id={`${fieldId}-description`}>{description}</div>}
     </div>
   );
 };
 
 export default forwardRef(Field) as <T>(
-  props: FieldProps<T> & { ref?: Ref<T> }
+  props: FieldProps<T> & { ref?: Ref<T> },
 ) => ReturnType<typeof Field>;

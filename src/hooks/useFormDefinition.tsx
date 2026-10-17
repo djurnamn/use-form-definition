@@ -1,10 +1,28 @@
-import React, { ReactNode, useMemo, useState, FormEvent, useEffect, useRef, useActionState, startTransition } from "react";
-import { Controller, FieldValues, UseFormReturn, DefaultValues, useForm, useFormState, FieldError, Control } from "react-hook-form";
+import React, {
+  ReactNode,
+  useMemo,
+  useState,
+  FormEvent,
+  useEffect,
+  useRef,
+  useActionState,
+  startTransition,
+} from "react";
+import {
+  Controller,
+  FieldValues,
+  UseFormReturn,
+  DefaultValues,
+  useForm,
+  useFormState,
+  FieldError,
+  Control,
+} from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   FormDefinition,
-  FormConfig,
+  FormConfiguration,
   FormFieldDefinition,
   FormActionResult,
   SelectOption,
@@ -17,17 +35,17 @@ import { generateSchema as generateSchemaFromBuilder } from "../core/schema/sche
 import { generateDataValidator } from "../core/schema/data-validator";
 import { FormSections, sectionOf, sectionsWithErrors } from "../core/sections";
 import { mirrorWireValues } from "../core/mirror";
-import { createFormConfig } from "../configuration/createFormConfig";
+import { createFormConfiguration } from "../configuration/createFormConfiguration";
 import {
   getFieldName,
   generateDefaultValues,
   getDefaultValueForField,
   generateFieldId,
-  normalizeTranslationConfig,
+  normalizeTranslationConfiguration,
   resolveTranslatableValue,
   resolveSelectOptions,
   createValidationTranslator,
-  type NormalizedTranslationConfig,
+  type NormalizedTranslationConfiguration,
 } from "../core/utilities";
 import Field from "../components/Field";
 import { FormMessage, FormMessageStatus } from "../components/FormMessage";
@@ -38,14 +56,14 @@ import { FormMessage, FormMessageStatus } from "../components/FormMessage";
  */
 const parseValidationError = (
   errorMessage: string,
-  translateValidation: (key: string, options?: Record<string, any>) => string
+  translateValidation: (key: string, options?: Record<string, any>) => string,
 ): string => {
   // Handle validation error message (JSON string from schema-builder)
-  if (errorMessage.startsWith('[')) {
+  if (errorMessage.startsWith("[")) {
     try {
       const [errorKey, errorOptions] = JSON.parse(errorMessage);
       return translateValidation(errorKey, errorOptions);
-    } catch (e) {
+    } catch {
       // Silently ignore invalid validation message format
       return errorMessage;
     }
@@ -63,8 +81,7 @@ const parseValidationError = (
  * array/object schema) is a nested tree: the resolver roots each item issue under the
  * top-level key, so `errors.classes` is an array of per-item error objects. Walking the
  * tree keeps item errors addressable (`error[0].level.message`) with the same translated
- * messages a flat field gets - the previous flat-only handling reduced the tree to
- * `message: undefined`, which is how item errors rendered nowhere.
+ * messages a flat field gets.
  *
  * Server-tagged errors (`type: 'server'`) already carry display-ready strings and pass
  * through untouched. `ref` values are react-hook-form's control handles, not error
@@ -92,52 +109,59 @@ interface MessageScope {
  */
 const messageScopeFor = (
   translateValidation: (key: string, options?: Record<string, any>) => string,
-  translationConfig: Parameters<typeof resolveFieldPresentationData>[2],
+  translationConfiguration: Parameters<typeof resolveFieldPresentationData>[2],
   scopeKey: string,
   definition: FormFieldDefinition,
-  label: string | undefined
+  label: string | undefined,
 ): MessageScope => ({
   translate: (messageKey, options) =>
-    translateValidation(messageKey, { field: label ?? scopeKey, fieldKey: scopeKey, ...(options ?? {}) }),
+    translateValidation(messageKey, {
+      field: label ?? scopeKey,
+      fieldKey: scopeKey,
+      ...(options ?? {}),
+    }),
   item: (itemKey) => {
     const itemField = definition.fields?.[itemKey];
     if (!itemField) return undefined;
     return messageScopeFor(
       translateValidation,
-      translationConfig,
+      translationConfiguration,
       `${scopeKey}.${itemKey}`,
       itemField,
-      resolveFieldPresentationData(itemField, itemKey, translationConfig).label
+      resolveFieldPresentationData(itemField, itemKey, translationConfiguration)
+        .label,
     );
   },
 });
 
 const translateErrorNode = (node: unknown, scope: MessageScope): any => {
   if (Array.isArray(node)) {
-    return node.map((item) => (item == null ? item : translateErrorNode(item, scope)));
+    return node.map((item) =>
+      item == null ? item : translateErrorNode(item, scope),
+    );
   }
-  if (!node || typeof node !== 'object') return node;
+  if (!node || typeof node !== "object") return node;
 
   const source = node as Record<string, unknown>;
-  if (source.type === 'server') return node;
+  if (source.type === "server") return node;
 
   const translated: Record<string, unknown> = {};
   for (const key of Object.keys(source)) {
     const value = source[key];
-    if (key === 'ref') {
+    if (key === "ref") {
       translated[key] = value;
-    } else if (key === 'message' && typeof value === 'string') {
+    } else if (key === "message" && typeof value === "string") {
       translated[key] = parseValidationError(value, scope.translate);
-    } else if (key === 'types' && value && typeof value === 'object') {
+    } else if (key === "types" && value && typeof value === "object") {
       translated[key] = Object.fromEntries(
         Object.entries(value).map(([rule, ruleMessage]) => [
           rule,
-          typeof ruleMessage === 'string'
+          typeof ruleMessage === "string"
             ? parseValidationError(ruleMessage, scope.translate)
             : ruleMessage,
-        ])
+        ]),
       );
-    } else if (value && typeof value === 'object') {
+    } else if (value && typeof value === "object") {
       translated[key] = translateErrorNode(value, scope.item?.(key) ?? scope);
     } else {
       translated[key] = value;
@@ -164,39 +188,55 @@ interface ResolvedFieldData {
 const resolveFieldPresentationData = (
   field: FormFieldDefinition,
   fieldKey: string,
-  translationConfig: {
-    labels: { enabled: boolean; alwaysInclude: boolean; localePath: (key: string) => string };
-    placeholders: { enabled: boolean; alwaysInclude: boolean; localePath: (key: string) => string };
-    descriptions: { enabled: boolean; alwaysInclude: boolean; localePath: (key: string) => string };
-    options: { enabled: boolean; alwaysInclude: boolean; localePath: (key: string) => string };
+  translationConfiguration: {
+    labels: {
+      enabled: boolean;
+      alwaysInclude: boolean;
+      localePath: (key: string) => string;
+    };
+    placeholders: {
+      enabled: boolean;
+      alwaysInclude: boolean;
+      localePath: (key: string) => string;
+    };
+    descriptions: {
+      enabled: boolean;
+      alwaysInclude: boolean;
+      localePath: (key: string) => string;
+    };
+    options: {
+      enabled: boolean;
+      alwaysInclude: boolean;
+      localePath: (key: string) => string;
+    };
     function?: (key: string, options?: Record<string, any>) => string;
-  }
+  },
 ): ResolvedFieldData => {
   const label = resolveTranslatableValue(
     field.label,
     fieldKey,
-    translationConfig.labels,
-    translationConfig.function
+    translationConfiguration.labels,
+    translationConfiguration.function,
   );
 
   const placeholder = resolveTranslatableValue(
     field.placeholder,
     fieldKey,
-    translationConfig.placeholders,
-    translationConfig.function
+    translationConfiguration.placeholders,
+    translationConfiguration.function,
   );
 
   const description = resolveTranslatableValue(
     field.description,
     fieldKey,
-    translationConfig.descriptions,
-    translationConfig.function
+    translationConfiguration.descriptions,
+    translationConfiguration.function,
   );
 
   const options = resolveSelectOptions(
     field.options,
-    translationConfig.options,
-    translationConfig.function
+    translationConfiguration.options,
+    translationConfiguration.function,
   );
 
   return { label, placeholder, description, options };
@@ -231,11 +271,11 @@ const LIBRARY_PROPS: Record<string, true> = {
 
 /**
  * Filters out library-specific props from field props
- * Allows additional props specified in the component config to pass through
+ * Allows additional props specified in the component configuration to pass through
  */
 const filterLibraryProps = (
   props: Record<string, any>,
-  additionalAllowedProps: string[] = []
+  additionalAllowedProps: string[] = [],
 ): Record<string, any> => {
   const filtered: Record<string, any> = {};
   const allowedSet = new Set(additionalAllowedProps);
@@ -263,31 +303,31 @@ const injectDescriptionDescribedBy = (
   componentProps: Record<string, any>,
   fieldProps: Record<string, any>,
   fieldName: string,
-  error: FieldError | undefined
+  error: FieldError | undefined,
 ): void => {
   const description = fieldProps.description;
-  if (typeof description !== 'string' || !description) return;
+  if (typeof description !== "string" || !description) return;
 
   const descriptionId = `${generateFieldId(fieldName, componentProps.id)}-description`;
-  componentProps['aria-describedby'] = [
-    componentProps['aria-describedby'],
+  componentProps["aria-describedby"] = [
+    componentProps["aria-describedby"],
     error?.message ? `${fieldName}-error` : undefined,
     descriptionId,
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
 };
 
 export type { NestedFieldRenderer };
 
 /**
- * Creates a nested field renderer function that uses the form config
+ * Creates a nested field renderer function that uses the form configuration
  * to render fields consistently with the parent form
  */
 const createNestedFieldRenderer = (
-  config: FormConfig,
+  configuration: FormConfiguration,
   translateValidation: (key: string, options?: Record<string, any>) => string,
-  translationConfig: Parameters<typeof resolveFieldPresentationData>[2]
+  translationConfiguration: Parameters<typeof resolveFieldPresentationData>[2],
 ): NestedFieldRenderer => {
   return (
     fieldKey: string,
@@ -295,32 +335,43 @@ const createNestedFieldRenderer = (
     value: unknown,
     onChange: (value: unknown) => void,
     error?: FieldError,
-    namePrefix?: string
+    namePrefix?: string,
   ): ReactNode => {
-    const componentConfig = config.fieldTypes[fieldDefinition.type];
+    const componentConfiguration =
+      configuration.fieldTypes[fieldDefinition.type];
 
-    if (!componentConfig) {
-      console.warn(`No component registered for field type: ${fieldDefinition.type}`);
-      return <span key={namePrefix}>Unknown field type: {fieldDefinition.type}</span>;
+    if (!componentConfiguration) {
+      console.warn(
+        `No component registered for field type: ${fieldDefinition.type}`,
+      );
+      return (
+        <span key={namePrefix}>Unknown field type: {fieldDefinition.type}</span>
+      );
     }
 
-    const Component = componentConfig.component;
+    const Component = componentConfiguration.component;
 
     // Wrap onChange to handle both native events and direct values
     // Native form elements pass event objects, while some custom components pass values directly
     const wrappedOnChange = (eventOrValue: unknown) => {
       // Check if it's a native DOM event
-      if (eventOrValue && typeof eventOrValue === 'object' && 'target' in eventOrValue) {
-        const event = eventOrValue as React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
+      if (
+        eventOrValue &&
+        typeof eventOrValue === "object" &&
+        "target" in eventOrValue
+      ) {
+        const event = eventOrValue as React.ChangeEvent<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >;
         const target = event.target;
 
         // Handle checkboxes specially
-        if (target.type === 'checkbox') {
+        if (target.type === "checkbox") {
           onChange((target as HTMLInputElement).checked);
         } else {
           // For number inputs, convert to number if appropriate
           const rawValue = target.value;
-          if (fieldDefinition.type === 'number' && rawValue !== '') {
+          if (fieldDefinition.type === "number" && rawValue !== "") {
             onChange(Number(rawValue));
           } else {
             onChange(rawValue);
@@ -335,8 +386,15 @@ const createNestedFieldRenderer = (
     // Nested fields get the same translation resolution as top-level ones
     // (options labels, placeholder, description) - only the label stays
     // suppressed, since in repeater context labels are typically in the header.
-    const { placeholder: resolvedPlaceholder, description: resolvedDescription, options: resolvedOptions } =
-      resolveFieldPresentationData(fieldDefinition, fieldKey, translationConfig);
+    const {
+      placeholder: resolvedPlaceholder,
+      description: resolvedDescription,
+      options: resolvedOptions,
+    } = resolveFieldPresentationData(
+      fieldDefinition,
+      fieldKey,
+      translationConfiguration,
+    );
 
     const fieldProps = {
       name: namePrefix || fieldKey,
@@ -344,15 +402,22 @@ const createNestedFieldRenderer = (
       onChange: wrappedOnChange,
       error,
       ...fieldDefinition,
-      ...(resolvedPlaceholder !== undefined ? { placeholder: resolvedPlaceholder } : {}),
-      ...(resolvedDescription !== undefined ? { description: resolvedDescription } : {}),
+      ...(resolvedPlaceholder !== undefined
+        ? { placeholder: resolvedPlaceholder }
+        : {}),
+      ...(resolvedDescription !== undefined
+        ? { description: resolvedDescription }
+        : {}),
       ...(resolvedOptions ? { options: resolvedOptions } : {}),
       // In repeater context, labels are typically in the header
       label: undefined,
     };
 
     // Filter library props, allowing additional props for this component type
-    const componentProps = filterLibraryProps(fieldProps, componentConfig.additionalProps);
+    const componentProps = filterLibraryProps(
+      fieldProps,
+      componentConfiguration.additionalProps,
+    );
 
     return <Component key={namePrefix} {...componentProps} />;
   };
@@ -362,15 +427,16 @@ const createNestedFieldRenderer = (
  * Server action function type for RenderedForm / useFormDefinition's `serverAction` option.
  */
 export type ServerAction<TFormData extends FieldValues> = (
-  prevState: FormActionResult<TFormData> | null,
-  formData: FormData
+  previousState: FormActionResult<TFormData> | null,
+  formData: FormData,
 ) => Promise<FormActionResult<TFormData>>;
 
 /**
  * A no-op server action used so `useActionState` can be called unconditionally even when no
  * `serverAction` is configured. It is never dispatched in that case.
  */
-const NOOP_SERVER_ACTION: ServerAction<any> = async (prevState) => prevState ?? {};
+const NOOP_SERVER_ACTION: ServerAction<any> = async (previousState) =>
+  previousState ?? {};
 
 /**
  * Form definition hook options
@@ -416,7 +482,7 @@ interface UseFormDefinitionOptions<T extends FormDefinition> {
    * schema know nothing about it.
    *
    * What it enables, each activated by one more thing:
-   * - by itself, with a zero-config `<RenderedForm />`: the fields render grouped, each
+   * - by itself, with a zero-configuration `<RenderedForm />`: the fields render grouped, each
    *   group wrapped in the `Section` component slot (a fragment by default) - structural
    *   grouping on one page.
    * - with `currentSection` on `RenderedForm`: the active section renders its controls
@@ -437,7 +503,16 @@ interface UseFormDefinitionOptions<T extends FormDefinition> {
    * what was rendered is not a boundary the server can rely on.
    */
   sections?: FormSections<T>;
-  config?: Partial<FormConfig>;
+  /**
+   * Per-form configuration overrides (`components`, `translation`, `noValidate`,
+   * `emitHtml5Attributes`, ...), merged over the defaults.
+   */
+  configuration?: Partial<FormConfiguration>;
+  /**
+   * @deprecated Use `configuration` instead. `config` keeps working until the next major
+   * version; when both are given, `configuration` wins.
+   */
+  config?: Partial<FormConfiguration>;
   /**
    * Server action for the form (e.g. a Next.js Server Action).
    *
@@ -507,7 +582,7 @@ export interface RenderedFieldBaseProps<T extends FormDefinition> {
  * ```
  *
  * Extras are still filtered at runtime against the field type's `additionalProps`
- * config; typing `Extras` only adds compile-time checking on top.
+ * configuration; typing `Extras` only adds compile-time checking on top.
  */
 export type RenderedFieldProps<
   T extends FormDefinition,
@@ -533,7 +608,7 @@ export interface RenderedFormProps<TFormData extends FieldValues> {
   /**
    * Whether to show the actions slot (default: true). Ignored when `children` is provided.
    *
-   * @deprecated Configure the slot instead: `config: { components: { Actions: false } }` on
+   * @deprecated Configure the slot instead: `configuration: { components: { Actions: false } }` on
    * the hook (or a custom component there to replace it). One mechanism, per form, already
    * honored by the renderer - this boolean is a redundant second switch and will be removed
    * in the next major.
@@ -566,7 +641,7 @@ export interface RenderedFormProps<TFormData extends FieldValues> {
   children?: ReactNode;
   /**
    * Set `noValidate` on the `<form>`, disabling the browser's built-in HTML5 constraint
-   * validation. Overrides the hook/config `noValidate` for this form.
+   * validation. Overrides the hook/configuration `noValidate` for this form.
    */
   noValidate?: boolean;
   /**
@@ -586,7 +661,7 @@ export interface RenderedFormProps<TFormData extends FieldValues> {
    * Ignored when a server action is configured: React owns the method there (it POSTs to its
    * own action endpoint), and overriding it would break that path.
    */
-  method?: 'get' | 'post';
+  method?: "get" | "post";
   /**
    * The active section, when the form is partitioned (see the `sections` hook option and
    * `RenderedSection`). Controlled by the app - tabs, wizard steps, a router param; the
@@ -690,7 +765,10 @@ export interface UseFormDefinitionReturn<
    * whole-form message; it's also returned here for manual composition. Falls back to the
    * built-in `FormMessage` if not configured; `null` when the slot is set to `false` (opted out).
    */
-  FormMessage: React.ComponentType<{ message: string; status?: FormMessageStatus }> | null;
+  FormMessage: React.ComponentType<{
+    message: string;
+    status?: FormMessageStatus;
+  }> | null;
 
   /**
    * Configured LayoutContainer component for grid layouts
@@ -702,7 +780,10 @@ export interface UseFormDefinitionReturn<
    * Configured LayoutItem component for grid items
    * Returns null if not configured
    */
-  LayoutItem: React.ComponentType<{ children: ReactNode; [key: string]: any }> | null;
+  LayoutItem: React.ComponentType<{
+    children: ReactNode;
+    [key: string]: any;
+  }> | null;
 
   /**
    * Latest result returned by the configured `serverAction`.
@@ -720,7 +801,9 @@ export interface UseFormDefinitionReturn<
    */
   formAction: ((formData: FormData) => void) | null;
 
-  validateData: (formData: FormData) => z.SafeParseReturnType<unknown, unknown>;
+  validateData: (
+    formData: FormData,
+  ) => ReturnType<z.ZodType<unknown>["safeParse"]>;
   generateSchema: () => ReturnType<typeof generateSchema<T>>;
   generateOptions: () => ReturnType<typeof generateOptions<T>>;
 
@@ -732,16 +815,16 @@ export interface UseFormDefinitionReturn<
 // Render context + standalone render helpers
 //
 // `RenderedField` / `RenderedForm` are created once per hook instance (stable component
-// identities) and read everything that changes per render from `ctxRef.current`. This avoids
+// identities) and read everything that changes per render from `contextRef.current`. This avoids
 // recreating those components - and remounting the whole form subtree - every time the parent
-// re-renders (config / translationConfig / translateValidation are fresh objects each render).
+// re-renders (configuration / translationConfiguration / translateValidation are fresh objects each render).
 // ============================================================================
 
 interface RenderContext<T extends FormDefinition> {
   definition: T;
   form: UseFormReturn<any>;
-  config: FormConfig;
-  translationConfig: NormalizedTranslationConfig;
+  configuration: FormConfiguration;
+  translationConfiguration: NormalizedTranslationConfiguration;
   translateValidation: (key: string, options?: Record<string, any>) => string;
   /** The `serverAction` from the hook option (undefined if not provided). */
   serverAction: ServerAction<any> | undefined;
@@ -763,7 +846,7 @@ interface RenderContext<T extends FormDefinition> {
    * mirror), so this is complete after first paint - which is what makes it a valid
    * source for the sections API when no `sections` option was declared, and the
    * declared-vs-rendered drift check in development. Lives on a ref so parent
-   * re-renders (which rebuild this ctx object) cannot wipe it.
+   * re-renders (which rebuild this context object) cannot wipe it.
    */
   sectionRegistry: Map<string, string>;
   /** Section names seen during the current render pass - for the unmatched-`currentSection` warning. */
@@ -775,7 +858,10 @@ interface RenderContext<T extends FormDefinition> {
  * active one. `null` outside any `RenderedSection`. Module-level: the value is scoped by
  * the provider, so hook instances cannot leak into one another.
  */
-const SectionContext = React.createContext<{ name: string; active: boolean } | null>(null);
+const SectionContext = React.createContext<{
+  name: string;
+  active: boolean;
+} | null>(null);
 
 /**
  * The `label` handed to the `Section` component slot: the section name resolved through
@@ -784,13 +870,13 @@ const SectionContext = React.createContext<{ name: string; active: boolean } | n
  */
 const resolveSectionLabel = (
   name: string,
-  translationConfig: NormalizedTranslationConfig
+  translationConfiguration: NormalizedTranslationConfiguration,
 ): string =>
   resolveTranslatableValue(
     undefined,
     name,
-    translationConfig.sections,
-    translationConfig.function
+    translationConfiguration.sections,
+    translationConfiguration.function,
   ) ?? name;
 
 /**
@@ -806,20 +892,20 @@ const resolveSectionLabel = (
  * being the case that matters.
  */
 const FieldMirror = <T extends FormDefinition>({
-  ctx,
+  context,
   definitionKey,
 }: {
-  ctx: RenderContext<T>;
+  context: RenderContext<T>;
   definitionKey: keyof T;
 }) => {
-  const field = ctx.definition[definitionKey as string];
+  const field = context.definition[definitionKey as string];
   if (!field) return null;
   const fieldName = getFieldName(String(definitionKey), field);
 
   return (
     <Controller
       name={fieldName as any}
-      control={ctx.form.control}
+      control={context.form.control}
       render={({ field: controllerField }) => {
         const wire = mirrorWireValues(field.type, controllerField.value);
         if (wire === null) return <></>;
@@ -848,13 +934,19 @@ const FieldMirror = <T extends FormDefinition>({
  * `type: 'server'` error via `form.setError`), which then owns/clears it.
  */
 const renderField = <T extends FormDefinition>(
-  ctx: RenderContext<T>,
+  context: RenderContext<T>,
   definitionKey: keyof T,
   runtimeOverrides: Record<string, any> = {},
   customRender?: (field: T[keyof T]) => ReactNode,
-  serverErrors?: Record<string, string | string[]>
+  serverErrors?: Record<string, string | string[]>,
 ): ReactNode => {
-  const { definition, form, config, translationConfig, translateValidation } = ctx;
+  const {
+    definition,
+    form,
+    configuration,
+    translationConfiguration,
+    translateValidation,
+  } = context;
 
   // FormDefinition keys are always strings, but TypeScript doesn't narrow keyof T
   const key = definitionKey as string;
@@ -869,7 +961,9 @@ const renderField = <T extends FormDefinition>(
   // Opt-in native HTML5 validation attributes derived from the field's validation rules.
   // Undefined (and thus a no-op merge) unless `emitHtml5Attributes` is enabled, so the
   // flag-off render output is unchanged.
-  const html5Attrs = config.emitHtml5Attributes ? deriveHtml5Attributes(field) : undefined;
+  const html5Attributes = configuration.emitHtml5Attributes
+    ? deriveHtml5Attributes(field)
+    : undefined;
 
   // If custom render function is provided, use it
   if (customRender) {
@@ -878,22 +972,26 @@ const renderField = <T extends FormDefinition>(
 
   // If no form control is provided, render static field
   if (!form?.control) {
-    const componentConfig = config.fieldTypes[field.type];
-    if (!componentConfig) {
+    const componentConfiguration = configuration.fieldTypes[field.type];
+    if (!componentConfiguration) {
       return <div>Component not found for field type: {field.type}</div>;
     }
 
-    const Component = componentConfig.component;
-    const FieldWrapper = config.components.Field || Field;
+    const Component = componentConfiguration.component;
+    const FieldWrapper = configuration.components.Field || Field;
 
-    const shouldIgnoreWrapper = componentConfig.ignoreFieldWrapper;
+    const shouldIgnoreWrapper = componentConfiguration.ignoreFieldWrapper;
 
-    const { label: fieldLabel, placeholder: fieldPlaceholder, description: fieldDescription, options: resolvedOptions } =
-      resolveFieldPresentationData(field, key, translationConfig);
+    const {
+      label: fieldLabel,
+      placeholder: fieldPlaceholder,
+      description: fieldDescription,
+      options: resolvedOptions,
+    } = resolveFieldPresentationData(field, key, translationConfiguration);
 
     const fieldProps = {
       ...field,
-      ...(html5Attrs ?? {}),
+      ...(html5Attributes ?? {}),
       name: fieldName,
       label: fieldLabel,
       placeholder: fieldPlaceholder,
@@ -902,18 +1000,42 @@ const renderField = <T extends FormDefinition>(
       ...runtimeOverrides,
     };
 
-    const componentProps = filterLibraryProps(fieldProps, componentConfig.additionalProps);
+    const componentProps = filterLibraryProps(
+      fieldProps,
+      componentConfiguration.additionalProps,
+    );
 
-    if (!shouldIgnoreWrapper && !config.components.Field) {
-      injectDescriptionDescribedBy(componentProps, fieldProps, fieldName, undefined);
+    if (!shouldIgnoreWrapper && !configuration.components.Field) {
+      injectDescriptionDescribedBy(
+        componentProps,
+        fieldProps,
+        fieldName,
+        undefined,
+      );
     }
 
-    if (componentConfig.injectFormConfig) {
-      componentProps.__formConfig = config;
-      componentProps.__renderNestedField = createNestedFieldRenderer(config, translateValidation, translationConfig);
+    if (
+      componentConfiguration.injectFormConfiguration ??
+      componentConfiguration.injectFormConfig
+    ) {
+      componentProps.__formConfiguration = configuration;
+      // The deprecated name, read by components copied before the rename.
+      componentProps.__formConfig = configuration;
+      componentProps.__renderNestedField = createNestedFieldRenderer(
+        configuration,
+        translateValidation,
+        translationConfiguration,
+      );
       componentProps.__getDefaultValueForField = getDefaultValueForField;
-      componentProps.__resolveFieldLabel = (fieldKey: string, fieldDefinition: FormFieldDefinition) =>
-        resolveFieldPresentationData(fieldDefinition, fieldKey, translationConfig).label;
+      componentProps.__resolveFieldLabel = (
+        fieldKey: string,
+        fieldDefinition: FormFieldDefinition,
+      ) =>
+        resolveFieldPresentationData(
+          fieldDefinition,
+          fieldKey,
+          translationConfiguration,
+        ).label;
     }
 
     if (shouldIgnoreWrapper) {
@@ -934,15 +1056,15 @@ const renderField = <T extends FormDefinition>(
       name={fieldName as any}
       control={form.control}
       render={({ field: controllerField, fieldState }) => {
-        const componentConfig = config.fieldTypes[field.type];
-        if (!componentConfig) {
+        const componentConfiguration = configuration.fieldTypes[field.type];
+        if (!componentConfiguration) {
           return <div>Component not found for field type: {field.type}</div>;
         }
 
-        const Component = componentConfig.component;
-        const FieldWrapper = config.components.Field || Field;
+        const Component = componentConfiguration.component;
+        const FieldWrapper = configuration.components.Field || Field;
 
-        const shouldIgnoreWrapper = componentConfig.ignoreFieldWrapper;
+        const shouldIgnoreWrapper = componentConfiguration.ignoreFieldWrapper;
 
         // Resolve the error to display:
         // - react-hook-form client errors carry JSON-encoded messages → parse + translate
@@ -954,21 +1076,34 @@ const renderField = <T extends FormDefinition>(
         //   contain a display-ready string → show verbatim (don't re-translate)
         // - if there's no RHF error yet, fall back to the raw server error map (this is the
         //   path that runs during SSR / without JS, before the setError effect can run)
-        const { label: fieldLabel, placeholder: fieldPlaceholder, description: fieldDescription, options: resolvedOptions } =
-          resolveFieldPresentationData(field, key, translationConfig);
+        const {
+          label: fieldLabel,
+          placeholder: fieldPlaceholder,
+          description: fieldDescription,
+          options: resolvedOptions,
+        } = resolveFieldPresentationData(field, key, translationConfiguration);
 
         // Every message translation learns which field it is for, see `messageScopeFor`.
-        const messageScope = messageScopeFor(translateValidation, translationConfig, key, field, fieldLabel);
+        const messageScope = messageScopeFor(
+          translateValidation,
+          translationConfiguration,
+          key,
+          field,
+          fieldLabel,
+        );
 
         let displayError: FieldError | undefined;
         if (fieldState.error) {
-          displayError = translateErrorNode(fieldState.error, messageScope) as FieldError;
+          displayError = translateErrorNode(
+            fieldState.error,
+            messageScope,
+          ) as FieldError;
         } else {
           const raw = serverErrors?.[key] ?? serverErrors?.[fieldName];
           if (raw) {
             displayError = {
-              type: 'server',
-              message: Array.isArray(raw) ? raw.join(', ') : raw,
+              type: "server",
+              message: Array.isArray(raw) ? raw.join(", ") : raw,
             } as FieldError;
           }
         }
@@ -976,7 +1111,7 @@ const renderField = <T extends FormDefinition>(
         const fieldProps = {
           ...field,
           ...controllerField,
-          ...(html5Attrs ?? {}),
+          ...(html5Attributes ?? {}),
           label: fieldLabel,
           placeholder: fieldPlaceholder,
           description: fieldDescription,
@@ -985,18 +1120,44 @@ const renderField = <T extends FormDefinition>(
           ...runtimeOverrides,
         };
 
-        const componentProps = filterLibraryProps(fieldProps, componentConfig.additionalProps);
+        const componentProps = filterLibraryProps(
+          fieldProps,
+          componentConfiguration.additionalProps,
+        );
 
-        if (!shouldIgnoreWrapper && !config.components.Field) {
-          injectDescriptionDescribedBy(componentProps, fieldProps, fieldName, displayError);
+        if (!shouldIgnoreWrapper && !configuration.components.Field) {
+          injectDescriptionDescribedBy(
+            componentProps,
+            fieldProps,
+            fieldName,
+            displayError,
+          );
         }
 
-        if (componentConfig.injectFormConfig) {
-          componentProps.__formConfig = config;
-          componentProps.__renderNestedField = createNestedFieldRenderer(config, translateValidation, translationConfig);
+        if (
+          componentConfiguration.injectFormConfiguration ??
+          componentConfiguration.injectFormConfig
+        ) {
+          componentProps.__formConfiguration = configuration;
+          // The deprecated name, read by components copied before the rename.
+          componentProps.__formConfig = configuration;
+          // The deprecated name, read by components copied before the rename.
+          componentProps.__formConfig = configuration;
+          componentProps.__renderNestedField = createNestedFieldRenderer(
+            configuration,
+            translateValidation,
+            translationConfiguration,
+          );
           componentProps.__getDefaultValueForField = getDefaultValueForField;
-          componentProps.__resolveFieldLabel = (fieldKey: string, fieldDefinition: FormFieldDefinition) =>
-            resolveFieldPresentationData(fieldDefinition, fieldKey, translationConfig).label;
+          componentProps.__resolveFieldLabel = (
+            fieldKey: string,
+            fieldDefinition: FormFieldDefinition,
+          ) =>
+            resolveFieldPresentationData(
+              fieldDefinition,
+              fieldKey,
+              translationConfiguration,
+            ).label;
         }
 
         if (shouldIgnoreWrapper) {
@@ -1017,8 +1178,8 @@ const renderField = <T extends FormDefinition>(
 // - `Actions: false` is an explicit opt-out - no actions rendered at all.
 // - `Actions: <Component>` (truthy) renders the registered component.
 // - `Actions: undefined` (not configured) renders a default <button type="submit">.
-const renderActions = (config: FormConfig): ReactNode => {
-  const Actions = config.components.Actions;
+const renderActions = (configuration: FormConfiguration): ReactNode => {
+  const Actions = configuration.components.Actions;
   if (Actions === false) return null;
   return Actions ? <Actions /> : <button type="submit">Submit</button>;
 };
@@ -1039,7 +1200,7 @@ const renderActions = (config: FormConfig): ReactNode => {
  * re-rendering the whole field grid.
  */
 interface FormMessageSlotProps {
-  config: FormConfig;
+  configuration: FormConfiguration;
   control: Control<any>;
   /** Whole-form message from a server-action envelope, if any. */
   envelopeMessage?: string;
@@ -1054,7 +1215,7 @@ interface FormMessageSlotProps {
 }
 
 const FormMessageSlot: React.FC<FormMessageSlotProps> = ({
-  config,
+  configuration,
   control,
   localMessage,
   envelopeMessage,
@@ -1078,7 +1239,7 @@ const FormMessageSlot: React.FC<FormMessageSlotProps> = ({
 
   if (!message) return null;
 
-  const Component = config.components.FormMessage;
+  const Component = configuration.components.FormMessage;
   if (Component === false) return null;
 
   const FormMessageComponent = Component || FormMessage;
@@ -1087,18 +1248,24 @@ const FormMessageSlot: React.FC<FormMessageSlotProps> = ({
 
 // Helper to render all fields with layout
 const renderAllFields = <T extends FormDefinition>(
-  ctx: RenderContext<T>,
+  context: RenderContext<T>,
   showActions: boolean,
-  serverErrors?: Record<string, string | string[]>
+  serverErrors?: Record<string, string | string[]>,
 ): ReactNode => {
-  const LayoutContainer = ctx.config.components.LayoutContainer;
-  const LayoutItem = ctx.config.components.LayoutItem;
+  const LayoutContainer = context.configuration.components.LayoutContainer;
+  const LayoutItem = context.configuration.components.LayoutItem;
 
-  const fields = Object.keys(ctx.definition).map((key) => {
-    const field = ctx.definition[key];
+  const fields = Object.keys(context.definition).map((key) => {
+    const field = context.definition[key];
     const layoutProps = field.layout || {};
 
-    const fieldElement = renderField(ctx, key as keyof T, {}, undefined, serverErrors);
+    const fieldElement = renderField(
+      context,
+      key as keyof T,
+      {},
+      undefined,
+      serverErrors,
+    );
 
     if (!LayoutItem) {
       return fieldElement;
@@ -1112,14 +1279,10 @@ const renderAllFields = <T extends FormDefinition>(
   });
 
   if (showActions) {
-    const actionsElement = renderActions(ctx.config);
+    const actionsElement = renderActions(context.configuration);
     if (actionsElement !== null) {
       if (LayoutItem) {
-        fields.push(
-          <LayoutItem key="actions">
-            {actionsElement}
-          </LayoutItem>
-        );
+        fields.push(<LayoutItem key="actions">{actionsElement}</LayoutItem>);
       } else {
         fields.push(actionsElement);
       }
@@ -1134,7 +1297,7 @@ const renderAllFields = <T extends FormDefinition>(
 };
 
 /**
- * Zero-config rendering for a form with a declared `sections` partition - what
+ * Zero-configuration rendering for a form with a declared `sections` partition - what
  * `<RenderedForm />` renders instead of the flat `renderAllFields` grid when the hook
  * received `sections`.
  *
@@ -1142,24 +1305,30 @@ const renderAllFields = <T extends FormDefinition>(
  * (fragment by default), the *active* section's fields in their own `LayoutContainer`
  * (per-section, so each section is its own grid), and every *inactive* section's fields
  * as value mirrors. Fields listed in no section render after the sections, always as
- * controls, in definition order - the safe default for chrome fields - followed by the
- * actions. Without a `currentSection` every section is active: purely structural
- * grouping on one page.
+ * controls, in definition order - the safe default for fields every section shares -
+ * followed by the actions. Without a `currentSection` every section is active: purely
+ * structural grouping on one page.
  */
 const renderSectionedFields = <T extends FormDefinition>(
-  ctx: RenderContext<T>,
+  context: RenderContext<T>,
   sections: FormSections,
   showActions: boolean,
-  serverErrors?: Record<string, string | string[]>
+  serverErrors?: Record<string, string | string[]>,
 ): ReactNode => {
-  const LayoutContainer = ctx.config.components.LayoutContainer;
-  const LayoutItem = ctx.config.components.LayoutItem;
-  const SectionSlot = ctx.config.components.Section;
+  const LayoutContainer = context.configuration.components.LayoutContainer;
+  const LayoutItem = context.configuration.components.LayoutItem;
+  const SectionSlot = context.configuration.components.Section;
 
   const renderFieldWithLayout = (key: string) => {
-    const field = ctx.definition[key];
+    const field = context.definition[key];
     if (!field) return null;
-    const fieldElement = renderField(ctx, key as keyof T, {}, undefined, serverErrors);
+    const fieldElement = renderField(
+      context,
+      key as keyof T,
+      {},
+      undefined,
+      serverErrors,
+    );
     if (!LayoutItem) return fieldElement;
     return (
       <LayoutItem key={key} {...(field.layout || {})}>
@@ -1171,30 +1340,37 @@ const renderSectionedFields = <T extends FormDefinition>(
   const sectionElements = Object.entries(sections).map(([name, fieldKeys]) => {
     // The declared map is membership's source of truth here; feeding the registry keeps
     // the sections API and the drift check working identically in both rendering modes.
-    for (const key of fieldKeys) ctx.sectionRegistry.set(key, name);
+    for (const key of fieldKeys) context.sectionRegistry.set(key, name);
 
-    const active = isSectionActive(ctx.currentSection, name);
+    const active = isSectionActive(context.currentSection, name);
 
     const inner = active ? (
       LayoutContainer ? (
-        <LayoutContainer>{fieldKeys.map(renderFieldWithLayout)}</LayoutContainer>
+        <LayoutContainer>
+          {fieldKeys.map(renderFieldWithLayout)}
+        </LayoutContainer>
       ) : (
         <>{fieldKeys.map(renderFieldWithLayout)}</>
       )
     ) : (
       <>
         {fieldKeys.map((key) => (
-          <FieldMirror key={key} ctx={ctx} definitionKey={key as keyof T} />
+          <FieldMirror
+            key={key}
+            context={context}
+            definitionKey={key as keyof T}
+          />
         ))}
       </>
     );
 
-    if (!SectionSlot) return <React.Fragment key={name}>{inner}</React.Fragment>;
+    if (!SectionSlot)
+      return <React.Fragment key={name}>{inner}</React.Fragment>;
     return (
       <SectionSlot
         key={name}
         name={name}
-        label={resolveSectionLabel(name, ctx.translationConfig)}
+        label={resolveSectionLabel(name, context.translationConfiguration)}
         active={active}
       >
         {inner}
@@ -1203,7 +1379,9 @@ const renderSectionedFields = <T extends FormDefinition>(
   });
 
   const sectionedKeys = new Set(Object.values(sections).flat());
-  const unlisted = Object.keys(ctx.definition).filter((key) => !sectionedKeys.has(key));
+  const unlisted = Object.keys(context.definition).filter(
+    (key) => !sectionedKeys.has(key),
+  );
   const unlistedElements =
     unlisted.length === 0 ? null : LayoutContainer ? (
       <LayoutContainer>{unlisted.map(renderFieldWithLayout)}</LayoutContainer>
@@ -1211,7 +1389,9 @@ const renderSectionedFields = <T extends FormDefinition>(
       <>{unlisted.map(renderFieldWithLayout)}</>
     );
 
-  const actionsElement = showActions ? renderActions(ctx.config) : null;
+  const actionsElement = showActions
+    ? renderActions(context.configuration)
+    : null;
 
   return (
     <>
@@ -1223,7 +1403,7 @@ const renderSectionedFields = <T extends FormDefinition>(
 };
 
 const createRenderedField = <T extends FormDefinition>(
-  ctxRef: React.MutableRefObject<RenderContext<T>>
+  contextRef: React.MutableRefObject<RenderContext<T>>,
 ): React.FC<RenderedFieldProps<T>> => {
   const Component: React.FC<RenderedFieldProps<T>> = ({
     name,
@@ -1244,53 +1424,61 @@ const createRenderedField = <T extends FormDefinition>(
     if (disabled !== undefined) runtimeOverrides.disabled = disabled;
     if (runtimeOptions !== undefined) runtimeOverrides.options = runtimeOptions;
     if (runtimeLabel !== undefined) runtimeOverrides.label = runtimeLabel;
-    if (runtimePlaceholder !== undefined) runtimeOverrides.placeholder = runtimePlaceholder;
-    if (runtimeDescription !== undefined) runtimeOverrides.description = runtimeDescription;
+    if (runtimePlaceholder !== undefined)
+      runtimeOverrides.placeholder = runtimePlaceholder;
+    if (runtimeDescription !== undefined)
+      runtimeOverrides.description = runtimeDescription;
     if (className !== undefined) runtimeOverrides.className = className;
     if (style !== undefined) runtimeOverrides.style = style;
 
     // Derive the same server-error map `renderAllFields` passes down, so a field placed by hand
     // in a custom `RenderedForm` layout still shows server-action errors on SSR / no-JS (before
     // the client setError effect runs). No-op without a server action or a successful result.
-    const ctx = ctxRef.current;
+    const context = contextRef.current;
 
     // Inside a `RenderedSection`: record membership (idempotent - re-writing the same
     // pair on every render is a no-op, which is what makes a write during render
     // tolerable here), and render as a value mirror when the section is inactive.
     const section = React.useContext(SectionContext);
     if (section) {
-      ctx.sectionRegistry.set(String(name), section.name);
+      context.sectionRegistry.set(String(name), section.name);
       if (!section.active) {
-        return <FieldMirror ctx={ctx} definitionKey={name} />;
+        return <FieldMirror context={context} definitionKey={name} />;
       }
     }
 
-    const hasServerAction = !!ctx.formAction;
+    const hasServerAction = !!context.formAction;
     const serverErrors =
-      hasServerAction && ctx.actionState && ctx.actionState.success === false
-        ? ctx.actionState.errors
+      hasServerAction &&
+      context.actionState &&
+      context.actionState.success === false
+        ? context.actionState.errors
         : undefined;
 
-    return <>{renderField(ctx, name, runtimeOverrides, render, serverErrors)}</>;
+    return (
+      <>{renderField(context, name, runtimeOverrides, render, serverErrors)}</>
+    );
   };
-  Component.displayName = 'RenderedField';
+  Component.displayName = "RenderedField";
   return Component;
 };
 
 /** Whether a section is the active one under the current `currentSection` value. */
-const isSectionActive = (currentSection: string | undefined, name: string): boolean =>
-  currentSection === undefined || currentSection === name;
+const isSectionActive = (
+  currentSection: string | undefined,
+  name: string,
+): boolean => currentSection === undefined || currentSection === name;
 
 const createRenderedSection = <T extends FormDefinition>(
-  ctxRef: React.MutableRefObject<RenderContext<T>>
+  contextRef: React.MutableRefObject<RenderContext<T>>,
 ): React.FC<{ name: string; children?: ReactNode }> => {
   const Component: React.FC<{ name: string; children?: ReactNode }> = ({
     name,
     children,
   }) => {
-    const ctx = ctxRef.current;
-    ctx.seenSectionNames.add(name);
-    const active = isSectionActive(ctx.currentSection, name);
+    const context = contextRef.current;
+    context.seenSectionNames.add(name);
+    const active = isSectionActive(context.currentSection, name);
 
     const body = (
       <SectionContext.Provider value={{ name, active }}>
@@ -1298,19 +1486,19 @@ const createRenderedSection = <T extends FormDefinition>(
       </SectionContext.Provider>
     );
 
-    const SectionSlot = ctx.config.components.Section;
+    const SectionSlot = context.configuration.components.Section;
     if (!SectionSlot) return body;
     return (
       <SectionSlot
         name={name}
-        label={resolveSectionLabel(name, ctx.translationConfig)}
+        label={resolveSectionLabel(name, context.translationConfiguration)}
         active={active}
       >
         {body}
       </SectionSlot>
     );
   };
-  Component.displayName = 'RenderedSection';
+  Component.displayName = "RenderedSection";
   return Component;
 };
 
@@ -1329,7 +1517,7 @@ declare const process: { env: { NODE_ENV?: string } };
 
 function isDevelopment(): boolean {
   try {
-    return process.env.NODE_ENV !== 'production';
+    return process.env.NODE_ENV !== "production";
   } catch {
     return false;
   }
@@ -1346,31 +1534,36 @@ function isDevelopment(): boolean {
 function unregisteredKinds(
   definition: FormDefinition,
   fieldTypes: Record<string, unknown>,
-  prefix = ''
+  prefix = "",
 ): Array<{ path: string; type: string }> {
   const missing: Array<{ path: string; type: string }> = [];
   for (const [key, field] of Object.entries(definition)) {
     const path = `${prefix}${key}`;
     if (!fieldTypes[field.type]) missing.push({ path, type: field.type });
-    if (field.fields) missing.push(...unregisteredKinds(field.fields, fieldTypes, `${path}.`));
+    if (field.fields)
+      missing.push(...unregisteredKinds(field.fields, fieldTypes, `${path}.`));
   }
   return missing;
 }
 
-function describeUnregisteredKinds(missing: Array<{ path: string; type: string }>): string {
-  const list = missing.map(({ path, type }) => `\`${path}\` (kind \`${type}\`)`).join(', ');
+function describeUnregisteredKinds(
+  missing: Array<{ path: string; type: string }>,
+): string {
+  const list = missing
+    .map(({ path, type }) => `\`${path}\` (kind \`${type}\`)`)
+    .join(", ");
   return (
-    `[use-form-definition] no component is registered for field${missing.length === 1 ? '' : 's'} ` +
+    `[use-form-definition] no component is registered for field${missing.length === 1 ? "" : "s"} ` +
     `${list}. A field without a component renders nothing where it is active, so its value ` +
-    'never posts and every save keeps the stored one. Register a component for the kind ' +
-    'under `components` in `createFormDefinitionHook` (or `config.fieldTypes` on the hook ' +
-    'call), or remove the field from the definition.'
+    "never posts and every save keeps the stored one. Register a component for the kind " +
+    "under `components` in `createFormDefinitionHook` (or `configuration.fieldTypes` on the hook " +
+    "call), or remove the field from the definition."
   );
 }
 
 /**
  * Declared fields holding a value in the model that the post does not carry. The DOM is
- * the payload (D5), so a control that renders no named native element, or a custom kind
+ * the payload, so a control that renders no named native element, or a custom kind
  * with no mirror, posts nothing while the model says otherwise - and the server, seeing
  * absence, keeps the stored value. An empty model value is not a loss: the browser posts
  * nothing for an unchecked checkbox or an unselected radio group, and the server parses
@@ -1379,7 +1572,7 @@ function describeUnregisteredKinds(missing: Array<{ path: string; type: string }
 function declaredFieldsMissingFromPost(
   definition: FormDefinition,
   formData: FormData,
-  values: Record<string, unknown>
+  values: Record<string, unknown>,
 ): string[] {
   const missing: string[] = [];
   for (const [key, field] of Object.entries(definition)) {
@@ -1389,7 +1582,7 @@ function declaredFieldsMissingFromPost(
     const empty =
       value === undefined ||
       value === null ||
-      value === '' ||
+      value === "" ||
       value === false ||
       (Array.isArray(value) && value.length === 0);
     if (!empty) missing.push(name);
@@ -1398,13 +1591,13 @@ function declaredFieldsMissingFromPost(
 }
 
 function describeMissingFromPost(missing: string[]): string {
-  const list = missing.map((name) => `\`${name}\``).join(', ');
+  const list = missing.map((name) => `\`${name}\``).join(", ");
   return (
-    `[use-form-definition] the post carries no entry for field${missing.length === 1 ? '' : 's'} ` +
-    `${list}, but the form holds a value for ${missing.length === 1 ? 'it' : 'each'}. The DOM ` +
-    'is the payload: a control must render a named native form element carrying its value ' +
-    '(or the kind must declare a `mirror` via `registerFieldType`) for the value to reach ' +
-    'the server. As it stands, every save keeps the stored value.'
+    `[use-form-definition] the post carries no entry for field${missing.length === 1 ? "" : "s"} ` +
+    `${list}, but the form holds a value for ${missing.length === 1 ? "it" : "each"}. The DOM ` +
+    "is the payload: a control must render a named native form element carrying its value " +
+    "(or the kind must declare a `mirror` via `registerFieldType`) for the value to reach " +
+    "the server. As it stands, every save keeps the stored value."
   );
 }
 
@@ -1442,9 +1635,11 @@ function describeMissingFromPost(missing: string[]): string {
 function hasNoVisibleError<T extends FormDefinition>(
   definition: T,
   formElement: HTMLFormElement,
-  form: UseFormReturn<any>
+  form: UseFormReturn<any>,
 ): boolean {
-  const parsed = generateSchemaFromBuilder(definition).safeParse(form.getValues());
+  const parsed = generateSchemaFromBuilder(definition).safeParse(
+    form.getValues(),
+  );
   if (parsed.success) return false;
 
   const rendered = new Set(
@@ -1454,16 +1649,20 @@ function hasNoVisibleError<T extends FormDefinition>(
       // the notice while rendering nowhere. The marker is what distinguishes a mirror
       // from a legitimate hidden transport input (the repeater's, e.g.), which does
       // represent a visible control.
-      .filter(element => !(element as HTMLElement).hasAttribute('data-ufd-mirror'))
-      .map(element => (element as HTMLInputElement).name)
-      .filter(name => name && !name.startsWith('$'))
+      .filter(
+        (element) => !(element as HTMLElement).hasAttribute("data-ufd-mirror"),
+      )
+      .map((element) => (element as HTMLInputElement).name)
+      .filter((name) => name && !name.startsWith("$")),
   );
 
-  return !parsed.error.issues.some(issue => rendered.has(String(issue.path[0] ?? '')));
+  return !parsed.error.issues.some((issue) =>
+    rendered.has(String(issue.path[0] ?? "")),
+  );
 }
 
 const createRenderedForm = <T extends FormDefinition>(
-  ctxRef: React.MutableRefObject<RenderContext<T>>
+  contextRef: React.MutableRefObject<RenderContext<T>>,
 ): React.FC<RenderedFormProps<any>> => {
   const Component: React.FC<RenderedFormProps<any>> = ({
     onSubmit,
@@ -1478,14 +1677,14 @@ const createRenderedForm = <T extends FormDefinition>(
     className,
     style,
   }) => {
-    const ctx = ctxRef.current;
-    const { form } = ctx;
+    const context = contextRef.current;
+    const { form } = context;
 
-    // Publish the active section for `RenderedSection`s (and the zero-config renderer)
+    // Publish the active section for `RenderedSection`s (and the zero-configuration renderer)
     // to read - children execute after this body even though their elements were
     // constructed before it. The seen-set is per render pass, so clear it here.
-    ctx.currentSection = currentSection;
-    ctx.seenSectionNames.clear();
+    context.currentSection = currentSection;
+    context.seenSectionNames.clear();
 
     // Development diagnostics for the partition. Effects run after the children have
     // rendered, so both the seen-set and the registry are populated for this pass.
@@ -1498,33 +1697,33 @@ const createRenderedForm = <T extends FormDefinition>(
       // typo renders a form with no visible fields, so say so.
       if (currentSection !== undefined) {
         const known = new Set([
-          ...ctx.seenSectionNames,
-          ...(ctx.sections ? Object.keys(ctx.sections) : []),
+          ...context.seenSectionNames,
+          ...(context.sections ? Object.keys(context.sections) : []),
         ]);
         const key = `unmatched:${currentSection}`;
         if (known.size > 0 && !known.has(currentSection) && !warned.has(key)) {
           warned.add(key);
           console.warn(
             `[use-form-definition] currentSection="${currentSection}" matches no section ` +
-              `(known: ${[...known].join(', ')}). Every section is rendering as value ` +
-              'mirrors, so the form shows no fields.'
+              `(known: ${[...known].join(", ")}). Every section is rendering as value ` +
+              "mirrors, so the form shows no fields.",
           );
         }
       }
 
       // Declared map + JSX sections together: warn when they disagree about a field.
-      if (ctx.sections) {
-        for (const [fieldKey, observed] of ctx.sectionRegistry) {
-          const declared = sectionOf(ctx.sections, fieldKey);
+      if (context.sections) {
+        for (const [fieldKey, observed] of context.sectionRegistry) {
+          const declared = sectionOf(context.sections, fieldKey);
           const key = `drift:${fieldKey}`;
           if (declared !== observed && !warned.has(key)) {
             warned.add(key);
             console.warn(
               `[use-form-definition] field \`${fieldKey}\` rendered in section ` +
                 `"${observed}" but the \`sections\` option declares it ${
-                  declared ? `in "${declared}"` : 'in no section'
+                  declared ? `in "${declared}"` : "in no section"
                 }. The declared map drives the sections API; the JSX drives rendering - ` +
-                'they should agree.'
+                "they should agree.",
             );
           }
         }
@@ -1535,27 +1734,30 @@ const createRenderedForm = <T extends FormDefinition>(
     // and re-populates fields on no-JS error round-trips) or passed here as a prop (back-compat).
     // We always call useActionState once so hooks stay unconditional; when the hook option is
     // in play, this local instance is inert (never dispatched).
-    const [propActionState, propFormAction, propIsPending] = useActionState(
+    const [propActionState, propFormAction] = useActionState(
       serverActionProp ?? NOOP_SERVER_ACTION,
-      null
+      null,
     );
-    const usingHookAction = !!ctx.serverAction;
+    const usingHookAction = !!context.serverAction;
     const usingPropAction = !usingHookAction && !!serverActionProp;
-    const actionState = usingHookAction ? ctx.actionState : usingPropAction ? propActionState : null;
-    const formAction = usingHookAction ? ctx.formAction : usingPropAction ? propFormAction : null;
+    const actionState = usingHookAction
+      ? context.actionState
+      : usingPropAction
+        ? propActionState
+        : null;
+    const formAction = usingHookAction
+      ? context.formAction
+      : usingPropAction
+        ? propFormAction
+        : null;
     const hasServerAction = !!formAction;
 
     // Push server validation errors onto react-hook-form (so it owns + clears them on the
     // client) and fire success/error callbacks. Effects don't run during SSR / without JS -
     // there, errors are rendered straight from `actionState` (see `serverErrors` below).
-    // The off-screen-errors notice is ufd's OWN message, held in local state rather than
-    // pushed into react-hook-form as a `root` error. It was a root error first, and that was
-    // wrong twice over: `formState` is a read-subscribed proxy, so the handler could not
-    // reliably tell whether its own notice was still standing; and - found in a browser, not
-    // in review - a lingering root error combined with a router navigation left the next
-    // submit dead, the handler never firing at all. Neither happened alone. It is also
-    // simply the more honest model: this is not a validation error on a field, it is the
-    // form telling the user where to look.
+    // The off-screen-errors notice is the library's own message, held in local state rather
+    // than pushed into react-hook-form as a `root` error: it is not a validation error on a
+    // field, it is the form telling the user where to look.
     const [offscreenNotice, setOffscreenNotice] = useState<string | null>(null);
     const lastSeenStateRef = useRef<FormActionResult<any> | null>(null);
     useEffect(() => {
@@ -1563,12 +1765,16 @@ const createRenderedForm = <T extends FormDefinition>(
       lastSeenStateRef.current = actionState;
 
       if (actionState.success === false && actionState.errors) {
-        Object.entries(actionState.errors).forEach(([errKey, value]) => {
-          const errField = (ctx.definition as Record<string, FormFieldDefinition>)[errKey];
-          const errName = errField ? getFieldName(errKey, errField) : errKey;
-          form.setError(errName as any, {
-            type: 'server',
-            message: Array.isArray(value) ? value.join(', ') : value,
+        Object.entries(actionState.errors).forEach(([errorKey, value]) => {
+          const errorField = (
+            context.definition as Record<string, FormFieldDefinition>
+          )[errorKey];
+          const errorName = errorField
+            ? getFieldName(errorKey, errorField)
+            : errorKey;
+          form.setError(errorName as any, {
+            type: "server",
+            message: Array.isArray(value) ? value.join(", ") : value,
           });
         });
       }
@@ -1584,17 +1790,19 @@ const createRenderedForm = <T extends FormDefinition>(
     // effect pushes into RHF, so once RHF holds it (as a `type: 'server'` error) the Controller
     // shows that copy - and RHF clears it when the user fixes the field.
     const serverErrors =
-      hasServerAction && actionState && actionState.success === false ? actionState.errors : undefined;
+      hasServerAction && actionState && actionState.success === false
+        ? actionState.errors
+        : undefined;
 
     // Client-side submit handler (no server action). Validation runs even without an
     // `onSubmit`, so submitting still marks the fields and shows their errors instead
     // of silently doing nothing.
-    const handleClientSubmit = (e: FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
+    const handleClientSubmit = (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
       // Same capture as the server path: `currentTarget` reads back as null once the event
       // finishes dispatching, and handleSubmit's callbacks run after an async validation
       // pass.
-      const formElement = e.currentTarget;
+      const formElement = event.currentTarget;
       form.handleSubmit(
         async (data) => {
           setOffscreenNotice(null);
@@ -1605,12 +1813,12 @@ const createRenderedForm = <T extends FormDefinition>(
         // never registered at all), leaving the user with nothing to look at.
         () => {
           setOffscreenNotice(
-            hasNoVisibleError(ctx.definition, formElement, form)
-              ? ctx.translateValidation('errorsNotVisible')
-              : null
+            hasNoVisibleError(context.definition, formElement, form)
+              ? context.translateValidation("errorsNotVisible")
+              : null,
           );
-        }
-      )(e);
+        },
+      )(event);
     };
 
     // Server-action submit handler (used with JS). We keep `action={formAction}` on the form so
@@ -1623,34 +1831,37 @@ const createRenderedForm = <T extends FormDefinition>(
     // avoids that. The client-validation gate is a plain `await form.trigger()` here, not a
     // `requestSubmit()` re-entry, so there's no "needs two clicks" pitfall; the server still
     // re-validates as the source of truth.
-    const handleServerSubmit = async (e: FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
+    const handleServerSubmit = async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
       if (!formAction) return;
       // Captured before the `await` below: `currentTarget` is only valid while the event is
       // being dispatched and reads back as null afterwards, so anything needing the form
       // element after validation has to hold its own reference.
-      const formElement = e.currentTarget;
+      const formElement = event.currentTarget;
       const formData = new globalThis.FormData(formElement);
       // Drop React's progressive-enhancement bookkeeping inputs ($ACTION_REF_*, $ACTION_*, ...) so
       // they don't leak into the validated data or the echoed `values`.
       for (const fieldKey of Array.from(formData.keys())) {
-        if (fieldKey.startsWith('$ACTION')) formData.delete(fieldKey);
+        if (fieldKey.startsWith("$ACTION")) formData.delete(fieldKey);
       }
       const valid = await form.trigger();
       setOffscreenNotice(
-        !valid && hasNoVisibleError(ctx.definition, formElement, form)
-          ? ctx.translateValidation('errorsNotVisible')
-          : null
+        !valid && hasNoVisibleError(context.definition, formElement, form)
+          ? context.translateValidation("errorsNotVisible")
+          : null,
       );
       if (!valid) return;
       // The post is about to go out: in development, say so if it is missing a value the
       // model holds. Once per field, so a form saved repeatedly does not repeat itself.
       if (isDevelopment()) {
-        const missing = declaredFieldsMissingFromPost(ctx.definition, formData, form.getValues()).filter(
-          (name) => !warnedDiagnostics.current.has(`post:${name}`)
-        );
+        const missing = declaredFieldsMissingFromPost(
+          context.definition,
+          formData,
+          form.getValues(),
+        ).filter((name) => !warnedDiagnostics.current.has(`post:${name}`));
         if (missing.length > 0) {
-          for (const name of missing) warnedDiagnostics.current.add(`post:${name}`);
+          for (const name of missing)
+            warnedDiagnostics.current.add(`post:${name}`);
           console.warn(describeMissingFromPost(missing));
         }
       }
@@ -1659,13 +1870,17 @@ const createRenderedForm = <T extends FormDefinition>(
       startTransition(() => formAction(formData));
     };
 
-    const formProps: React.FormHTMLAttributes<HTMLFormElement> = { className, style };
-    const noValidate = noValidateProp ?? ctx.config.noValidate;
+    const formProps: React.FormHTMLAttributes<HTMLFormElement> = {
+      className,
+      style,
+    };
+    const noValidate = noValidateProp ?? context.configuration.noValidate;
     if (noValidate) formProps.noValidate = true;
     if (hasServerAction) {
       // React owns the method here: it renders its own multipart POST to the action
       // endpoint. Setting `method` would fight that, so `methodProp` is deliberately ignored.
-      formProps.action = formAction as React.FormHTMLAttributes<HTMLFormElement>['action'];
+      formProps.action =
+        formAction as React.FormHTMLAttributes<HTMLFormElement>["action"];
       formProps.onSubmit = handleServerSubmit;
     } else {
       formProps.onSubmit = handleClientSubmit;
@@ -1674,10 +1889,10 @@ const createRenderedForm = <T extends FormDefinition>(
       // field into the URL. For a sign-in or password-reset form that is a credential leak
       // into browser history, the `Referer` header and access logs. POST by default; a form
       // that genuinely wants a query string (search, filters) opts in with `method="get"`.
-      formProps.method = methodProp ?? 'post';
+      formProps.method = methodProp ?? "post";
     }
 
-    const FormComponent = ctx.config.components.Form;
+    const FormComponent = context.configuration.components.Form;
     // A custom layout (`children`) replaces the automatic field grid, but keeps every bit of
     // form wiring above (action, onSubmit, setError effect, callbacks). Fields inside compose
     // from the hook's `RenderedField`, which reads the same server errors from the render
@@ -1685,9 +1900,14 @@ const createRenderedForm = <T extends FormDefinition>(
     const formContent =
       children !== undefined
         ? children
-        : ctx.sections
-          ? renderSectionedFields(ctx, ctx.sections, showActions, serverErrors)
-          : renderAllFields(ctx, showActions, serverErrors);
+        : context.sections
+          ? renderSectionedFields(
+              context,
+              context.sections,
+              showActions,
+              serverErrors,
+            )
+          : renderAllFields(context, showActions, serverErrors);
 
     // The whole-form message region sits inside the form, above the fields, in both the
     // automatic-grid and custom-layout modes. It carries the server-action envelope `message`
@@ -1703,7 +1923,7 @@ const createRenderedForm = <T extends FormDefinition>(
       : undefined;
     const formMessage = (
       <FormMessageSlot
-        config={ctx.config}
+        configuration={context.configuration}
         control={form.control}
         localMessage={offscreenNotice ?? undefined}
         envelopeMessage={envelopeMessage}
@@ -1727,7 +1947,7 @@ const createRenderedForm = <T extends FormDefinition>(
       </form>
     );
   };
-  Component.displayName = 'RenderedForm';
+  Component.displayName = "RenderedForm";
   return Component;
 };
 
@@ -1770,15 +1990,22 @@ export const useFormDefinition = <
   Extras extends Record<string, unknown> = Record<string, unknown>,
 >(
   definition: T,
-  options: UseFormDefinitionOptions<T> = {}
-): UseFormDefinitionReturn<T, z.infer<ReturnType<typeof generateSchema<T>>>, Extras> => {
+  options: UseFormDefinitionOptions<T> = {},
+): UseFormDefinitionReturn<
+  T,
+  z.infer<ReturnType<typeof generateSchema<T>>>,
+  Extras
+> => {
   const {
     form: formOption,
     defaultValues: defaultValuesOption,
     sections: sectionsOption,
-    config: userConfig,
+    configuration: configurationOption,
+    config: deprecatedConfigurationOption,
     serverAction,
   } = options;
+  const userConfiguration =
+    configurationOption ?? deprecatedConfigurationOption;
 
   // A consumer-supplied form is constructed before this hook runs, so the no-JS
   // re-population merge below cannot reach it - the user silently loses what they typed on
@@ -1786,13 +2013,18 @@ export const useFormDefinition = <
   // development, so it gets a warning rather than a doc line alone. Once per hook
   // instance - the condition is stable across renders, and renders happen per keystroke.
   const warnedFormWithServerAction = useRef(false);
-  if (isDevelopment() && formOption && serverAction && !warnedFormWithServerAction.current) {
+  if (
+    isDevelopment() &&
+    formOption &&
+    serverAction &&
+    !warnedFormWithServerAction.current
+  ) {
     warnedFormWithServerAction.current = true;
     console.warn(
-      '[use-form-definition] `form` and `serverAction` were both provided. The no-JS ' +
-        'validation-error round trip re-populates fields through the form this hook ' +
-        'constructs, so passing your own form disables it. If you only need starting ' +
-        'values, pass `defaultValues` instead and drop `form`.'
+      "[use-form-definition] `form` and `serverAction` were both provided. The no-JS " +
+        "validation-error round trip re-populates fields through the form this hook " +
+        "constructs, so passing your own form disables it. If you only need starting " +
+        "values, pass `defaultValues` instead and drop `form`.",
     );
   }
 
@@ -1810,25 +2042,28 @@ export const useFormDefinition = <
     if (renamed.length > 0) {
       warnedFieldNameOverride.current = true;
       console.warn(
-        `[use-form-definition] field${renamed.length === 1 ? '' : 's'} ` +
-          `${renamed.map((key) => `\`${key}\``).join(', ')} set${renamed.length === 1 ? 's' : ''} ` +
-          'a `name` different from the definition key. The `name` override is deprecated: ' +
-          'it has never worked (the field cannot pass validation and the server reports ' +
-          'it missing) and is slated for removal. Drop the override and use the ' +
-          'definition key as the field name.'
+        `[use-form-definition] field${renamed.length === 1 ? "" : "s"} ` +
+          `${renamed.map((key) => `\`${key}\``).join(", ")} set${renamed.length === 1 ? "s" : ""} ` +
+          "a `name` different from the definition key. The `name` override is deprecated: " +
+          "it has never worked (the field cannot pass validation and the server reports " +
+          "it missing) and is slated for removal. Drop the override and use the " +
+          "definition key as the field name.",
       );
     }
   }
 
   // Memoize schema generation - this is expensive and should only happen when definition changes
-  const schema = useMemo(() => generateSchemaFromBuilder(definition), [definition]);
+  const schema = useMemo(
+    () => generateSchemaFromBuilder(definition),
+    [definition],
+  );
 
   // Server action state. Called unconditionally (with a no-op action when no `serverAction`
   // is configured) so we can both expose `actionState` and feed the last-submitted values
   // back into useForm() on a no-JS validation-error round-trip. Must run before useForm().
   const [rawActionState, rawFormAction, rawIsPending] = useActionState(
     serverAction ?? NOOP_SERVER_ACTION,
-    null
+    null,
   );
   const actionState = serverAction ? rawActionState : null;
   const isPending = serverAction ? rawIsPending : false;
@@ -1840,7 +2075,7 @@ export const useFormDefinition = <
 
     // Three tiers, widest first: the definition's own generated defaults, the consumer's
     // starting values (an edit form's stored record), then - on a no-JS validation-error
-    // round-trip, where the page re-renders server-side with the action result in hand  - 
+    // round-trip, where the page re-renders server-side with the action result in hand  -
     // the submitted raw values, so the fields re-populate with what the user typed rather
     // than resetting to the record. (The last tier is a no-op on the client: useForm only
     // reads defaultValues at mount, and RHF already holds whatever the user typed.)
@@ -1860,7 +2095,7 @@ export const useFormDefinition = <
       defaultValues: mergedDefaults as DefaultValues<InferredType>,
       // With a server action, give live client-side feedback before submit (submitting would
       // otherwise round-trip to the server just to surface errors).
-      ...(serverAction ? { mode: 'onTouched' as const } : {}),
+      ...(serverAction ? { mode: "onTouched" as const } : {}),
     };
   }, [schema, definition, actionState, serverAction, defaultValuesOption]);
 
@@ -1887,18 +2122,21 @@ export const useFormDefinition = <
     >();
     for (const targetKey of Object.keys(definition)) {
       const field = definition[targetKey];
-      if (typeof field.deriveFrom !== "string" || field.deriveFrom === "") continue;
+      if (typeof field.deriveFrom !== "string" || field.deriveFrom === "")
+        continue;
       const sourceField = definition[field.deriveFrom];
       if (!sourceField) {
         console.warn(
-          `deriveFrom: field "${targetKey}" derives from "${field.deriveFrom}", which is not in the definition`
+          `deriveFrom: field "${targetKey}" derives from "${field.deriveFrom}", which is not in the definition`,
         );
         continue;
       }
       const sourceName = getFieldName(field.deriveFrom, sourceField);
       const targetName = getFieldName(targetKey, field);
       if (sourceName === targetName) {
-        console.warn(`deriveFrom: field "${targetKey}" cannot derive from itself`);
+        console.warn(
+          `deriveFrom: field "${targetKey}" cannot derive from itself`,
+        );
         continue;
       }
       const targets = targetsBySource.get(sourceName) ?? [];
@@ -1916,7 +2154,9 @@ export const useFormDefinition = <
         const currentValue = form.getValues(targetName as any);
         const lastDerived = lastDerivedRef.current[targetName];
         const isEmpty =
-          currentValue === undefined || currentValue === null || currentValue === "";
+          currentValue === undefined ||
+          currentValue === null ||
+          currentValue === "";
         if (!isEmpty && !Object.is(currentValue, lastDerived)) continue; // claimed by the user (or stored)
         const derived = resolveDeriveTransform(field)(sourceValue);
         lastDerivedRef.current[targetName] = derived;
@@ -1933,10 +2173,10 @@ export const useFormDefinition = <
     return () => subscription.unsubscribe();
   }, [definition, form]);
 
-  // Memoize config to prevent unnecessary re-renders
-  const config = useMemo(
-    () => createFormConfig(userConfig || {}),
-    [userConfig]
+  // Memoize configuration to prevent unnecessary re-renders
+  const configuration = useMemo(
+    () => createFormConfiguration(userConfiguration || {}),
+    [userConfiguration],
   );
 
   // A declared kind with no component fails loudly at hook creation: a thrown error in
@@ -1946,41 +2186,47 @@ export const useFormDefinition = <
   // and nothing can go missing.
   const warnedUnregisteredKinds = useRef(false);
   useMemo(() => {
-    if (Object.keys(config.fieldTypes).length === 0) return;
-    const missing = unregisteredKinds(definition, config.fieldTypes);
+    if (Object.keys(configuration.fieldTypes).length === 0) return;
+    const missing = unregisteredKinds(definition, configuration.fieldTypes);
     if (missing.length === 0) return;
     if (isDevelopment()) throw new Error(describeUnregisteredKinds(missing));
     if (!warnedUnregisteredKinds.current) {
       warnedUnregisteredKinds.current = true;
       console.warn(describeUnregisteredKinds(missing));
     }
-  }, [definition, config.fieldTypes]);
+  }, [definition, configuration.fieldTypes]);
 
-  // Memoize translation config
-  const translationConfig = useMemo(
-    () => normalizeTranslationConfig(config.translation),
-    [config.translation]
+  // Memoize translation configuration
+  const translationConfiguration = useMemo(
+    () => normalizeTranslationConfiguration(configuration.translation),
+    [configuration.translation],
   );
 
   // Memoize validation translator for error messages
   const translateValidation = useMemo(
-    () => createValidationTranslator(translationConfig.validation, translationConfig.function),
-    [translationConfig.validation, translationConfig.function]
+    () =>
+      createValidationTranslator(
+        translationConfiguration.validation,
+        translationConfiguration.function,
+      ),
+    [translationConfiguration.validation, translationConfiguration.function],
   );
 
-  // Section bookkeeping must survive the per-render ctx rebuild below, so both live on
+  // Section bookkeeping must survive the per-render context rebuild below, so both live on
   // their own refs: the registry accumulates observed membership across renders, and the
   // seen-set is cleared per pass by RenderedForm.
   const sectionRegistryRef = useRef<Map<string, string>>(new Map());
   const seenSectionNamesRef = useRef<Set<string>>(new Set());
 
   // Per-render render context, read by the (stable) RenderedField / RenderedForm components.
-  const ctxRef = useRef<RenderContext<T>>(undefined as unknown as RenderContext<T>);
-  ctxRef.current = {
+  const contextRef = useRef<RenderContext<T>>(
+    undefined as unknown as RenderContext<T>,
+  );
+  contextRef.current = {
     definition,
     form,
-    config,
-    translationConfig,
+    configuration,
+    translationConfiguration,
     translateValidation,
     serverAction,
     actionState,
@@ -1999,16 +2245,18 @@ export const useFormDefinition = <
     RenderedField: React.FC<RenderedFieldProps<T>>;
     RenderedForm: React.FC<RenderedFormProps<any>>;
     RenderedSection: React.FC<{ name: string; children?: ReactNode }>;
-  }>(undefined as unknown as {
-    RenderedField: React.FC<RenderedFieldProps<T>>;
-    RenderedForm: React.FC<RenderedFormProps<any>>;
-    RenderedSection: React.FC<{ name: string; children?: ReactNode }>;
-  });
+  }>(
+    undefined as unknown as {
+      RenderedField: React.FC<RenderedFieldProps<T>>;
+      RenderedForm: React.FC<RenderedFormProps<any>>;
+      RenderedSection: React.FC<{ name: string; children?: ReactNode }>;
+    },
+  );
   if (!componentsRef.current) {
     componentsRef.current = {
-      RenderedField: createRenderedField(ctxRef),
-      RenderedForm: createRenderedForm(ctxRef),
-      RenderedSection: createRenderedSection(ctxRef),
+      RenderedField: createRenderedField(contextRef),
+      RenderedForm: createRenderedForm(contextRef),
+      RenderedSection: createRenderedSection(contextRef),
     };
   }
   const RenderedSection = componentsRef.current.RenderedSection;
@@ -2028,7 +2276,9 @@ export const useFormDefinition = <
 
     return {
       resolver: zodResolver(schema),
-      defaultValues: generateDefaultValues(definition) as DefaultValues<InferredType>,
+      defaultValues: generateDefaultValues(
+        definition,
+      ) as DefaultValues<InferredType>,
       _types: {} as InferredType,
     };
   };
@@ -2038,31 +2288,37 @@ export const useFormDefinition = <
   // exactly the sort of divergence that costs an afternoon six months later. Memoized
   // because the validator regenerates the schema, the expensive step this hook otherwise
   // caches.
-  const validateData = useMemo(() => generateDataValidator(definition), [definition]);
-
-  // Default Form component (simple form element)
-  const DefaultForm: React.FC<React.FormHTMLAttributes<HTMLFormElement>> = (props) => (
-    <form {...props} />
+  const validateData = useMemo(
+    () => generateDataValidator(definition),
+    [definition],
   );
 
+  // Default Form component (simple form element)
+  const DefaultForm: React.FC<React.FormHTMLAttributes<HTMLFormElement>> = (
+    props,
+  ) => <form {...props} />;
+
   // Default Actions component (renders a submit button)
-  const DefaultActions: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = (props) => (
+  const DefaultActions: React.FC<
+    React.ButtonHTMLAttributes<HTMLButtonElement>
+  > = (props) => (
     <button type="submit" {...props}>
-      {props.children || 'Submit'}
+      {props.children || "Submit"}
     </button>
   );
 
   // Get configured components or use defaults
-  const FormComponent = config.components.Form || DefaultForm;
-  const ActionsComponent = config.components.Actions || DefaultActions;
+  const FormComponent = configuration.components.Form || DefaultForm;
+  const ActionsComponent = configuration.components.Actions || DefaultActions;
   // `false` means the consumer opted out of the region entirely - return null rather than
   // handing back a component they explicitly disabled.
   const FormMessageComponent =
-    config.components.FormMessage === false
+    configuration.components.FormMessage === false
       ? null
-      : config.components.FormMessage || FormMessage;
-  const LayoutContainerComponent = config.components.LayoutContainer || null;
-  const LayoutItemComponent = config.components.LayoutItem || null;
+      : configuration.components.FormMessage || FormMessage;
+  const LayoutContainerComponent =
+    configuration.components.LayoutContainer || null;
+  const LayoutItemComponent = configuration.components.LayoutItem || null;
 
   // The sections API: membership questions answered from the declared map when one was
   // given, else from render-observed membership (complete after first paint - every

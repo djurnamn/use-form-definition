@@ -22,7 +22,8 @@ export const patterns: Record<string, PatternDefinition> = {
     description: "Standard email format validation",
   },
   url: {
-    pattern: /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/,
+    pattern:
+      /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/,
     message: "Please enter a valid URL",
     description: "HTTP/HTTPS URL format validation",
   },
@@ -33,12 +34,14 @@ export const patterns: Record<string, PatternDefinition> = {
   },
   slug: {
     pattern: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-    message: "Please enter a valid slug (lowercase letters, numbers, and hyphens only)",
+    message:
+      "Please enter a valid slug (lowercase letters, numbers, and hyphens only)",
     description: "URL-friendly slug format",
   },
   username: {
     pattern: /^[a-zA-Z0-9._-]+$/,
-    message: "Username can only contain letters, numbers, dots, underscores, and hyphens",
+    message:
+      "Username can only contain letters, numbers, dots, underscores, and hyphens",
     description: "Standard username format",
   },
   alphanumeric: {
@@ -73,7 +76,10 @@ export const patterns: Record<string, PatternDefinition> = {
  * process (the other entry point included), see `core/registry`; the built-ins above
  * stay module-local.
  */
-const customPatterns = sharedStore<Record<string, PatternDefinition>>("patterns", () => ({}));
+const customPatterns = sharedStore<Record<string, PatternDefinition>>(
+  "patterns",
+  () => ({}),
+);
 
 /**
  * Get pattern definition by name: a registered pattern, else a built-in
@@ -87,7 +93,7 @@ export const getPattern = (name: string): PatternDefinition | undefined => {
  */
 export const createPatternValidation = (
   rule: ValidationRule<RegExp | string>,
-  defaultMessage?: string
+  defaultMessage?: string,
 ) => {
   if (rule instanceof RegExp) {
     return {
@@ -95,7 +101,7 @@ export const createPatternValidation = (
       message: defaultMessage || "invalidFormat",
     };
   }
-  
+
   if (typeof rule === "string") {
     const pattern = getPattern(rule);
     if (pattern) {
@@ -106,27 +112,33 @@ export const createPatternValidation = (
     }
     throw new Error(`Unknown pattern: ${rule}`);
   }
-  
+
   if (typeof rule === "object" && "value" in rule) {
     if (rule.value instanceof RegExp) {
       return {
         pattern: rule.value,
-        message: typeof rule.message === "string" ? rule.message : (defaultMessage || "invalidFormat"),
+        message:
+          typeof rule.message === "string"
+            ? rule.message
+            : defaultMessage || "invalidFormat",
       };
     }
-    
+
     if (typeof rule.value === "string") {
       const pattern = getPattern(rule.value);
       if (pattern) {
         return {
           pattern: pattern.pattern,
-          message: typeof rule.message === "string" ? rule.message : (defaultMessage || pattern.message),
+          message:
+            typeof rule.message === "string"
+              ? rule.message
+              : defaultMessage || pattern.message,
         };
       }
       throw new Error(`Unknown pattern: ${rule.value}`);
     }
   }
-  
+
   throw new Error("Invalid pattern rule");
 };
 
@@ -136,16 +148,19 @@ export const createPatternValidation = (
 export const applyPatternValidation = (
   schema: z.ZodString,
   rule: ValidationRule<RegExp | string>,
-  defaultMessage?: string
+  defaultMessage?: string,
 ): z.ZodString => {
   const { pattern, message } = createPatternValidation(rule, defaultMessage);
   return schema.regex(pattern, { message });
 };
 
-const samePattern = (a: PatternDefinition, b: PatternDefinition): boolean =>
-  a.pattern.source === b.pattern.source &&
-  a.pattern.flags === b.pattern.flags &&
-  a.message === b.message;
+const samePattern = (
+  first: PatternDefinition,
+  second: PatternDefinition,
+): boolean =>
+  first.pattern.source === second.pattern.source &&
+  first.pattern.flags === second.pattern.flags &&
+  first.message === second.message;
 
 /**
  * Register a custom pattern. The registration is shared with every copy of the library
@@ -155,7 +170,7 @@ const samePattern = (a: PatternDefinition, b: PatternDefinition): boolean =>
  */
 export const registerPattern = (
   name: string,
-  definition: PatternDefinition
+  definition: PatternDefinition,
 ): void => {
   const existing = getPattern(name);
   if (existing) {
@@ -169,7 +184,9 @@ export const registerPattern = (
  * Get all available pattern names
  */
 export const getAvailablePatterns = (): string[] => {
-  return Array.from(new Set([...Object.keys(patterns), ...Object.keys(customPatterns)]));
+  return Array.from(
+    new Set([...Object.keys(patterns), ...Object.keys(customPatterns)]),
+  );
 };
 
 /**
@@ -177,7 +194,7 @@ export const getAvailablePatterns = (): string[] => {
  */
 export const validatePattern = (
   value: string,
-  patternName: string
+  patternName: string,
 ): boolean => {
   const pattern = getPattern(patternName);
   if (!pattern) {

@@ -17,8 +17,11 @@ import type { FieldError } from "react-hook-form";
 export interface NestedFieldErrorMap {
   [key: string]: NestedFieldError | undefined;
 }
-export interface NestedFieldErrorList extends Array<NestedFieldError | undefined> {}
-export type NestedFieldError = FieldError | NestedFieldErrorMap | NestedFieldErrorList;
+export interface NestedFieldErrorList extends Array<
+  NestedFieldError | undefined
+> {}
+export type NestedFieldError =
+  FieldError | NestedFieldErrorMap | NestedFieldErrorList;
 
 /**
  * The `FieldError` at a path inside a structured field's error tree, or `undefined` -
@@ -38,7 +41,7 @@ export type NestedFieldError = FieldError | NestedFieldErrorMap | NestedFieldErr
  */
 export const getNestedError = (
   error: NestedFieldError | boolean | undefined,
-  path: string | ReadonlyArray<string | number>
+  path: string | ReadonlyArray<string | number>,
 ): FieldError | undefined => {
   if (!error || typeof error !== "object") return undefined;
 
@@ -46,14 +49,17 @@ export const getNestedError = (
   let node: unknown = error;
   for (const segment of segments) {
     if (!node || typeof node !== "object") return undefined;
-    node = (node as Record<string | number, unknown>)[segment as string | number];
+    node = (node as Record<string | number, unknown>)[
+      segment as string | number
+    ];
   }
 
   if (!node || typeof node !== "object") return undefined;
   const candidate = node as Partial<FieldError>;
   // A leaf error carries a `type` and usually a `message`; a branch node (a row's
   // map of cell errors) carries neither as a string.
-  return typeof candidate.message === "string" || typeof candidate.type === "string"
+  return typeof candidate.message === "string" ||
+    typeof candidate.type === "string"
     ? (candidate as FieldError)
     : undefined;
 };

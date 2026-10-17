@@ -34,12 +34,12 @@ export const parseErrorMessage = (
   errorMessage: string,
   translate?: (key: string, options?: Record<string, unknown>) => string,
   /** Values merged under the message's own options - `parseValidationErrors` passes the field's label and key. */
-  extraOptions?: Record<string, unknown>
+  extraOptions?: Record<string, unknown>,
 ): string => {
   const t = translate ?? translateValidationMessage;
 
   // Handle validation error message (JSON string)
-  if (errorMessage.startsWith('[')) {
+  if (errorMessage.startsWith("[")) {
     try {
       const [errorKey, errorOptions] = JSON.parse(errorMessage);
       return t(errorKey, { ...(extraOptions ?? {}), ...(errorOptions ?? {}) });
@@ -62,7 +62,7 @@ export const parseErrorMessage = (
  * what the no-JS round trip renders (the field's own message region, plus the
  * whole-form message naming the failing sections). Item *position* is therefore not
  * part of the server envelope; on the JS path the client re-validates with the same
- * schema and renders each item error at the item (see docs/repeaters.md), so the
+ * schema and renders each item error at the item (see documentation/repeaters.md), so the
  * envelope's flat keying only decides what the no-JS fallback can say.
  *
  * @example
@@ -77,7 +77,7 @@ export const parseErrorMessage = (
  * ```
  */
 export const parseValidationErrors = (
-  issues: Array<{ path: (string | number)[]; message: string }>,
+  issues: ReadonlyArray<{ path: readonly PropertyKey[]; message: string }>,
   translate?: (key: string, options?: Record<string, unknown>) => string,
   /**
    * The fields' display labels, keyed by definition key; an item field inside a
@@ -86,7 +86,7 @@ export const parseValidationErrors = (
    * and the key - so a message can read "{field} is required", the same values the
    * client passes.
    */
-  labels?: Record<string, string>
+  labels?: Record<string, string>,
 ): Record<string, string[]> => {
   const errors: Record<string, string[]> = {};
 
@@ -97,9 +97,14 @@ export const parseValidationErrors = (
     }
     // An item issue inside a structured field (`classes.0.level`) names the item field
     // by its key path, `classes.level`, the same key the client passes.
-    const fieldPath = issue.path.filter((segment) => typeof segment === "string").join(".") || field;
+    const fieldPath =
+      issue.path.filter((segment) => typeof segment === "string").join(".") ||
+      field;
     errors[field].push(
-      parseErrorMessage(issue.message, translate, { field: labels?.[fieldPath] ?? fieldPath, fieldKey: fieldPath })
+      parseErrorMessage(issue.message, translate, {
+        field: labels?.[fieldPath] ?? fieldPath,
+        fieldKey: fieldPath,
+      }),
     );
   }
 
@@ -109,9 +114,7 @@ export const parseValidationErrors = (
 // Schema generation (Zod only, no React)
 export { generateSchema } from "./core/schema/schema-builder";
 
-// Data validator for server-side validation (React-free module - importing
-// it from ./core/schema would drag @hookform/resolvers → react-hook-form
-// into the server bundle)
+// Data validator for server-side validation
 export { generateDataValidator } from "./core/schema/data-validator";
 
 // Custom field-kind registration (React-free). Exported here too so a custom kind's value
@@ -202,8 +205,10 @@ export type { FormSections } from "./core/sections";
  * `transaction` are untouched.
  */
 export const extractSubmittedValues = (
-  formData: FormData
+  formData: FormData,
 ): Record<string, FormDataEntryValue> =>
   Object.fromEntries(
-    Array.from(formData.entries()).filter(([name]) => !name.startsWith("$ACTION"))
+    Array.from(formData.entries()).filter(
+      ([name]) => !name.startsWith("$ACTION"),
+    ),
   );

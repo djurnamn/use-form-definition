@@ -1,8 +1,7 @@
 /**
  * Schema generation module
- * 
- * This module provides a modular approach to generating Zod schemas from form definitions.
- * It replaces the monolithic schema generation function with composable, testable parts.
+ *
+ * Generates Zod schemas from form definitions out of composable, testable parts.
  */
 
 // Main schema generation
@@ -20,10 +19,7 @@ export {
 // Re-export utilities from parent module
 export { generateOptions, generateDataValidator } from "../schema";
 
-export type {
-  CustomFieldValidator,
-  ValidationContext,
-} from "./schema-builder";
+export type { CustomFieldValidator, ValidationContext } from "./schema-builder";
 
 // Field schema generators
 export {
@@ -41,11 +37,7 @@ export {
   registerFieldType,
 } from "./field-generators";
 
-export type {
-  FieldValueType,
-  FieldTypeRegistration,
-} from "./field-generators";
+export type { FieldValueType, FieldTypeRegistration } from "./field-generators";
 
 // Re-export the main generateSchema function as the default export
-// This maintains backward compatibility with the existing API
 export { generateSchema as default } from "./schema-builder";

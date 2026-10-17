@@ -30,7 +30,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function App() {
+function Application() {
   return (
     <BrowserRouter>
       <Layout>
@@ -45,4 +45,4 @@ function App() {
   );
 }
 
-export default App;
+export default Application;

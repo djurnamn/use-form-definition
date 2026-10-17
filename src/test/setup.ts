@@ -1,5 +1,5 @@
-import '@testing-library/jest-dom';
-import { beforeEach, vi } from 'vitest';
+import "@testing-library/jest-dom";
+import { beforeEach, vi } from "vitest";
 
 // Mock for any async operations during testing
 (globalThis as any).fetch = vi.fn();

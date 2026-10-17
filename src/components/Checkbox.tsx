@@ -2,7 +2,10 @@ import { forwardRef, InputHTMLAttributes } from "react";
 import { FieldError } from "react-hook-form";
 import { useFieldId } from "../core/utilities";
 
-export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type' | 'checked' | 'value'> {
+export interface CheckboxProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "onChange" | "type" | "checked" | "value"
+> {
   name: string;
   value?: boolean;
   onChange: (value: boolean) => void;
@@ -21,7 +24,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         type="checkbox"
         name={name}
         checked={!!value}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={(event) => onChange(event.target.checked)}
         aria-invalid={!!error}
         aria-describedby={error ? `${name}-error` : undefined}
         {...props}
@@ -39,7 +42,7 @@ const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
     }
 
     return inputElement;
-  }
+  },
 );
 
 Checkbox.displayName = "Checkbox";

@@ -18,7 +18,7 @@ const theme = createTheme({
   },
 });
 
-function App() {
+function Application() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -32,4 +32,4 @@ function App() {
   );
 }
 
-export default App;
+export default Application;

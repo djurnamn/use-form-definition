@@ -39,8 +39,8 @@ const formDefinition: FormDefinition = {
     },
     validation: {
       required: true,
-      minRows: 1,
-      maxRows: 10
+      minimumRows: 1,
+      maximumRows: 10
     },
     hideHeader: false,
     disableAddRow: false,
@@ -79,13 +79,16 @@ The repeater field produces an array of objects:
 | `hideHeader` | boolean | false | Hide the table header row |
 | `disableAddRow` | boolean | false | Disable the add row button |
 | `disableRemoveRow` | boolean | false | Disable remove buttons on rows |
-| `validation.minRows` | number | - | Minimum number of rows required |
-| `validation.maxRows` | number | - | Maximum number of rows allowed |
+| `validation.minimumRows` | number | - | Minimum number of rows required |
+| `validation.maximumRows` | number | - | Maximum number of rows allowed |
+| `maximumRows` | number | - | Hide the built-in add row button once the list holds this many rows (the `Repeater` prop of the same name) |
 | `schemaOnlyRowProperties` | object | - | Properties every row carries that no cell renders (see [Row state the cells do not cover](#row-state-the-cells-do-not-cover)) |
+
+`minRows`, `maxRows` and the `maxRows` prop are the earlier names of `minimumRows`, `maximumRows` and `maximumRows`. They still work as deprecated aliases until the next major version.
 
 ## Validation
 
-Each field in a row validates independently, with the same rules it would use at the top level. `requiredWhen` resolves against the other fields in the same row. `minRows` and `maxRows` constrain the list as a whole. On submit, the rows travel as a JSON-encoded hidden field and are parsed back before validation (see [How it works](#how-it-works)).
+Each field in a row validates independently, with the same rules it would use at the top level. `requiredWhen` resolves against the other fields in the same row. `minimumRows` and `maximumRows` constrain the list as a whole. On submit, the rows travel as a JSON-encoded hidden field and are parsed back before validation (see [How it works](#how-it-works)).
 
 ## Row state the cells do not cover
 
@@ -110,7 +113,7 @@ const definition: FormDefinition = {
 };
 ```
 
-Nothing renders them. A repeater renders exactly `fields`, so an existing repeater component (the built-in one, a binding's, your own) needs no change to honour this.
+Nothing renders them. A repeater renders exactly `fields`, so an existing repeater component (the built-in one, a binding's, your own) needs no change to honor this.
 
 A property declares how its value **validates**, never how it looks, so its vocabulary is not a field's:
 
@@ -135,7 +138,7 @@ A property that collides with a declared cell is an error, not a merge: a row's 
 
 A failing cell renders its message at the cell, exactly as a top-level field would. The mechanics: the resolver roots each item issue under the repeater's key, so the field's error is a nested tree - an array of per-row error maps - rather than a flat `FieldError`. `RenderedField` translates every message in that tree and passes it down whole; the built-in `Repeater` reads each cell's error out of it (`error[rowIndex][columnKey]`) and renders the message below the cell's control, with an id the control's `aria-describedby` points at.
 
-Whole-list rules (`minRows`, `maxRows`, `required`) carry their message on the error itself and render once, at the repeater - never per cell.
+Whole-list rules (`minimumRows`, `maximumRows`, `required`) carry their message on the error itself and render once, at the repeater - never per cell.
 
 A custom repeater (or any structured kind - see [Custom field kinds and item errors](./plugins.md#item-errors-in-structured-kinds)) receives the same tree on its `error` prop and reads it with `getNestedError`:
 
@@ -181,7 +184,7 @@ const advancedDefinition: FormDefinition = {
         validation: { required: true }
       }
     },
-    validation: { minRows: 1, maxRows: 5 }
+    validation: { minimumRows: 1, maximumRows: 5 }
   }
 };
 ```
@@ -190,9 +193,9 @@ const advancedDefinition: FormDefinition = {
 
 By default each column header shows the nested field's `label`, falling back to the field key. Per-cell labels are suppressed (in a table the label belongs in the header, not repeated in every row), so the header is the only place a nested label appears.
 
-When a `translation.hook` is configured and the nested labels are translation keys, the built-in `Repeater` resolves each header through the parent form's translation config, so the `<th>` shows the translated string rather than the key - no per-field change needed. `hideHeader: true` still removes the header row entirely.
+When a `translation.hook` is configured and the nested labels are translation keys, the built-in `Repeater` resolves each header through the parent form's translation configuration, so the `<th>` shows the translated string rather than the key - no per-field change needed. `hideHeader: true` still removes the header row entirely.
 
-If you build your own repeater (or any complex component registered with `injectFormConfig: true`) that renders its own headers, use the injected `__resolveFieldLabel` to translate them the same way:
+If you build your own repeater (or any complex component registered with `injectFormConfiguration: true`) that renders its own headers, use the injected `__resolveFieldLabel` to translate them the same way:
 
 ```tsx
 interface MyRepeaterProps extends Partial<InternalComponentProps> {

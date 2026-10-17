@@ -14,8 +14,8 @@ export function LocaleSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newLocale = e.target.value;
+  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLocale = event.target.value;
     router.replace(pathname, { locale: newLocale });
   };
 

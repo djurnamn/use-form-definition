@@ -32,9 +32,7 @@ export {
   validatePattern,
 } from "./patterns";
 
-export type {
-  PatternDefinition,
-} from "./patterns";
+export type { PatternDefinition } from "./patterns";
 
 // Import patterns for use in the registry below
 import { patterns } from "./patterns";
@@ -79,15 +77,16 @@ export const defaultValidationRegistry: ValidationRuleRegistry = {
 
   // Function-based validations
   positive: {
-    validate: (value: unknown) => typeof value === 'number' && value > 0,
+    validate: (value: unknown) => typeof value === "number" && value > 0,
     message: "Must be a positive number",
   },
   negative: {
-    validate: (value: unknown) => typeof value === 'number' && value < 0,
+    validate: (value: unknown) => typeof value === "number" && value < 0,
     message: "Must be a negative number",
   },
   integer: {
-    validate: (value: unknown) => typeof value === 'number' && Number.isInteger(value),
+    validate: (value: unknown) =>
+      typeof value === "number" && Number.isInteger(value),
     message: "Must be a whole number",
   },
 };
@@ -97,7 +96,7 @@ export const defaultValidationRegistry: ValidationRuleRegistry = {
  */
 export const registerValidationRule = (
   name: string,
-  rule: ValidationRuleRegistry[string]
+  rule: ValidationRuleRegistry[string],
 ): void => {
   defaultValidationRegistry[name] = rule;
 };
@@ -113,7 +112,7 @@ export const getAvailableValidationRules = (): string[] => {
  * Get a validation rule by name
  */
 export const getValidationRule = (
-  name: string
+  name: string,
 ): ValidationRuleRegistry[string] | undefined => {
   return defaultValidationRegistry[name];
 };

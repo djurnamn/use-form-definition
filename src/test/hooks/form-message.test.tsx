@@ -1,8 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { createFormDefinitionHook } from '../../hooks/createFormDefinitionHook';
-import type { FormActionResult, FormConfig, FormDefinition } from '../../core/types';
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { createFormDefinitionHook } from "../../hooks/createFormDefinitionHook";
+import type {
+  FormActionResult,
+  FormConfiguration,
+  FormDefinition,
+} from "../../core/types";
 
 // A whole-form message (a rate-limit refusal, an expired reset link, "invalid credentials")
 // has no per-field home. The FormMessage region gives a binding a first-class place to render
@@ -10,20 +14,31 @@ import type { FormActionResult, FormConfig, FormDefinition } from '../../core/ty
 // react-hook-form `root` error.
 
 const definition: FormDefinition = {
-  name: { type: 'text', validation: { required: true, minLength: 2 } },
+  name: { type: "text", validation: { required: true, minLength: 2 } },
 };
 
-type Action = (prev: FormActionResult | null, fd: FormData) => Promise<FormActionResult>;
+type Action = (
+  previousState: FormActionResult | null,
+  fd: FormData,
+) => Promise<FormActionResult>;
 
 const useDefault = createFormDefinitionHook({});
 
-const CustomMessage = ({ message, status }: { message: string; status?: string }) => (
+const CustomMessage = ({
+  message,
+  status,
+}: {
+  message: string;
+  status?: string;
+}) => (
   <div data-testid="custom-message">
     CUSTOM[{status}]: {message}
   </div>
 );
 const useCustomMessage = createFormDefinitionHook({
-  formComponents: { FormMessage: CustomMessage } as FormConfig['components'],
+  formComponents: {
+    FormMessage: CustomMessage,
+  } as FormConfiguration["components"],
 });
 const useNoMessage = createFormDefinitionHook({
   formComponents: { FormMessage: false },
@@ -41,83 +56,91 @@ function ServerForm({
 }
 
 async function submitValid(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByRole('textbox'), 'Alice');
-  await user.click(screen.getByRole('button'));
+  await user.type(screen.getByRole("textbox"), "Alice");
+  await user.click(screen.getByRole("button"));
 }
 
-describe('FormMessage region - server-action envelope channel', () => {
-  it('renders nothing before a submit (no message yet)', () => {
+describe("FormMessage region - server-action envelope channel", () => {
+  it("renders nothing before a submit (no message yet)", () => {
     const action = vi.fn(async () => ({ success: true }));
     const { container } = render(<ServerForm serverAction={action} />);
-    expect(container.querySelector('[data-form-message]')).toBeNull();
+    expect(container.querySelector("[data-form-message]")).toBeNull();
   });
 
   it('renders an error envelope message inside the form, with role="alert"', async () => {
     const user = userEvent.setup();
     const action = vi.fn(async (_p: FormActionResult | null, fd: FormData) => ({
       success: false,
-      message: 'reset link invalid or expired',
+      message: "reset link invalid or expired",
       values: Object.fromEntries(fd) as Record<string, unknown>,
     }));
     const { container } = render(<ServerForm serverAction={action} />);
 
     await submitValid(user);
 
-    const region = await screen.findByText('reset link invalid or expired');
-    expect(region).toHaveAttribute('role', 'alert');
-    expect(region).toHaveAttribute('data-status', 'error');
+    const region = await screen.findByText("reset link invalid or expired");
+    expect(region).toHaveAttribute("role", "alert");
+    expect(region).toHaveAttribute("data-status", "error");
     // It lives inside the <form>, not somewhere outside it.
-    expect(container.querySelector('form')?.contains(region)).toBe(true);
+    expect(container.querySelector("form")?.contains(region)).toBe(true);
   });
 
   it('uses status="success" (role="status", not alert) for a successful envelope message', async () => {
     const user = userEvent.setup();
-    const action = vi.fn(async () => ({ success: true, message: 'Your changes were saved' }));
+    const action = vi.fn(async () => ({
+      success: true,
+      message: "Your changes were saved",
+    }));
     render(<ServerForm serverAction={action} />);
 
     await submitValid(user);
 
-    const region = await screen.findByText('Your changes were saved');
-    expect(region).toHaveAttribute('data-status', 'success');
-    expect(region).toHaveAttribute('role', 'status');
+    const region = await screen.findByText("Your changes were saved");
+    expect(region).toHaveAttribute("data-status", "success");
+    expect(region).toHaveAttribute("role", "status");
   });
 
-  it('renders no region when the envelope carries no message', async () => {
+  it("renders no region when the envelope carries no message", async () => {
     const user = userEvent.setup();
-    const action = vi.fn(async () => ({ success: false, errors: { name: ['taken'] } }));
+    const action = vi.fn(async () => ({
+      success: false,
+      errors: { name: ["taken"] },
+    }));
     const { container } = render(<ServerForm serverAction={action} />);
 
     await submitValid(user);
 
     await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
-    expect(container.querySelector('[data-form-message]')).toBeNull();
+    expect(container.querySelector("[data-form-message]")).toBeNull();
   });
 
-  it('renders a per-binding overridden FormMessage component', async () => {
+  it("renders a per-binding overridden FormMessage component", async () => {
     const user = userEvent.setup();
-    const action = vi.fn(async () => ({ success: false, message: 'nope' }));
+    const action = vi.fn(async () => ({ success: false, message: "nope" }));
     render(<ServerForm serverAction={action} hook={useCustomMessage} />);
 
     await submitValid(user);
 
-    const custom = await screen.findByTestId('custom-message');
-    expect(custom).toHaveTextContent('CUSTOM[error]: nope');
+    const custom = await screen.findByTestId("custom-message");
+    expect(custom).toHaveTextContent("CUSTOM[error]: nope");
   });
 
-  it('renders nothing when the FormMessage slot is set to false (opt-out)', async () => {
+  it("renders nothing when the FormMessage slot is set to false (opt-out)", async () => {
     const user = userEvent.setup();
-    const action = vi.fn(async () => ({ success: false, message: 'nope' }));
-    const { container } = render(<ServerForm serverAction={action} hook={useNoMessage} />);
+    const action = vi.fn(async () => ({ success: false, message: "nope" }));
+    const { container } = render(
+      <ServerForm serverAction={action} hook={useNoMessage} />,
+    );
 
     await submitValid(user);
 
     await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
-    expect(container.querySelector('[data-form-message]')).toBeNull();
-    expect(screen.queryByText('nope')).toBeNull();
+    expect(container.querySelector("[data-form-message]")).toBeNull();
+    expect(screen.queryByText("nope")).toBeNull();
   });
 
-  it('returns FormMessage: null from the hook when the slot is set to false', () => {
-    let returned: unknown = 'unset';
+  it("returns FormMessage: null from the hook when the slot is set to false", () => {
+    let returned: unknown = "unset";
     function Probe() {
       const { FormMessage } = useNoMessage(definition);
       returned = FormMessage;
@@ -139,7 +162,9 @@ function ClientRootErrorForm() {
     <div>
       <button
         type="button"
-        onClick={() => form.setError('root', { type: 'server', message: 'account locked' })}
+        onClick={() =>
+          form.setError("root", { type: "server", message: "account locked" })
+        }
       >
         trigger
       </button>
@@ -148,18 +173,18 @@ function ClientRootErrorForm() {
   );
 }
 
-describe('FormMessage region - client-side root error channel', () => {
+describe("FormMessage region - client-side root error channel", () => {
   it('surfaces a react-hook-form root error, reactively, with role="alert"', async () => {
     const user = userEvent.setup();
     const { container } = render(<ClientRootErrorForm />);
 
-    expect(container.querySelector('[data-form-message]')).toBeNull();
+    expect(container.querySelector("[data-form-message]")).toBeNull();
 
-    await user.click(screen.getByText('trigger'));
+    await user.click(screen.getByText("trigger"));
 
-    const region = await screen.findByText('account locked');
-    expect(region).toHaveAttribute('role', 'alert');
-    expect(region).toHaveAttribute('data-status', 'error');
-    expect(container.querySelector('form')?.contains(region)).toBe(true);
+    const region = await screen.findByText("account locked");
+    expect(region).toHaveAttribute("role", "alert");
+    expect(region).toHaveAttribute("data-status", "error");
+    expect(container.querySelector("form")?.contains(region)).toBe(true);
   });
 });

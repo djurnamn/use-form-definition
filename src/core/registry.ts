@@ -14,7 +14,10 @@
  */
 const KEY_PREFIX = "use-form-definition:";
 
-export const sharedStore = <T extends object>(name: string, create: () => T): T => {
+export const sharedStore = <T extends object>(
+  name: string,
+  create: () => T,
+): T => {
   const key = Symbol.for(`${KEY_PREFIX}${name}`);
   const host = globalThis as unknown as Record<symbol, T | undefined>;
   return host[key] ?? (host[key] = create());

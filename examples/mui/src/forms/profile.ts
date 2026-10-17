@@ -16,14 +16,14 @@ import { FormDefinition } from 'use-form-definition';
  * handle their own labels and error states internally.
  *
  * Layout:
- * - First/Last name and Email/Phone use half-width columns on tablet+
+ * - First/Last name and Email/Phone use half-width columns from the sm breakpoint up
  * - All other fields are full width (no layout prop = xs: 12 default)
  */
 export const profileFormDefinition: FormDefinition = {
   firstName: {
     type: 'text',
     label: 'First Name',
-    layout: { xs: 12, sm: 6 }, // Half width on tablet+
+    layout: { xs: 12, sm: 6 }, // Half width from sm up
     validation: {
       required: true,
       minLength: 2,
@@ -32,7 +32,7 @@ export const profileFormDefinition: FormDefinition = {
   lastName: {
     type: 'text',
     label: 'Last Name',
-    layout: { xs: 12, sm: 6 }, // Half width on tablet+
+    layout: { xs: 12, sm: 6 }, // Half width from sm up
     validation: {
       required: true,
       minLength: 2,
@@ -41,7 +41,7 @@ export const profileFormDefinition: FormDefinition = {
   email: {
     type: 'email',
     label: 'Email Address',
-    layout: { xs: 12, sm: 6 }, // Half width on tablet+
+    layout: { xs: 12, sm: 6 }, // Half width from sm up
     validation: {
       required: true,
       pattern: 'email',
@@ -50,7 +50,7 @@ export const profileFormDefinition: FormDefinition = {
   phone: {
     type: 'text',
     label: 'Phone Number',
-    layout: { xs: 12, sm: 6 }, // Half width on tablet+
+    layout: { xs: 12, sm: 6 }, // Half width from sm up
     validation: {
       pattern: 'phone',
     },

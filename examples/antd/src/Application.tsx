@@ -1,9 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { ConfigProvider, App as AntApp } from 'antd';
+import { ConfigProvider, App as AntApplication } from 'antd';
 import { HomePage } from '@/pages/HomePage';
 import { SettingsPage } from '@/pages/SettingsPage';
 
-function App() {
+function Application() {
   return (
     <ConfigProvider
       theme={{
@@ -12,16 +12,16 @@ function App() {
         },
       }}
     >
-      <AntApp>
+      <AntApplication>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </BrowserRouter>
-      </AntApp>
+      </AntApplication>
     </ConfigProvider>
   );
 }
 
-export default App;
+export default Application;

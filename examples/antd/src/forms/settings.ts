@@ -15,14 +15,14 @@ import { FormDefinition } from 'use-form-definition';
  * Form.Item handles labels and error states internally.
  *
  * Layout:
- * - Username and Email use half-width columns on tablet+ (sm: 12)
+ * - Username and Email use half-width columns from the sm breakpoint up (sm: 12)
  * - All other fields are full width (no layout prop = xs: 24 default)
  */
 export const settingsFormDefinition: FormDefinition = {
   username: {
     type: 'text',
     label: 'Username',
-    layout: { xs: 24, sm: 12 }, // Half width on tablet+
+    layout: { xs: 24, sm: 12 }, // Half width from sm up
     validation: {
       required: true,
       minLength: 3,
@@ -33,7 +33,7 @@ export const settingsFormDefinition: FormDefinition = {
   email: {
     type: 'email',
     label: 'Email Address',
-    layout: { xs: 24, sm: 12 }, // Half width on tablet+
+    layout: { xs: 24, sm: 12 }, // Half width from sm up
     validation: {
       required: true,
       pattern: 'email',

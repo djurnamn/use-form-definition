@@ -54,7 +54,7 @@ shadcn/
 │   ├── pages/
 │   │   ├── HomePage.tsx
 │   │   └── UserPage.tsx
-│   └── App.tsx
+│   └── Application.tsx
 └── package.json
 ```
 

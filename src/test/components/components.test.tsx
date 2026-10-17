@@ -1,37 +1,42 @@
-import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
+import React from "react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { useForm } from "react-hook-form";
 
-import TextInput from '../../components/TextInput';
-import NumberInput from '../../components/NumberInput';
-import Select from '../../components/Select';
-import Checkbox from '../../components/Checkbox';
-import Field from '../../components/Field';
-import Repeater from '../../components/Repeater';
+import TextInput from "../../components/TextInput";
+import NumberInput from "../../components/NumberInput";
+import Select from "../../components/Select";
+import Checkbox from "../../components/Checkbox";
+import Field from "../../components/Field";
+import Repeater from "../../components/Repeater";
 
 // Test wrapper component for react-hook-form integration
-const FormWrapper = ({ children, onSubmit = () => {} }: { children: React.ReactNode; onSubmit?: (data: any) => void }) => {
+const FormWrapper = ({
+  children,
+  onSubmit = () => {},
+}: {
+  children: React.ReactNode;
+  onSubmit?: (data: any) => void;
+}) => {
   const methods = useForm({
     defaultValues: {
-      name: '',
-      email: '',
+      name: "",
+      email: "",
       age: 0,
       isActive: false,
-      country: '',
-      items: []
-    }
+      country: "",
+      items: [],
+    },
   });
 
   return (
     <form onSubmit={methods.handleSubmit(onSubmit)}>
       {/* Add form context for components that need it */}
-      {React.Children.map(children, child => {
+      {React.Children.map(children, (child) => {
         if (React.isValidElement(child)) {
           return React.cloneElement(child, {
             onChange: (child.props as any).onChange || (() => {}),
-            ...(child.props as any)
+            ...(child.props as any),
           } as any);
         }
         return child;
@@ -40,198 +45,180 @@ const FormWrapper = ({ children, onSubmit = () => {} }: { children: React.ReactN
   );
 };
 
-describe('Component Testing', () => {
-  describe('TextInput Component', () => {
-    it('should render text input with label', () => {
+describe("Component Testing", () => {
+  describe("TextInput Component", () => {
+    it("should render text input with label", () => {
       render(
         <FormWrapper>
           <Field label="Full Name" name="name">
-            <TextInput 
+            <TextInput
               name="name"
               placeholder="Enter your name"
               onChange={() => {}}
             />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      expect(screen.getByLabelText('Full Name')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('Enter your name')).toBeInTheDocument();
+      expect(screen.getByLabelText("Full Name")).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText("Enter your name"),
+      ).toBeInTheDocument();
     });
 
-    it('should handle user input', () => {
-      let inputValue = '';
+    it("should handle user input", () => {
+      let inputValue = "";
       const handleChange = (value: string) => {
         inputValue = value;
       };
-      
+
       render(
         <FormWrapper>
           <Field label="Full Name" name="name">
-            <TextInput 
-              name="name"
-              value={inputValue}
-              onChange={handleChange}
-            />
+            <TextInput name="name" value={inputValue} onChange={handleChange} />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      const input = screen.getByLabelText('Full Name');
-      fireEvent.change(input, { target: { value: 'John Doe' } });
-      
-      expect(inputValue).toBe('John Doe');
+      const input = screen.getByLabelText("Full Name");
+      fireEvent.change(input, { target: { value: "John Doe" } });
+
+      expect(inputValue).toBe("John Doe");
     });
 
-    it('should display error message', () => {
-      const error = { message: 'Name is required', type: 'required' };
+    it("should display error message", () => {
+      const error = { message: "Name is required", type: "required" };
       render(
         <FormWrapper>
           <Field label="Full Name" name="name" error={error}>
-            <TextInput 
-              name="name"
-              onChange={() => {}}
-            />
+            <TextInput name="name" onChange={() => {}} />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      expect(screen.getByText('Name is required')).toBeInTheDocument();
+      expect(screen.getByText("Name is required")).toBeInTheDocument();
     });
 
-    it('should handle required state', () => {
+    it("should handle required state", () => {
       render(
         <FormWrapper>
           <Field label="Full Name*" name="name">
-            <TextInput 
-              name="name"
-              required={true}
-              onChange={() => {}}
-            />
+            <TextInput name="name" required={true} onChange={() => {}} />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      const label = screen.getByText('Full Name*');
-      expect(label.textContent).toContain('*');
+      const label = screen.getByText("Full Name*");
+      expect(label.textContent).toContain("*");
     });
   });
 
-  describe('NumberInput Component', () => {
-    it('should render number input', () => {
+  describe("NumberInput Component", () => {
+    it("should render number input", () => {
       render(
         <FormWrapper>
           <Field label="Age" name="age">
-            <NumberInput 
-              name="age"
-              min={0}
-              max={100}
-              onChange={() => {}}
-            />
+            <NumberInput name="age" min={0} max={100} onChange={() => {}} />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      const input = screen.getByLabelText('Age');
-      expect(input).toHaveAttribute('type', 'number');
-      expect(input).toHaveAttribute('min', '0');
-      expect(input).toHaveAttribute('max', '100');
+      const input = screen.getByLabelText("Age");
+      expect(input).toHaveAttribute("type", "number");
+      expect(input).toHaveAttribute("min", "0");
+      expect(input).toHaveAttribute("max", "100");
     });
 
-    it('should handle numeric input', () => {
-      let inputValue = '';
+    it("should handle numeric input", () => {
+      let inputValue = "";
       const handleChange = (value: string) => {
         inputValue = value;
       };
-      
+
       render(
         <FormWrapper>
           <Field label="Age" name="age">
-            <NumberInput 
+            <NumberInput
               name="age"
               value={inputValue}
               onChange={handleChange}
             />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      const input = screen.getByLabelText('Age');
-      fireEvent.change(input, { target: { value: '25' } });
-      
-      expect(inputValue).toBe('25');
+      const input = screen.getByLabelText("Age");
+      fireEvent.change(input, { target: { value: "25" } });
+
+      expect(inputValue).toBe("25");
     });
   });
 
-  describe('Select Component', () => {
+  describe("Select Component", () => {
     const options = [
-      { label: 'USA', value: 'us' },
-      { label: 'Canada', value: 'ca' },
-      { label: 'UK', value: 'uk' }
+      { label: "USA", value: "us" },
+      { label: "Canada", value: "ca" },
+      { label: "UK", value: "uk" },
     ];
 
-    it('should render select with options', () => {
+    it("should render select with options", () => {
       render(
         <FormWrapper>
           <Field label="Country" name="country">
-            <Select 
-              name="country"
-              options={options}
-              onChange={() => {}}
-            />
+            <Select name="country" options={options} onChange={() => {}} />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      expect(screen.getByLabelText('Country')).toBeInTheDocument();
-      expect(screen.getByRole('combobox')).toBeInTheDocument();
+      expect(screen.getByLabelText("Country")).toBeInTheDocument();
+      expect(screen.getByRole("combobox")).toBeInTheDocument();
     });
 
-    it('should handle selection', () => {
-      let selectedValue = '';
+    it("should handle selection", () => {
+      let selectedValue = "";
       const handleChange = (value: string) => {
         selectedValue = value;
       };
-      
+
       render(
         <FormWrapper>
           <Field label="Country" name="country">
-            <Select 
+            <Select
               name="country"
               options={options}
               value={selectedValue}
               onChange={handleChange}
             />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      const select = screen.getByLabelText('Country');
-      fireEvent.change(select, { target: { value: 'ca' } });
-      
-      expect(selectedValue).toBe('ca');
+      const select = screen.getByLabelText("Country");
+      fireEvent.change(select, { target: { value: "ca" } });
+
+      expect(selectedValue).toBe("ca");
     });
 
-    it('should display placeholder', () => {
+    it("should display placeholder", () => {
       render(
         <FormWrapper>
           <Field label="Country" name="country">
-            <Select 
+            <Select
               name="country"
               options={options}
               placeholder="Select a country"
               onChange={() => {}}
             />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      expect(screen.getByText('Select a country')).toBeInTheDocument();
+      expect(screen.getByText("Select a country")).toBeInTheDocument();
     });
   });
 
-  describe('Checkbox Component', () => {
-    it('should render checkbox', () => {
+  describe("Checkbox Component", () => {
+    it("should render checkbox", () => {
       render(
         <FormWrapper>
           <Checkbox
@@ -239,16 +226,16 @@ describe('Component Testing', () => {
             inlineLabel="Active Status"
             onChange={() => {}}
           />
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      expect(screen.getByLabelText('Active Status')).toBeInTheDocument();
-      expect(screen.getByRole('checkbox')).toBeInTheDocument();
+      expect(screen.getByLabelText("Active Status")).toBeInTheDocument();
+      expect(screen.getByRole("checkbox")).toBeInTheDocument();
     });
 
-    it('should handle checkbox toggle', () => {
+    it("should handle checkbox toggle", () => {
       const mockOnChange = vi.fn();
-      
+
       render(
         <FormWrapper>
           <Checkbox
@@ -256,12 +243,12 @@ describe('Component Testing', () => {
             inlineLabel="Active Status"
             onChange={mockOnChange}
           />
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      const checkbox = screen.getByRole('checkbox');
+      const checkbox = screen.getByRole("checkbox");
       expect(checkbox).not.toBeChecked();
-      
+
       fireEvent.click(checkbox);
       expect(mockOnChange).toHaveBeenCalled();
 
@@ -270,21 +257,21 @@ describe('Component Testing', () => {
     });
   });
 
-  describe('Field Component', () => {
-    it('should render with children pattern', () => {
+  describe("Field Component", () => {
+    it("should render with children pattern", () => {
       render(
         <FormWrapper>
           <Field label="Test Field" name="test">
             <input type="text" />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      expect(screen.getByText('Test Field')).toBeInTheDocument();
-      expect(screen.getByRole('textbox')).toBeInTheDocument();
+      expect(screen.getByText("Test Field")).toBeInTheDocument();
+      expect(screen.getByRole("textbox")).toBeInTheDocument();
     });
 
-    it('should render with render prop pattern', () => {
+    it("should render with render prop pattern", () => {
       // Field component uses children pattern, not render prop
       // This test should focus on the render prop if the Field supports it
       render(
@@ -292,60 +279,59 @@ describe('Component Testing', () => {
           <Field label="Test Field" name="test">
             <input type="text" />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      expect(screen.getByText('Test Field')).toBeInTheDocument();
-      expect(screen.getByRole('textbox')).toBeInTheDocument();
+      expect(screen.getByText("Test Field")).toBeInTheDocument();
+      expect(screen.getByRole("textbox")).toBeInTheDocument();
     });
 
-    it('should display field error', () => {
-      const error = { message: 'Field is required', type: 'required' as const };
+    it("should display field error", () => {
+      const error = { message: "Field is required", type: "required" as const };
       render(
         <FormWrapper>
-          <Field 
-            label="Test Field" 
-            name="test"
-            error={error}
-          >
+          <Field label="Test Field" name="test" error={error}>
             <input type="text" />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      expect(screen.getByText('Field is required')).toBeInTheDocument();
+      expect(screen.getByText("Field is required")).toBeInTheDocument();
     });
 
-    it('should handle required indicator', () => {
+    it("should handle required indicator", () => {
       render(
         <FormWrapper>
-          <Field 
-            label="Required Field *" 
-            name="test"
-          >
+          <Field label="Required Field *" name="test">
             <input type="text" />
           </Field>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      const label = screen.getByText('Required Field *');
-      expect(label.textContent).toContain('*');
+      const label = screen.getByText("Required Field *");
+      expect(label.textContent).toContain("*");
     });
   });
 
-  describe('Repeater Component', () => {
+  describe("Repeater Component", () => {
     const fields = {
       name: {
-        type: 'text' as const,
-        validation: { required: true }
+        type: "text" as const,
+        validation: { required: true },
       },
       email: {
-        type: 'email' as const,
-        validation: { required: true, pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Invalid email' } }
-      }
+        type: "email" as const,
+        validation: {
+          required: true,
+          pattern: {
+            value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+            message: "Invalid email",
+          },
+        },
+      },
     };
 
-    it('should render empty repeater with add button', () => {
+    it("should render empty repeater with add button", () => {
       render(
         <FormWrapper>
           <Repeater
@@ -354,14 +340,14 @@ describe('Component Testing', () => {
             onChange={() => {}}
             value={[]}
           />
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      expect(screen.getByText('+')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: '+' })).toBeInTheDocument();
+      expect(screen.getByText("+")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "+" })).toBeInTheDocument();
     });
 
-    it('should handle adding new rows', () => {
+    it("should handle adding new rows", () => {
       const mockOnChange = vi.fn();
 
       render(
@@ -372,49 +358,47 @@ describe('Component Testing', () => {
             onChange={mockOnChange}
             value={[]}
           />
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      const addButton = screen.getByText('+');
+      const addButton = screen.getByText("+");
       fireEvent.click(addButton);
 
-      expect(mockOnChange).toHaveBeenCalledWith([{ name: '', email: '' }]);
+      expect(mockOnChange).toHaveBeenCalledWith([{ name: "", email: "" }]);
     });
 
-    it('should render existing rows', () => {
+    it("should render existing rows", () => {
       const values = [
-        { name: 'John', email: 'john@example.com' },
-        { name: 'Jane', email: 'jane@example.com' }
+        { name: "John", email: "john@example.com" },
+        { name: "Jane", email: "jane@example.com" },
       ];
 
       render(
         <FormWrapper>
-          <Repeater 
+          <Repeater
             name="items"
             fields={fields}
             onChange={() => {}}
             value={values}
           />
-        </FormWrapper>
+        </FormWrapper>,
       );
 
       // Check that table headers are rendered
-      expect(screen.getByText('name')).toBeInTheDocument();
-      expect(screen.getByText('email')).toBeInTheDocument();
-      
+      expect(screen.getByText("name")).toBeInTheDocument();
+      expect(screen.getByText("email")).toBeInTheDocument();
+
       // Check that values are present (the repeater creates input fields with these values)
       const nameInputs = screen.getAllByDisplayValue(/John|Jane/);
       const emailInputs = screen.getAllByDisplayValue(/@example\.com/);
-      
+
       expect(nameInputs.length).toBeGreaterThan(0);
       expect(emailInputs.length).toBeGreaterThan(0);
     });
 
-    it('should handle row deletion', () => {
+    it("should handle row deletion", () => {
       const mockOnChange = vi.fn();
-      const values = [
-        { name: 'John', email: 'john@example.com' }
-      ];
+      const values = [{ name: "John", email: "john@example.com" }];
 
       render(
         <FormWrapper>
@@ -424,19 +408,19 @@ describe('Component Testing', () => {
             onChange={mockOnChange}
             value={values}
           />
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      const deleteButton = screen.getByText('×');
+      const deleteButton = screen.getByText("×");
       fireEvent.click(deleteButton);
 
       expect(mockOnChange).toHaveBeenCalledWith([]);
     });
 
-    it('should respect maxRows configuration', () => {
+    it("should respect maximumRows configuration", () => {
       const values = [
-        { name: 'John', email: 'john@example.com' },
-        { name: 'Jane', email: 'jane@example.com' }
+        { name: "John", email: "john@example.com" },
+        { name: "Jane", email: "jane@example.com" },
       ];
 
       render(
@@ -446,16 +430,16 @@ describe('Component Testing', () => {
             fields={fields}
             onChange={() => {}}
             value={values}
-            maxRows={2}
+            maximumRows={2}
           />
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      const addButton = screen.queryByText('+');
+      const addButton = screen.queryByText("+");
       expect(addButton).not.toBeInTheDocument();
     });
 
-    it('should respect disableAddRow configuration', () => {
+    it("should respect disableAddRow configuration", () => {
       render(
         <FormWrapper>
           <Repeater
@@ -465,35 +449,35 @@ describe('Component Testing', () => {
             value={[]}
             disableAddRow={true}
           />
-        </FormWrapper>
+        </FormWrapper>,
       );
 
-      const addButton = screen.queryByText('+');
+      const addButton = screen.queryByText("+");
       expect(addButton).not.toBeInTheDocument();
     });
 
-    it('should hide table header when hideHeader is true', () => {
+    it("should hide table header when hideHeader is true", () => {
       render(
         <FormWrapper>
-          <Repeater 
+          <Repeater
             name="items"
             fields={fields}
             label="Items"
             onChange={() => {}}
-            value={[{ name: 'John', email: 'john@example.com' }]}
+            value={[{ name: "John", email: "john@example.com" }]}
             hideHeader={true}
           />
-        </FormWrapper>
+        </FormWrapper>,
       );
 
       // Should not find the header row with field names
-      expect(screen.queryByText('name')).not.toBeInTheDocument();
-      expect(screen.queryByText('email')).not.toBeInTheDocument();
+      expect(screen.queryByText("name")).not.toBeInTheDocument();
+      expect(screen.queryByText("email")).not.toBeInTheDocument();
     });
   });
 
-  describe('Component Integration', () => {
-    it('should work together in a form', async () => {
+  describe("Component Integration", () => {
+    it("should work together in a form", async () => {
       const onSubmit = vi.fn();
 
       render(
@@ -508,26 +492,26 @@ describe('Component Testing', () => {
             <Select
               name="country"
               options={[
-                { label: 'USA', value: 'us' },
-                { label: 'Canada', value: 'ca' }
+                { label: "USA", value: "us" },
+                { label: "Canada", value: "ca" },
               ]}
               onChange={() => {}}
             />
           </Field>
           <Checkbox name="isActive" inlineLabel="Active" onChange={() => {}} />
           <button type="submit">Submit</button>
-        </FormWrapper>
+        </FormWrapper>,
       );
 
       // Check that components render with proper labels
-      expect(screen.getByLabelText('Name')).toBeInTheDocument();
-      expect(screen.getByLabelText('Age')).toBeInTheDocument();
-      expect(screen.getByLabelText('Country')).toBeInTheDocument();
-      expect(screen.getByLabelText('Active')).toBeInTheDocument();
-      expect(screen.getByText('Submit')).toBeInTheDocument();
+      expect(screen.getByLabelText("Name")).toBeInTheDocument();
+      expect(screen.getByLabelText("Age")).toBeInTheDocument();
+      expect(screen.getByLabelText("Country")).toBeInTheDocument();
+      expect(screen.getByLabelText("Active")).toBeInTheDocument();
+      expect(screen.getByText("Submit")).toBeInTheDocument();
 
       // Submit form
-      fireEvent.click(screen.getByText('Submit'));
+      fireEvent.click(screen.getByText("Submit"));
 
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalled();

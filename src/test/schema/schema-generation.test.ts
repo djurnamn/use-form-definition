@@ -1,421 +1,480 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { z } from 'zod';
+import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import {
   generateSchema,
   generateSchemaAsync,
-  generateFieldSchema,
   generateFieldSchemaSync,
-  applyCrossFieldValidation,
-} from '../../core/schema/schema-builder';
-import { FormDefinition } from '../../core/types';
+} from "../../core/schema/schema-builder";
+import { FormDefinition } from "../../core/types";
 
-describe('Schema Generation', () => {
-  describe('generateSchema (synchronous)', () => {
-    it('should generate schema for simple form definition', () => {
+describe("Schema Generation", () => {
+  describe("generateSchema (synchronous)", () => {
+    it("should generate schema for simple form definition", () => {
       const definition: FormDefinition = {
         name: {
-          type: 'text',
-          validation: { required: true, minLength: 2 }
+          type: "text",
+          validation: { required: true, minLength: 2 },
         },
         email: {
-          type: 'email',
-          validation: { required: true, pattern: 'email' }
+          type: "email",
+          validation: { required: true, pattern: "email" },
         },
         age: {
-          type: 'number',
-          validation: { min: 18 }
-        }
+          type: "number",
+          validation: { min: 18 },
+        },
       };
 
       const schema = generateSchema(definition);
-      
+
       // Test valid data
-      const validData = { name: 'John', email: 'john@example.com', age: 25 };
+      const validData = { name: "John", email: "john@example.com", age: 25 };
       expect(() => schema.parse(validData)).not.toThrow();
 
       // Test invalid data
-      expect(() => schema.parse({ name: 'J', email: 'john@example.com', age: 25 })).toThrow(); // name too short
-      expect(() => schema.parse({ name: 'John', email: 'not-an-email', age: 25 })).toThrow(); // invalid email
-      expect(() => schema.parse({ name: 'John', email: 'john@example.com', age: 17 })).toThrow(); // age too low
+      expect(() =>
+        schema.parse({ name: "J", email: "john@example.com", age: 25 }),
+      ).toThrow(); // name too short
+      expect(() =>
+        schema.parse({ name: "John", email: "not-an-email", age: 25 }),
+      ).toThrow(); // invalid email
+      expect(() =>
+        schema.parse({ name: "John", email: "john@example.com", age: 17 }),
+      ).toThrow(); // age too low
     });
 
-    it('should handle optional fields', () => {
+    it("should handle optional fields", () => {
       const definition: FormDefinition = {
         required: {
-          type: 'text',
-          validation: { required: true }
+          type: "text",
+          validation: { required: true },
         },
         optional: {
-          type: 'text'
+          type: "text",
           // No required validation
-        }
+        },
       };
 
       const schema = generateSchema(definition);
-      
-      expect(() => schema.parse({ required: 'value' })).not.toThrow();
-      expect(() => schema.parse({ required: 'value', optional: 'value' })).not.toThrow();
-      expect(() => schema.parse({ optional: 'value' })).toThrow(); // missing required
+
+      expect(() => schema.parse({ required: "value" })).not.toThrow();
+      expect(() =>
+        schema.parse({ required: "value", optional: "value" }),
+      ).not.toThrow();
+      expect(() => schema.parse({ optional: "value" })).toThrow(); // missing required
     });
 
-    it('should handle select fields with options', () => {
+    it("should handle select fields with options", () => {
       const definition: FormDefinition = {
         role: {
-          type: 'select',
+          type: "select",
           options: [
-            { value: 'admin', label: 'Administrator' },
-            { value: 'user', label: 'User' }
+            { value: "admin", label: "Administrator" },
+            { value: "user", label: "User" },
           ],
-          validation: { required: true }
-        }
+          validation: { required: true },
+        },
       };
 
       const schema = generateSchema(definition);
-      
-      expect(() => schema.parse({ role: 'admin' })).not.toThrow();
-      expect(() => schema.parse({ role: 'user' })).not.toThrow();
-      expect(() => schema.parse({ role: 'invalid' })).toThrow();
+
+      expect(() => schema.parse({ role: "admin" })).not.toThrow();
+      expect(() => schema.parse({ role: "user" })).not.toThrow();
+      expect(() => schema.parse({ role: "invalid" })).toThrow();
     });
 
-    it('should handle repeater fields', () => {
+    it("should handle repeater fields", () => {
       const definition: FormDefinition = {
         items: {
-          type: 'repeater',
+          type: "repeater",
           fields: {
-            name: { type: 'text', validation: { required: true } },
-            quantity: { type: 'number', validation: { required: true, min: 1 } }
+            name: { type: "text", validation: { required: true } },
+            quantity: {
+              type: "number",
+              validation: { required: true, min: 1 },
+            },
           },
-          validation: { minRows: 1, maxRows: 5 }
-        }
+          validation: { minimumRows: 1, maximumRows: 5 },
+        },
       };
 
       const schema = generateSchema(definition);
-      
+
       const validData = {
         items: [
-          { name: 'Item 1', quantity: 2 },
-          { name: 'Item 2', quantity: 1 }
-        ]
+          { name: "Item 1", quantity: 2 },
+          { name: "Item 2", quantity: 1 },
+        ],
       };
-      
+
       expect(() => schema.parse(validData)).not.toThrow();
-      expect(() => schema.parse({ items: [] })).toThrow(); // violates minRows
-      expect(() => schema.parse({ items: Array(6).fill({ name: 'Item', quantity: 1 }) })).toThrow(); // violates maxRows
+      expect(() => schema.parse({ items: [] })).toThrow(); // violates minimumRows
+      expect(() =>
+        schema.parse({ items: Array(6).fill({ name: "Item", quantity: 1 }) }),
+      ).toThrow(); // violates maximumRows
     });
   });
 
-  describe('generateSchemaAsync (with plugins)', () => {
-    it('should generate schema with plugin support', async () => {
+  describe("generateSchemaAsync (with plugins)", () => {
+    it("should generate schema with plugin support", async () => {
       const definition: FormDefinition = {
         username: {
-          type: 'text',
-          validation: { required: true, minLength: 3 }
-        }
+          type: "text",
+          validation: { required: true, minLength: 3 },
+        },
       };
 
       const schema = await generateSchemaAsync(definition);
-      
-      expect(() => schema.parse({ username: 'valid' })).not.toThrow();
-      expect(() => schema.parse({ username: 'ab' })).toThrow();
+
+      expect(() => schema.parse({ username: "valid" })).not.toThrow();
+      expect(() => schema.parse({ username: "ab" })).toThrow();
     });
 
-    it('should handle form data context', async () => {
+    it("should handle form data context", async () => {
       const definition: FormDefinition = {
-        field1: { type: 'text', validation: { required: true } },
-        field2: { type: 'text', validation: { required: true } }
+        field1: { type: "text", validation: { required: true } },
+        field2: { type: "text", validation: { required: true } },
       };
 
-      const formData = { field1: 'value1', field2: 'value2' };
+      const formData = { field1: "value1", field2: "value2" };
       const schema = await generateSchemaAsync(definition, formData);
-      
+
       expect(() => schema.parse(formData)).not.toThrow();
     });
   });
 
-  describe('Cross-field validation', () => {
-    it('should handle matchValue validation', () => {
+  describe("Cross-field validation", () => {
+    it("should handle matchValue validation", () => {
       const definition: FormDefinition = {
         password: {
-          type: 'password',
-          validation: { required: true, minLength: 8 }
+          type: "password",
+          validation: { required: true, minLength: 8 },
         },
         confirmPassword: {
-          type: 'password',
-          validation: { 
+          type: "password",
+          validation: {
             required: true,
-            matchValue: 'password'
-          }
-        }
+            matchValue: "password",
+          },
+        },
       };
 
       const schema = generateSchema(definition);
-      
+
       // Matching passwords should pass
-      const validData = { password: 'password123', confirmPassword: 'password123' };
+      const validData = {
+        password: "password123",
+        confirmPassword: "password123",
+      };
       expect(() => schema.parse(validData)).not.toThrow();
 
       // Non-matching passwords should fail
-      const invalidData = { password: 'password123', confirmPassword: 'different' };
+      const invalidData = {
+        password: "password123",
+        confirmPassword: "different",
+      };
       expect(() => schema.parse(invalidData)).toThrow();
     });
 
-    it('should handle requiredWhen validation', () => {
+    it("should handle requiredWhen validation", () => {
       const definition: FormDefinition = {
         hasJob: {
-          type: 'checkbox',
-          validation: { required: false }
+          type: "checkbox",
+          validation: { required: false },
         },
         employer: {
-          type: 'text',
+          type: "text",
           validation: {
-            requiredWhen: { field: 'hasJob', value: true }
-          }
-        }
+            requiredWhen: { field: "hasJob", value: true },
+          },
+        },
       };
 
       const schema = generateSchema(definition);
-      
+
       // When hasJob is false, employer is not required
       expect(() => schema.parse({ hasJob: false })).not.toThrow();
-      
+
       // When hasJob is true, employer is required
       expect(() => schema.parse({ hasJob: true })).toThrow();
-      expect(() => schema.parse({ hasJob: true, employer: 'Company Inc.' })).not.toThrow();
+      expect(() =>
+        schema.parse({ hasJob: true, employer: "Company Inc." }),
+      ).not.toThrow();
     });
   });
 
-  describe('Field schema generation', () => {
-    it('should generate different schemas for different field types', () => {
-      const textField = { type: 'text', validation: { required: true } };
-      const numberField = { type: 'number', validation: { required: true, min: 0 } };
-      const dateField = { type: 'date', validation: { required: true } };
+  describe("Field schema generation", () => {
+    it("should generate different schemas for different field types", () => {
+      const textField = { type: "text", validation: { required: true } };
+      const numberField = {
+        type: "number",
+        validation: { required: true, min: 0 },
+      };
+      const dateField = { type: "date", validation: { required: true } };
 
       const crossFieldValidation = { matchValue: [], requiredWhen: [] };
 
-      const textSchema = generateFieldSchemaSync('text', textField, crossFieldValidation);
-      const numberSchema = generateFieldSchemaSync('number', numberField, crossFieldValidation);
-      const dateSchema = generateFieldSchemaSync('date', dateField, crossFieldValidation);
+      const textSchema = generateFieldSchemaSync(
+        "text",
+        textField,
+        crossFieldValidation,
+      );
+      const numberSchema = generateFieldSchemaSync(
+        "number",
+        numberField,
+        crossFieldValidation,
+      );
+      const dateSchema = generateFieldSchemaSync(
+        "date",
+        dateField,
+        crossFieldValidation,
+      );
 
-      expect(() => textSchema.parse('valid text')).not.toThrow();
-      expect(() => textSchema.parse('')).toThrow();
+      expect(() => textSchema.parse("valid text")).not.toThrow();
+      expect(() => textSchema.parse("")).toThrow();
 
       expect(() => numberSchema.parse(5)).not.toThrow();
       expect(() => numberSchema.parse(-1)).toThrow();
 
       expect(() => dateSchema.parse(new Date())).not.toThrow();
-      expect(() => dateSchema.parse('2024-01-01')).not.toThrow(); // Should transform
+      expect(() => dateSchema.parse("2024-01-01")).not.toThrow(); // Should transform
     });
   });
 
-  describe('Validation rule application', () => {
-    it('should apply multiple validation rules correctly', () => {
+  describe("Validation rule application", () => {
+    it("should apply multiple validation rules correctly", () => {
       const definition: FormDefinition = {
         username: {
-          type: 'text',
+          type: "text",
           validation: {
             required: true,
             minLength: 3,
             maxLength: 20,
-            pattern: /^[a-zA-Z0-9_]+$/
-          }
-        }
+            pattern: /^[a-zA-Z0-9_]+$/,
+          },
+        },
       };
 
       const schema = generateSchema(definition);
-      
-      expect(() => schema.parse({ username: 'valid_user123' })).not.toThrow();
-      expect(() => schema.parse({ username: 'ab' })).toThrow(); // too short
-      expect(() => schema.parse({ username: 'a'.repeat(21) })).toThrow(); // too long
-      expect(() => schema.parse({ username: 'invalid-user!' })).toThrow(); // invalid pattern
+
+      expect(() => schema.parse({ username: "valid_user123" })).not.toThrow();
+      expect(() => schema.parse({ username: "ab" })).toThrow(); // too short
+      expect(() => schema.parse({ username: "a".repeat(21) })).toThrow(); // too long
+      expect(() => schema.parse({ username: "invalid-user!" })).toThrow(); // invalid pattern
     });
 
-    it('should handle pattern validation with named patterns', () => {
+    it("should handle pattern validation with named patterns", () => {
       const definition: FormDefinition = {
         email: {
-          type: 'text',
+          type: "text",
           validation: {
             required: true,
-            pattern: 'email' // Named pattern
-          }
-        }
+            pattern: "email", // Named pattern
+          },
+        },
       };
 
       const schema = generateSchema(definition);
-      
-      expect(() => schema.parse({ email: 'user@example.com' })).not.toThrow();
-      expect(() => schema.parse({ email: 'invalid-email' })).toThrow();
+
+      expect(() => schema.parse({ email: "user@example.com" })).not.toThrow();
+      expect(() => schema.parse({ email: "invalid-email" })).toThrow();
     });
   });
 
-  describe('Error handling', () => {
-    it('should provide meaningful error messages', () => {
+  describe("Error handling", () => {
+    it("should provide meaningful error messages", () => {
       const definition: FormDefinition = {
         name: {
-          type: 'text',
-          validation: { 
+          type: "text",
+          validation: {
             required: true,
-            minLength: { value: 2, message: 'Name must be at least 2 characters' }
-          }
-        }
+            minLength: {
+              value: 2,
+              message: "Name must be at least 2 characters",
+            },
+          },
+        },
       };
 
       const schema = generateSchema(definition);
-      
+
       try {
-        schema.parse({ name: 'a' });
-        expect.fail('Should have thrown an error');
+        schema.parse({ name: "a" });
+        expect.fail("Should have thrown an error");
       } catch (error) {
         expect(error).toBeInstanceOf(z.ZodError);
         const zodError = error as z.ZodError;
         // The error message might be in the first error or nested
-        const errorMessage = zodError.errors[0].message;
-        expect(errorMessage).toContain('2 characters');
+        const errorMessage = zodError.issues[0].message;
+        expect(errorMessage).toContain("2 characters");
       }
     });
   });
 
   // The schema embeds validation messages as createMessage-encoded JSON (`["key", options]`)
   // so an i18n client can resolve them. These assert the schema→message-key contract for the
-  // built-in failure messages, not just that parsing throws.
-  describe('Message-key contract', () => {
-    const decode = (message: string): [string, Record<string, unknown>] => JSON.parse(message);
+  // built-in failure messages, beyond the fact that parsing throws.
+  describe("Message-key contract", () => {
+    const decode = (message: string): [string, Record<string, unknown>] =>
+      JSON.parse(message);
 
     // The first failing field's message, decoded to its [key, options] pair.
-    const firstMessage = (schema: z.ZodTypeAny, data: unknown): [string, Record<string, unknown>] => {
+    const firstMessage = (
+      schema: z.ZodTypeAny,
+      data: unknown,
+    ): [string, Record<string, unknown>] => {
       const result = schema.safeParse(data);
-      if (result.success) throw new Error('expected a validation failure');
-      return decode(result.error.errors[0].message);
+      if (result.success) throw new Error("expected a validation failure");
+      return decode(result.error.issues[0].message);
     };
 
-    it('emits invalidFormat for a value failing a named pattern', () => {
+    it("emits invalidFormat for a value failing a named pattern", () => {
       const schema = generateSchema({
-        email: { type: 'email', validation: { required: true, pattern: 'email' } },
+        email: {
+          type: "email",
+          validation: { required: true, pattern: "email" },
+        },
       });
-      expect(firstMessage(schema, { email: 'not-an-email' })).toEqual(['invalidFormat', {}]);
+      expect(firstMessage(schema, { email: "not-an-email" })).toEqual([
+        "invalidFormat",
+        {},
+      ]);
     });
 
-    it('emits invalidSelection for a missing required select', () => {
+    it("emits invalidSelection for a missing required select", () => {
       const schema = generateSchema({
         role: {
-          type: 'select',
-          options: [{ value: 'admin', label: 'Administrator' }],
+          type: "select",
+          options: [{ value: "admin", label: "Administrator" }],
           validation: { required: true },
         },
       });
-      expect(firstMessage(schema, {})).toEqual(['invalidSelection', {}]);
+      expect(firstMessage(schema, {})).toEqual(["invalidSelection", {}]);
     });
 
-    it('emits invalidSelection for a value outside the select options', () => {
+    it("emits invalidSelection for a value outside the select options", () => {
       const schema = generateSchema({
         role: {
-          type: 'select',
-          options: [{ value: 'admin', label: 'Administrator' }],
+          type: "select",
+          options: [{ value: "admin", label: "Administrator" }],
           validation: { required: true },
         },
       });
-      expect(firstMessage(schema, { role: 'nope' })).toEqual(['invalidSelection', {}]);
+      expect(firstMessage(schema, { role: "nope" })).toEqual([
+        "invalidSelection",
+        {},
+      ]);
     });
 
-    it('emits invalidSelections for a value outside the multiselect options', () => {
+    it("emits invalidSelections for a value outside the multiselect options", () => {
       const schema = generateSchema({
         tags: {
-          type: 'multiselect',
-          options: [{ value: 'a', label: 'A' }],
+          type: "multiselect",
+          options: [{ value: "a", label: "A" }],
           validation: { required: true },
         },
       });
-      expect(firstMessage(schema, { tags: ['nope'] })).toEqual(['invalidSelections', {}]);
+      expect(firstMessage(schema, { tags: ["nope"] })).toEqual([
+        "invalidSelections",
+        {},
+      ]);
     });
 
     // A real form submit posts every field (empty string / empty array), so the library's own
     // `required` key fires. A genuinely-absent key would instead fall through to zod's default
     // "Required" string - not a path the rendered form produces.
-    it('emits required for an empty required text field', () => {
+    it("emits required for an empty required text field", () => {
       const schema = generateSchema({
-        name: { type: 'text', validation: { required: true } },
+        name: { type: "text", validation: { required: true } },
       });
-      expect(firstMessage(schema, { name: '' })).toEqual(['required', {}]);
+      expect(firstMessage(schema, { name: "" })).toEqual(["required", {}]);
     });
 
-    it('emits required for an empty required multiselect', () => {
+    it("emits required for an empty required multiselect", () => {
       const schema = generateSchema({
         tags: {
-          type: 'multiselect',
-          options: [{ value: 'a', label: 'A' }],
+          type: "multiselect",
+          options: [{ value: "a", label: "A" }],
           validation: { required: true },
         },
       });
-      expect(firstMessage(schema, { tags: [] })).toEqual(['required', {}]);
+      expect(firstMessage(schema, { tags: [] })).toEqual(["required", {}]);
     });
 
-    it('emits mustBeTrue for an unchecked must-be-true checkbox', () => {
+    it("emits mustBeTrue for an unchecked must-be-true checkbox", () => {
       const schema = generateSchema({
-        terms: { type: 'checkbox', validation: { mustBeTrue: true } },
+        terms: { type: "checkbox", validation: { mustBeTrue: true } },
       });
-      expect(firstMessage(schema, { terms: false })).toEqual(['mustBeTrue', {}]);
+      expect(firstMessage(schema, { terms: false })).toEqual([
+        "mustBeTrue",
+        {},
+      ]);
     });
 
-    it('threads count into a minLength failure message', () => {
+    it("threads count into a minLength failure message", () => {
       const schema = generateSchema({
-        name: { type: 'text', validation: { required: true, minLength: 3 } },
+        name: { type: "text", validation: { required: true, minLength: 3 } },
       });
-      expect(firstMessage(schema, { name: 'ab' })).toEqual(['minLength', { count: 3 }]);
+      expect(firstMessage(schema, { name: "ab" })).toEqual([
+        "minLength",
+        { count: 3 },
+      ]);
     });
   });
 
-  describe('Complex form scenarios', () => {
-    it('should handle nested repeater fields', () => {
+  describe("Complex form scenarios", () => {
+    it("should handle nested repeater fields", () => {
       const definition: FormDefinition = {
         sections: {
-          type: 'repeater',
+          type: "repeater",
           fields: {
-            title: { type: 'text', validation: { required: true } },
+            title: { type: "text", validation: { required: true } },
             items: {
-              type: 'repeater',
+              type: "repeater",
               fields: {
-                name: { type: 'text', validation: { required: true } },
-                value: { type: 'number', validation: { required: true } }
-              }
-            }
-          }
-        }
+                name: { type: "text", validation: { required: true } },
+                value: { type: "number", validation: { required: true } },
+              },
+            },
+          },
+        },
       };
 
       const schema = generateSchema(definition);
-      
+
       const validData = {
         sections: [
           {
-            title: 'Section 1',
+            title: "Section 1",
             items: [
-              { name: 'Item 1', value: 10 },
-              { name: 'Item 2', value: 20 }
-            ]
-          }
-        ]
+              { name: "Item 1", value: 10 },
+              { name: "Item 2", value: 20 },
+            ],
+          },
+        ],
       };
-      
+
       expect(() => schema.parse(validData)).not.toThrow();
     });
 
-    it('should handle multiselect fields', () => {
+    it("should handle multiselect fields", () => {
       const definition: FormDefinition = {
         tags: {
-          type: 'multiselect',
+          type: "multiselect",
           options: [
-            { value: 'tag1', label: 'Tag 1' },
-            { value: 'tag2', label: 'Tag 2' },
-            { value: 'tag3', label: 'Tag 3' }
+            { value: "tag1", label: "Tag 1" },
+            { value: "tag2", label: "Tag 2" },
+            { value: "tag3", label: "Tag 3" },
           ],
-          validation: { required: true }
-        }
+          validation: { required: true },
+        },
       };
 
       const schema = generateSchema(definition);
-      
-      expect(() => schema.parse({ tags: ['tag1', 'tag2'] })).not.toThrow();
+
+      expect(() => schema.parse({ tags: ["tag1", "tag2"] })).not.toThrow();
       expect(() => schema.parse({ tags: [] })).toThrow(); // required but empty
-      expect(() => schema.parse({ tags: ['invalid'] })).toThrow(); // invalid option
+      expect(() => schema.parse({ tags: ["invalid"] })).toThrow(); // invalid option
     });
   });
 });

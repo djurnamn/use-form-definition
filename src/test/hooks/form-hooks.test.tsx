@@ -1,61 +1,61 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
-import { useForm } from 'react-hook-form';
-import { createFormDefinitionHook } from '../../hooks/createFormDefinitionHook';
-import { useFormDefinition } from '../../hooks/useFormDefinition';
-import TextInput from '../../components/TextInput';
-import NumberInput from '../../components/NumberInput';
-import Select from '../../components/Select';
-import Checkbox from '../../components/Checkbox';
-import { FormDefinition } from '../../core/types';
+import { describe, it, expect } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { useForm } from "react-hook-form";
+import { createFormDefinitionHook } from "../../hooks/createFormDefinitionHook";
+import { useFormDefinition } from "../../hooks/useFormDefinition";
+import TextInput from "../../components/TextInput";
+import NumberInput from "../../components/NumberInput";
+import Select from "../../components/Select";
+import Checkbox from "../../components/Checkbox";
+import { FormDefinition } from "../../core/types";
 
 // Test form definitions
 const simpleFormDefinition: FormDefinition = {
   name: {
-    type: 'text',
-    validation: { required: true, minLength: 2 }
+    type: "text",
+    validation: { required: true, minLength: 2 },
   },
   email: {
-    type: 'email',
-    validation: { required: true, pattern: 'email' }
+    type: "email",
+    validation: { required: true, pattern: "email" },
   },
   age: {
-    type: 'number',
-    validation: { min: 18, max: 100 }
-  }
+    type: "number",
+    validation: { min: 18, max: 100 },
+  },
 };
 
 const complexFormDefinition: FormDefinition = {
   profile: {
-    type: 'text',
-    validation: { required: true }
+    type: "text",
+    validation: { required: true },
   },
   country: {
-    type: 'select',
+    type: "select",
     options: [
-      { label: 'USA', value: 'us' },
-      { label: 'Canada', value: 'ca' },
-      { label: 'UK', value: 'uk' }
+      { label: "USA", value: "us" },
+      { label: "Canada", value: "ca" },
+      { label: "UK", value: "uk" },
     ],
-    validation: { required: true }
+    validation: { required: true },
   },
   isActive: {
-    type: 'checkbox'
+    type: "checkbox",
   },
   contacts: {
-    type: 'repeater',
+    type: "repeater",
     fields: {
       name: {
-        type: 'text',
-        validation: { required: true }
+        type: "text",
+        validation: { required: true },
       },
       phone: {
-        type: 'text',
-        validation: { pattern: 'phone' }
-      }
+        type: "text",
+        validation: { pattern: "phone" },
+      },
     },
-    validation: { minRows: 1, maxRows: 5 }
-  }
+    validation: { minimumRows: 1, maximumRows: 5 },
+  },
 };
 
 // Test component configurations
@@ -65,195 +65,198 @@ const components = {
   number: NumberInput,
   select: Select,
   checkbox: Checkbox,
-  repeater: () => <div>Repeater Component</div>
+  repeater: () => <div>Repeater Component</div>,
 };
 
-describe('Form Hook Integration Tests', () => {
-  describe('createFormDefinitionHook', () => {
-    it('should create a hook with default configuration', () => {
+describe("Form Hook Integration Tests", () => {
+  describe("createFormDefinitionHook", () => {
+    it("should create a hook with default configuration", () => {
       const useTestForm = createFormDefinitionHook({
-        components
+        components,
       });
 
-      expect(typeof useTestForm).toBe('function');
+      expect(typeof useTestForm).toBe("function");
       // Function was created successfully
     });
 
-    it('should create hook with custom validation registry', () => {
-      // Note: Custom validation is now handled via plugin system
-      // This test just verifies the hook can be created without validation config
+    it("should create hook with custom validation registry", () => {
+      // This test verifies the hook can be created without validation configuration
 
       const useTestForm = createFormDefinitionHook({
-        components
+        components,
       });
 
-      expect(typeof useTestForm).toBe('function');
+      expect(typeof useTestForm).toBe("function");
     });
 
-    it('should create hook with custom translation function', () => {
+    it("should create hook with custom translation function", () => {
       const translate = (key: string) => `Custom: ${key}`;
 
       const useTestForm = createFormDefinitionHook({
         components,
         translation: {
-          function: translate
-        }
+          function: translate,
+        },
       });
 
-      expect(typeof useTestForm).toBe('function');
+      expect(typeof useTestForm).toBe("function");
     });
 
-    it('should handle component configuration objects', () => {
+    it("should handle component configuration objects", () => {
       const advancedComponents = {
         text: {
           component: TextInput,
           ignoreFieldWrapper: true,
-          additionalProps: ['customProp']
+          additionalProps: ["customProp"],
         },
-        number: NumberInput
+        number: NumberInput,
       };
 
       const useTestForm = createFormDefinitionHook({
-        components: advancedComponents
+        components: advancedComponents,
       });
 
-      expect(typeof useTestForm).toBe('function');
+      expect(typeof useTestForm).toBe("function");
     });
   });
 
-  describe('useFormDefinition hook functionality', () => {
-    it('should return core hook APIs', () => {
-      const { result } = renderHook(() => 
-        useFormDefinition(simpleFormDefinition)
+  describe("useFormDefinition hook functionality", () => {
+    it("should return core hook APIs", () => {
+      const { result } = renderHook(() =>
+        useFormDefinition(simpleFormDefinition),
       );
 
       // Check that the hook returns the expected API
-      expect(result.current).toHaveProperty('RenderedField');
-      expect(result.current).toHaveProperty('RenderedForm');
-      expect(result.current).toHaveProperty('validateData');
-      expect(result.current).toHaveProperty('generateSchema');
-      expect(result.current).toHaveProperty('generateOptions');
-      expect(result.current).toHaveProperty('_types');
+      expect(result.current).toHaveProperty("RenderedField");
+      expect(result.current).toHaveProperty("RenderedForm");
+      expect(result.current).toHaveProperty("validateData");
+      expect(result.current).toHaveProperty("generateSchema");
+      expect(result.current).toHaveProperty("generateOptions");
+      expect(result.current).toHaveProperty("_types");
 
-      expect(typeof result.current.RenderedField).toBe('function');
-      expect(typeof result.current.RenderedForm).toBe('function');
-      expect(typeof result.current.validateData).toBe('function');
-      expect(typeof result.current.generateSchema).toBe('function');
-      expect(typeof result.current.generateOptions).toBe('function');
+      expect(typeof result.current.RenderedField).toBe("function");
+      expect(typeof result.current.RenderedForm).toBe("function");
+      expect(typeof result.current.validateData).toBe("function");
+      expect(typeof result.current.generateSchema).toBe("function");
+      expect(typeof result.current.generateOptions).toBe("function");
     });
 
-    it('should generate schema correctly', () => {
-      const { result } = renderHook(() => 
-        useFormDefinition(simpleFormDefinition)
+    it("should generate schema correctly", () => {
+      const { result } = renderHook(() =>
+        useFormDefinition(simpleFormDefinition),
       );
 
       const schema = result.current.generateSchema();
-      
+
       // Test valid data doesn't throw
-      const validData = { name: 'John', email: 'john@example.com', age: 25 };
+      const validData = { name: "John", email: "john@example.com", age: 25 };
       expect(() => schema.parse(validData)).not.toThrow();
 
       // Test invalid data throws
-      const invalidData = { name: 'J', email: 'invalid', age: 15 };
+      const invalidData = { name: "J", email: "invalid", age: 15 };
       expect(() => schema.parse(invalidData)).toThrow();
     });
 
-    it('should generate form options correctly', () => {
-      const { result } = renderHook(() => 
-        useFormDefinition(simpleFormDefinition)
+    it("should generate form options correctly", () => {
+      const { result } = renderHook(() =>
+        useFormDefinition(simpleFormDefinition),
       );
 
       const options = result.current.generateOptions();
-      
-      expect(options).toHaveProperty('resolver');
-      expect(options).toHaveProperty('defaultValues');
-      
+
+      expect(options).toHaveProperty("resolver");
+      expect(options).toHaveProperty("defaultValues");
+
       // Check default values structure
       expect(options.defaultValues).toEqual({
-        name: '',
-        email: '',
-        age: 0
+        name: "",
+        email: "",
+        age: 0,
       });
     });
 
-    it('should handle complex form definitions', () => {
-      const { result } = renderHook(() => 
-        useFormDefinition(complexFormDefinition)
+    it("should handle complex form definitions", () => {
+      const { result } = renderHook(() =>
+        useFormDefinition(complexFormDefinition),
       );
 
       const options = result.current.generateOptions();
-      
+
       expect(options.defaultValues).toEqual({
-        profile: '',
-        country: '',
+        profile: "",
+        country: "",
         isActive: false,
-        contacts: []
+        contacts: [],
       });
     });
 
-    it('should generate schema for complex forms', () => {
-      const { result } = renderHook(() => 
-        useFormDefinition(complexFormDefinition)
+    it("should generate schema for complex forms", () => {
+      const { result } = renderHook(() =>
+        useFormDefinition(complexFormDefinition),
       );
 
       const schema = result.current.generateSchema();
 
       // Test valid complex data
       const validData = {
-        profile: 'Software Engineer',
-        country: 'us',
+        profile: "Software Engineer",
+        country: "us",
         isActive: true,
-        contacts: [
-          { name: 'John', phone: '+1234567890' }
-        ]
+        contacts: [{ name: "John", phone: "+1234567890" }],
       };
-      
+
       expect(() => schema.parse(validData)).not.toThrow();
     });
 
-    it('should support cross-field validation', () => {
+    it("should support cross-field validation", () => {
       const formWithMatchValue: FormDefinition = {
         password: {
-          type: 'text',
-          validation: { required: true, minLength: 8 }
+          type: "text",
+          validation: { required: true, minLength: 8 },
         },
         confirmPassword: {
-          type: 'text',
-          validation: { 
+          type: "text",
+          validation: {
             required: true,
-            matchValue: 'password'
-          }
-        }
+            matchValue: "password",
+          },
+        },
       };
 
-      const { result } = renderHook(() => 
-        useFormDefinition(formWithMatchValue)
+      const { result } = renderHook(() =>
+        useFormDefinition(formWithMatchValue),
       );
 
       const schema = result.current.generateSchema();
 
-      const validData = { password: 'secretpassword', confirmPassword: 'secretpassword' };
+      const validData = {
+        password: "secretpassword",
+        confirmPassword: "secretpassword",
+      };
       expect(() => schema.parse(validData)).not.toThrow();
 
-      const invalidData = { password: 'secretpassword', confirmPassword: 'differentpassword' };
+      const invalidData = {
+        password: "secretpassword",
+        confirmPassword: "differentpassword",
+      };
       expect(() => schema.parse(invalidData)).toThrow();
     });
 
-    it('should support conditional required validation', () => {
+    it("should support conditional required validation", () => {
       const formWithConditional: FormDefinition = {
         isEmployee: {
-          type: 'checkbox'
+          type: "checkbox",
         },
         employeeId: {
-          type: 'text',
+          type: "text",
           validation: {
-            requiredWhen: { field: 'isEmployee', value: true }
-          }
-        }
+            requiredWhen: { field: "isEmployee", value: true },
+          },
+        },
       };
 
-      const { result } = renderHook(() => 
-        useFormDefinition(formWithConditional)
+      const { result } = renderHook(() =>
+        useFormDefinition(formWithConditional),
       );
 
       const schema = result.current.generateSchema();
@@ -261,47 +264,47 @@ describe('Form Hook Integration Tests', () => {
       // When isEmployee is false, employeeId is not required
       const dataWithEmployeeFalse = {
         isEmployee: false,
-        employeeId: ''
+        employeeId: "",
       };
       expect(() => schema.parse(dataWithEmployeeFalse)).not.toThrow();
 
       // When isEmployee is true, employeeId becomes required
       const dataWithEmployeeTrue = {
         isEmployee: true,
-        employeeId: 'EMP001'
+        employeeId: "EMP001",
       };
       expect(() => schema.parse(dataWithEmployeeTrue)).not.toThrow();
     });
 
-    it('should handle repeater validation', () => {
-      const { result } = renderHook(() => 
-        useFormDefinition(complexFormDefinition)
+    it("should handle repeater validation", () => {
+      const { result } = renderHook(() =>
+        useFormDefinition(complexFormDefinition),
       );
 
       const schema = result.current.generateSchema();
 
-      // Test with no contacts (violates minRows: 1)
+      // Test with no contacts (violates minimumRows: 1)
       const dataWithNoContacts = {
-        profile: 'Test',
-        country: 'us',
+        profile: "Test",
+        country: "us",
         isActive: false,
-        contacts: []
+        contacts: [],
       };
       expect(() => schema.parse(dataWithNoContacts)).toThrow();
 
       // Test with valid contacts
       const dataWithValidContacts = {
-        profile: 'Test',
-        country: 'us',
+        profile: "Test",
+        country: "us",
         isActive: false,
-        contacts: [{ name: 'John', phone: '+1234567890' }]
+        contacts: [{ name: "John", phone: "+1234567890" }],
       };
       expect(() => schema.parse(dataWithValidContacts)).not.toThrow();
     });
 
-    it('should maintain consistent schema results', () => {
-      const { result, rerender } = renderHook(() => 
-        useFormDefinition(simpleFormDefinition)
+    it("should maintain consistent schema results", () => {
+      const { result, rerender } = renderHook(() =>
+        useFormDefinition(simpleFormDefinition),
       );
 
       const firstSchemaResult = result.current.generateSchema();
@@ -311,12 +314,14 @@ describe('Form Hook Integration Tests', () => {
       const secondSchemaResult = result.current.generateSchema();
 
       // Schema results should be consistent across re-renders
-      expect(firstSchemaResult.description).toEqual(secondSchemaResult.description);
+      expect(firstSchemaResult.description).toEqual(
+        secondSchemaResult.description,
+      );
     });
 
-    it('should maintain consistent options results', () => {
-      const { result, rerender } = renderHook(() => 
-        useFormDefinition(simpleFormDefinition)
+    it("should maintain consistent options results", () => {
+      const { result, rerender } = renderHook(() =>
+        useFormDefinition(simpleFormDefinition),
       );
 
       const firstOptionsResult = result.current.generateOptions();
@@ -326,21 +331,21 @@ describe('Form Hook Integration Tests', () => {
       const secondOptionsResult = result.current.generateOptions();
 
       // Options results should be consistent across re-renders
-      expect(firstOptionsResult.defaultValues).toEqual(secondOptionsResult.defaultValues);
+      expect(firstOptionsResult.defaultValues).toEqual(
+        secondOptionsResult.defaultValues,
+      );
     });
 
-    it('should handle error scenarios gracefully', () => {
+    it("should handle error scenarios gracefully", () => {
       // Test with invalid field type
       const invalidDefinition: FormDefinition = {
         invalidField: {
-          type: 'nonexistent' as any,
-          validation: { required: true }
-        }
+          type: "nonexistent" as any,
+          validation: { required: true },
+        },
       };
 
-      const { result } = renderHook(() => 
-        useFormDefinition(invalidDefinition)
-      );
+      const { result } = renderHook(() => useFormDefinition(invalidDefinition));
 
       // Should still create the hook without crashing
       expect(result.current).toBeDefined();
@@ -348,89 +353,95 @@ describe('Form Hook Integration Tests', () => {
       expect(result.current.generateOptions).toBeDefined();
     });
 
-    it('should support custom form configuration', () => {
+    it("should support custom form configuration", () => {
       const { result } = renderHook(() =>
         useFormDefinition(simpleFormDefinition, {
-          config: {
-            // FormConfig properties can be customized here
-            // Note: showActions is a component-level prop on RenderedForm, not FormConfig
-          }
-        })
+          configuration: {
+            // FormConfiguration properties can be customized here
+            // Note: showActions is a component-level prop on RenderedForm, not FormConfiguration
+          },
+        }),
       );
 
       expect(result.current).toBeDefined();
       expect(result.current.RenderedForm).toBeDefined();
     });
 
-    it('should handle different field types correctly', () => {
+    it("should handle different field types correctly", () => {
       const mixedFieldsDef: FormDefinition = {
-        text: { type: 'text', validation: { required: true } },
-        number: { type: 'number', validation: { min: 0 } },
-        checkbox: { type: 'checkbox' },
-        select: { 
-          type: 'select',
-          options: [{ label: 'Option 1', value: 'opt1' }],
-          validation: { required: true }
-        }
+        text: { type: "text", validation: { required: true } },
+        number: { type: "number", validation: { min: 0 } },
+        checkbox: { type: "checkbox" },
+        select: {
+          type: "select",
+          options: [{ label: "Option 1", value: "opt1" }],
+          validation: { required: true },
+        },
       };
 
-      const { result } = renderHook(() => 
-        useFormDefinition(mixedFieldsDef)
-      );
+      const { result } = renderHook(() => useFormDefinition(mixedFieldsDef));
 
       const schema = result.current.generateSchema();
       const options = result.current.generateOptions();
 
       expect(options.defaultValues).toEqual({
-        text: '',
+        text: "",
         number: 0,
         checkbox: false,
-        select: ''
+        select: "",
       });
 
       // Test that schema validates correctly for mixed types
       const validMixedData = {
-        text: 'Hello',
+        text: "Hello",
         number: 42,
         checkbox: true,
-        select: 'opt1'
+        select: "opt1",
       };
-      
+
       expect(() => schema.parse(validMixedData)).not.toThrow();
     });
   });
 
-  describe('Integration with React Hook Form', () => {
-    it('should work with useForm hook', () => {
+  describe("Integration with React Hook Form", () => {
+    it("should work with useForm hook", () => {
       const TestComponent = () => {
         const form = useForm();
-        const { RenderedField } = useFormDefinition(simpleFormDefinition, { form });
+        const { RenderedField } = useFormDefinition(simpleFormDefinition, {
+          form,
+        });
 
         // Should not throw during render
-        return <div><RenderedField name="name" /></div>;
+        return (
+          <div>
+            <RenderedField name="name" />
+          </div>
+        );
       };
 
       const { result } = renderHook(() => TestComponent);
       expect(result.current).toBeDefined();
     });
 
-    it('should handle custom default values with useForm', () => {
+    it("should handle custom default values with useForm", () => {
       const customDefaults = {
-        name: 'John Doe',
-        email: 'john@example.com',
-        age: 30
+        name: "John Doe",
+        email: "john@example.com",
+        age: 30,
       };
 
       const TestComponent = () => {
         const form = useForm({ defaultValues: customDefaults });
-        const { generateOptions } = useFormDefinition(simpleFormDefinition, { form });
-        
+        const { generateOptions } = useFormDefinition(simpleFormDefinition, {
+          form,
+        });
+
         const options = generateOptions();
         return options;
       };
 
       const { result } = renderHook(() => TestComponent());
-      
+
       // The hook should return the generated options with default values
       expect(result.current).toBeDefined();
       expect(result.current.defaultValues).toBeDefined();

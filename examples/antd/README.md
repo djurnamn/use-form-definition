@@ -69,7 +69,7 @@ The library's default layout uses a 2-column CSS grid with a `half` prop. This e
 layout: { half: true }
 
 // Ant Design pattern (24-column grid)
-layout: { xs: 24, sm: 12 }  // Full on mobile, half on tablet+
+layout: { xs: 24, sm: 12 }  // Full width below sm, half from sm up
 ```
 
 ## Running the example
@@ -105,7 +105,7 @@ examples/antd/
 │   ├── pages/
 │   │   ├── HomePage.tsx
 │   │   └── SettingsPage.tsx
-│   ├── App.tsx
+│   ├── Application.tsx
 │   └── main.tsx
 └── package.json
 ```
@@ -220,7 +220,7 @@ const AntCheckbox = ({ inlineLabel, value, ...props }) => (
 Ant Design uses a 24-column grid. Use `layout` props to control field width:
 
 ```typescript
-// Half width on tablet and up
+// Half width from sm up
 username: {
   type: 'text',
   label: 'Username',

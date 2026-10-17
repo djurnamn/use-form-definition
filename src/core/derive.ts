@@ -12,10 +12,7 @@
  *    `registerFieldType(type, { deriveTransform })` (or `registerDeriveTransform`);
  * 3. identity - deriving a plain text field from another verbatim is coherent.
  *
- * Deliberately React-free, like `default-values.ts`: the registry rides along in the
- * server bundle (registrations run wherever shared config modules are imported) but is
- * only ever *consulted* by the client-side derivation effect. Server validation treats
- * `deriveFrom` as inert.
+ * Server validation treats `deriveFrom` as inert.
  */
 import { sharedStore } from "./registry";
 
@@ -30,7 +27,10 @@ const identity: DeriveTransform = (value) => value;
  * `registerPattern`): field kinds are static app config, registered once at import time.
  */
 // Shared with every copy of the library in the process, see ./registry.
-const kindDeriveTransforms = sharedStore<Record<string, DeriveTransform>>("derive-transforms", () => ({}));
+const kindDeriveTransforms = sharedStore<Record<string, DeriveTransform>>(
+  "derive-transforms",
+  () => ({}),
+);
 
 /**
  * Register the derive transform for a field kind. Usually reached through
@@ -39,7 +39,7 @@ const kindDeriveTransforms = sharedStore<Record<string, DeriveTransform>>("deriv
  */
 export const registerDeriveTransform = (
   fieldType: string,
-  transform: DeriveTransform
+  transform: DeriveTransform,
 ): void => {
   kindDeriveTransforms[fieldType] = transform;
 };

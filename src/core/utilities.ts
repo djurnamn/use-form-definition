@@ -1,6 +1,10 @@
-import { TranslationConfig, TranslationCategoryConfig, SelectOption, TranslationFunction } from "./types";
+import {
+  TranslationConfiguration,
+  SelectOption,
+  TranslationFunction,
+} from "./types";
 import { translateValidationMessage } from "./validation-messages";
-import { useId } from 'react';
+import { useId } from "react";
 
 // Default locale path functions
 const defaultLocalePaths = {
@@ -13,9 +17,9 @@ const defaultLocalePaths = {
 };
 
 /**
- * Normalized translation config with all defaults applied
+ * Normalized translation configuration with all defaults applied
  */
-export interface NormalizedTranslationConfig {
+export interface NormalizedTranslationConfiguration {
   /** The resolved translation function (from hook or runtime function) */
   function?: TranslationFunction;
   labels: {
@@ -50,7 +54,13 @@ export interface NormalizedTranslationConfig {
 }
 
 /**
- * Normalize translation config by applying defaults
+ * @deprecated Use `NormalizedTranslationConfiguration` instead. `NormalizedTranslationConfig` is kept as an alias until the next major
+ * version.
+ */
+export type NormalizedTranslationConfig = NormalizedTranslationConfiguration;
+
+/**
+ * Normalize translation configuration by applying defaults
  *
  * Supports:
  * - `true`: Enable all translation categories with defaults
@@ -59,96 +69,126 @@ export interface NormalizedTranslationConfig {
  *   - If a category object is provided, it's implicitly enabled (unless `enabled: false`)
  * - `undefined`: All categories disabled (except validation which is enabled by default)
  */
-export const normalizeTranslationConfig = (config?: TranslationConfig): NormalizedTranslationConfig => {
+export const normalizeTranslationConfiguration = (
+  configuration?: TranslationConfiguration,
+): NormalizedTranslationConfiguration => {
   // Handle boolean shorthand: `translation: true` enables all categories
-  const configObj = config === true ? {} : config;
+  const configurationObject = configuration === true ? {} : configuration;
 
-  const translationFn = configObj?.function;
+  const translationFunction = configurationObject?.function;
 
   // If hook or function is provided, implicitly enable all categories (like translation: true)
-  // This allows minimal config: { hook: useTranslations } or { function: t }
-  const hasTranslationSource = !!(configObj?.hook || translationFn);
-  const enableAll = config === true || hasTranslationSource;
+  // This allows minimal configuration: { hook: useTranslations } or { function: t }
+  const hasTranslationSource = !!(
+    configurationObject?.hook || translationFunction
+  );
+  const enableAll = configuration === true || hasTranslationSource;
 
   // Helper: determine if category is enabled
-  // - If category config exists (object provided), default to enabled
+  // - If category configuration exists (object provided), default to enabled
   // - If `translation: true` or hook/function provided, all are enabled
   // - Otherwise, default to false (except validation)
-  const isEnabled = (categoryConfig: unknown) =>
-    categoryConfig !== undefined || enableAll;
+  const isEnabled = (categoryConfiguration: unknown) =>
+    categoryConfiguration !== undefined || enableAll;
 
   return {
-    function: translationFn,
+    function: translationFunction,
     labels: {
-      enabled: configObj?.labels?.enabled ?? isEnabled(configObj?.labels),
-      alwaysInclude: configObj?.labels?.alwaysInclude ?? true, // When enabled, include by default
-      localePath: configObj?.labels?.localePath ?? defaultLocalePaths.labels,
+      enabled:
+        configurationObject?.labels?.enabled ??
+        isEnabled(configurationObject?.labels),
+      alwaysInclude: configurationObject?.labels?.alwaysInclude ?? true, // When enabled, include by default
+      localePath:
+        configurationObject?.labels?.localePath ?? defaultLocalePaths.labels,
     },
     options: {
-      enabled: configObj?.options?.enabled ?? isEnabled(configObj?.options),
-      alwaysInclude: configObj?.options?.alwaysInclude ?? true, // When enabled, include by default
-      localePath: configObj?.options?.localePath ?? defaultLocalePaths.options,
+      enabled:
+        configurationObject?.options?.enabled ??
+        isEnabled(configurationObject?.options),
+      alwaysInclude: configurationObject?.options?.alwaysInclude ?? true, // When enabled, include by default
+      localePath:
+        configurationObject?.options?.localePath ?? defaultLocalePaths.options,
     },
     placeholders: {
-      enabled: configObj?.placeholders?.enabled ?? isEnabled(configObj?.placeholders),
-      alwaysInclude: configObj?.placeholders?.alwaysInclude ?? false, // Require explicit opt-in
-      localePath: configObj?.placeholders?.localePath ?? defaultLocalePaths.placeholders,
+      enabled:
+        configurationObject?.placeholders?.enabled ??
+        isEnabled(configurationObject?.placeholders),
+      alwaysInclude: configurationObject?.placeholders?.alwaysInclude ?? false, // Require explicit opt-in
+      localePath:
+        configurationObject?.placeholders?.localePath ??
+        defaultLocalePaths.placeholders,
     },
     descriptions: {
-      enabled: configObj?.descriptions?.enabled ?? isEnabled(configObj?.descriptions),
-      alwaysInclude: configObj?.descriptions?.alwaysInclude ?? false, // Require explicit opt-in
-      localePath: configObj?.descriptions?.localePath ?? defaultLocalePaths.descriptions,
+      enabled:
+        configurationObject?.descriptions?.enabled ??
+        isEnabled(configurationObject?.descriptions),
+      alwaysInclude: configurationObject?.descriptions?.alwaysInclude ?? false, // Require explicit opt-in
+      localePath:
+        configurationObject?.descriptions?.localePath ??
+        defaultLocalePaths.descriptions,
     },
     sections: {
-      enabled: configObj?.sections?.enabled ?? isEnabled(configObj?.sections),
-      alwaysInclude: configObj?.sections?.alwaysInclude ?? true, // Like labels - primary presentation
-      localePath: configObj?.sections?.localePath ?? defaultLocalePaths.sections,
+      enabled:
+        configurationObject?.sections?.enabled ??
+        isEnabled(configurationObject?.sections),
+      alwaysInclude: configurationObject?.sections?.alwaysInclude ?? true, // Like labels - primary presentation
+      localePath:
+        configurationObject?.sections?.localePath ??
+        defaultLocalePaths.sections,
     },
     validation: {
-      enabled: configObj?.validation?.enabled ?? true, // Enabled by default
-      localePath: configObj?.validation?.localePath ?? defaultLocalePaths.validation,
+      enabled: configurationObject?.validation?.enabled ?? true, // Enabled by default
+      localePath:
+        configurationObject?.validation?.localePath ??
+        defaultLocalePaths.validation,
     },
   };
 };
+
+/**
+ * @deprecated Use `normalizeTranslationConfiguration` instead. `normalizeTranslationConfig` is kept as an alias until the next major
+ * version.
+ */
+export const normalizeTranslationConfig = normalizeTranslationConfiguration;
 
 /**
  * Resolve a translatable field value (label, placeholder).
  *
  * Accepts `"auto"` to mean "use the default localePath for this fieldKey",
  * `"none"` to mean "explicit opt-out", `undefined` to defer to
- * `categoryConfig.alwaysInclude`, or any other string as a literal label or
+ * `categoryConfiguration.alwaysInclude`, or any other string as a literal label or
  * translation key.
  */
 export const resolveTranslatableValue = (
   value: string | undefined,
   fieldKey: string,
-  categoryConfig: NormalizedTranslationConfig['labels'], // Same shape for all categories
-  t?: (key: string, options?: Record<string, any>) => string
+  categoryConfiguration: NormalizedTranslationConfiguration["labels"], // Same shape for all categories
+  t?: (key: string, options?: Record<string, any>) => string,
 ): string | undefined => {
   // Explicit opt-out
-  if (value === 'none') {
+  if (value === "none") {
     return undefined;
   }
 
   // If translation not enabled for this category, only literal strings pass through
-  if (!categoryConfig.enabled) {
-    return value === 'auto' ? undefined : value;
+  if (!categoryConfiguration.enabled) {
+    return value === "auto" ? undefined : value;
   }
 
   // Translation IS enabled, but no translator function available
   if (!t) {
-    return value === 'auto' ? undefined : value;
+    return value === "auto" ? undefined : value;
   }
 
   // Determine the translation key
   let translationKey: string | undefined;
 
-  if (value === 'auto') {
-    translationKey = categoryConfig.localePath(fieldKey);
-  } else if (typeof value === 'string') {
+  if (value === "auto") {
+    translationKey = categoryConfiguration.localePath(fieldKey);
+  } else if (typeof value === "string") {
     translationKey = value;
-  } else if (value === undefined && categoryConfig.alwaysInclude) {
-    translationKey = categoryConfig.localePath(fieldKey);
+  } else if (value === undefined && categoryConfiguration.alwaysInclude) {
+    translationKey = categoryConfiguration.localePath(fieldKey);
   }
 
   if (translationKey) {
@@ -162,21 +202,21 @@ export const resolveTranslatableValue = (
  * Resolve select option labels with translation support
  *
  * @param options - The select options from the field definition
- * @param optionsConfig - The translation options config
+ * @param optionsConfiguration - The translation options configuration
  * @param t - The translation function
  * @returns Options with resolved labels
  */
 export const resolveSelectOptions = (
   options: SelectOption[] | undefined,
-  optionsConfig: NormalizedTranslationConfig['options'],
-  t?: (key: string, options?: Record<string, any>) => string
+  optionsConfiguration: NormalizedTranslationConfiguration["options"],
+  t?: (key: string, options?: Record<string, any>) => string,
 ): SelectOption[] | undefined => {
   if (!options) return undefined;
 
   return options.map((option) => {
     let resolvedLabel: string;
 
-    if (!optionsConfig.enabled) {
+    if (!optionsConfiguration.enabled) {
       // Translation not enabled - use label as-is, or stringify value
       resolvedLabel = option.label ?? String(option.value);
     } else if (!t) {
@@ -185,9 +225,9 @@ export const resolveSelectOptions = (
     } else if (option.label !== undefined) {
       // Explicit label = use as translation key
       resolvedLabel = t(option.label);
-    } else if (optionsConfig.alwaysInclude) {
+    } else if (optionsConfiguration.alwaysInclude) {
       // No label + alwaysInclude = use value with localePath
-      resolvedLabel = t(optionsConfig.localePath(String(option.value)));
+      resolvedLabel = t(optionsConfiguration.localePath(String(option.value)));
     } else {
       // No label, not alwaysInclude = stringify value
       resolvedLabel = String(option.value);
@@ -203,22 +243,22 @@ export const resolveSelectOptions = (
 /**
  * Create a validation message translator
  *
- * @param validationConfig - The validation translation config
+ * @param validationConfiguration - The validation translation configuration
  * @param t - The translation function
  * @returns A function that translates validation keys
  */
 export const createValidationTranslator = (
-  validationConfig: NormalizedTranslationConfig['validation'],
-  t?: (key: string, options?: Record<string, any>) => string
+  validationConfiguration: NormalizedTranslationConfiguration["validation"],
+  t?: (key: string, options?: Record<string, any>) => string,
 ) => {
   return (key: string, options?: Record<string, any>): string => {
-    if (!validationConfig.enabled) {
+    if (!validationConfiguration.enabled) {
       // Translation disabled - return built-in message
       return translateValidationMessage(key, options);
     }
 
     // Build the full translation key using localePath
-    const fullKey = validationConfig.localePath(key);
+    const fullKey = validationConfiguration.localePath(key);
 
     if (t) {
       return t(fullKey, options);
@@ -235,10 +275,6 @@ export const getFieldName = (key: string, field: { name?: string }): string => {
 };
 
 // Default value generation
-//
-// The implementations live in the React-free `./default-values` module so the schema
-// layer (reached by the server entry) can consult them without pulling React in. They
-// are re-exported here to keep the historical `from "./utilities"` import surface.
 export {
   getDefaultValueForField,
   generateDefaultValues,

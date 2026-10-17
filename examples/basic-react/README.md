@@ -50,7 +50,7 @@ basic-react/
 │   │   ├── RegisterPage.tsx
 │   │   ├── OrderPage.tsx
 │   │   └── index.ts
-│   ├── App.tsx
+│   ├── Application.tsx
 │   └── main.tsx
 └── package.json
 ```

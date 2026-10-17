@@ -10,19 +10,41 @@ import { getPattern } from "../validation/patterns";
  * validation as a no-JS layer alongside react-hook-form / the server action -
  * the counterpart to the `noValidate` opt-out.
  *
- * The mapping mirrors `field-generators.ts` (which maps the same `validation`
- * rules to Zod) so the two stay consistent. Attributes are emitted only on the
- * field types where the corresponding HTML attribute is valid.
+ * Attributes are emitted only on the field types where the corresponding HTML
+ * attribute is valid.
  *
  * Scope: `required`, `pattern`, `minLength`, `maxLength`, `min`, `max`, `step`.
  */
 
 // Field types where a `pattern` attribute is valid HTML.
-const PATTERN_TYPES = new Set(["text", "search", "url", "tel", "email", "password"]);
+const PATTERN_TYPES = new Set([
+  "text",
+  "search",
+  "url",
+  "tel",
+  "email",
+  "password",
+]);
 // Field types where `minlength` / `maxlength` are valid HTML.
-const LENGTH_TYPES = new Set(["text", "search", "url", "tel", "email", "password", "textarea"]);
+const LENGTH_TYPES = new Set([
+  "text",
+  "search",
+  "url",
+  "tel",
+  "email",
+  "password",
+  "textarea",
+]);
 // Field types where `min` / `max` are valid HTML.
-const RANGE_TYPES = new Set(["number", "range", "date", "datetime-local", "month", "week", "time"]);
+const RANGE_TYPES = new Set([
+  "number",
+  "range",
+  "date",
+  "datetime-local",
+  "month",
+  "week",
+  "time",
+]);
 
 /** Unwrap a `ValidationRule<T>` to its raw value (the `{ value, message }` form or the bare value). */
 const ruleValue = <T>(rule: ValidationRule<T> | undefined): T | undefined => {
@@ -39,7 +61,9 @@ const ruleValue = <T>(rule: ValidationRule<T> | undefined): T | undefined => {
  * an inline RegExp uses its `.source`. An unknown string key emits nothing (as the Zod
  * mapping also skips it).
  */
-const resolvePatternSource = (pattern: RegExp | string | undefined): string | undefined => {
+const resolvePatternSource = (
+  pattern: RegExp | string | undefined,
+): string | undefined => {
   if (pattern instanceof RegExp) return pattern.source;
   if (typeof pattern === "string") {
     const named = getPattern(pattern);
@@ -54,7 +78,7 @@ const resolvePatternSource = (pattern: RegExp | string | undefined): string | un
  */
 const formatRangeBound = (
   value: number | string | Date | undefined,
-  type: string
+  type: string,
 ): number | string | undefined => {
   if (value === undefined || value === null) return undefined;
   if (typeof value === "number" || typeof value === "string") return value;
@@ -66,11 +90,11 @@ const formatRangeBound = (
 };
 
 export const deriveHtml5Attributes = (
-  field: FormFieldDefinition
+  field: FormFieldDefinition,
 ): Record<string, string | number | boolean> => {
-  const attrs: Record<string, string | number | boolean> = {};
+  const attributes: Record<string, string | number | boolean> = {};
   const validation = field.validation;
-  if (!validation) return attrs;
+  if (!validation) return attributes;
 
   const { type } = field;
 
@@ -78,23 +102,25 @@ export const deriveHtml5Attributes = (
   // another field's value at runtime, so it can't become a static `required` attribute.
   // For checkboxes, `mustBeTrue` is the "must be checked" rule, which maps to `required`.
   const required = ruleValue(validation.required);
-  const isRequired = required === true || (type === "checkbox" && validation.mustBeTrue === true);
+  const isRequired =
+    required === true ||
+    (type === "checkbox" && validation.mustBeTrue === true);
   if (isRequired && !validation.requiredWhen) {
-    attrs.required = true;
+    attributes.required = true;
   }
 
   // pattern - text-like types only (not textarea, not number).
   if (PATTERN_TYPES.has(type) && validation.pattern !== undefined) {
     const source = resolvePatternSource(ruleValue(validation.pattern));
-    if (source !== undefined) attrs.pattern = source;
+    if (source !== undefined) attributes.pattern = source;
   }
 
   // minlength / maxlength - text-like types and textarea.
   if (LENGTH_TYPES.has(type)) {
     const minLength = ruleValue(validation.minLength);
     const maxLength = ruleValue(validation.maxLength);
-    if (typeof minLength === "number") attrs.minLength = minLength;
-    if (typeof maxLength === "number") attrs.maxLength = maxLength;
+    if (typeof minLength === "number") attributes.minLength = minLength;
+    if (typeof maxLength === "number") attributes.maxLength = maxLength;
   }
 
   // min / max / step - number / range / date-like types only. `step` has no Zod
@@ -102,12 +128,12 @@ export const deriveHtml5Attributes = (
   if (RANGE_TYPES.has(type)) {
     const min = formatRangeBound(ruleValue(validation.min), type);
     const max = formatRangeBound(ruleValue(validation.max), type);
-    if (min !== undefined) attrs.min = min;
-    if (max !== undefined) attrs.max = max;
+    if (min !== undefined) attributes.min = min;
+    if (max !== undefined) attributes.max = max;
 
     const step = ruleValue(validation.step);
-    if (typeof step === "number") attrs.step = step;
+    if (typeof step === "number") attributes.step = step;
   }
 
-  return attrs;
+  return attributes;
 };

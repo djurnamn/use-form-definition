@@ -22,8 +22,7 @@
  * - `File` / `FileList` / `Blob`: no mirror. A file cannot ride a hidden input; this is
  *   every carry mechanism's boundary, stated rather than solved.
  *
- * React-free, so the `./server` entry could consume it if it ever needs to; the React
- * side renders the returned strings as hidden inputs marked `data-ufd-mirror`.
+ * The React side renders the returned strings as hidden inputs marked `data-ufd-mirror`.
  */
 import { sharedStore } from "./registry";
 
@@ -35,7 +34,10 @@ import { sharedStore } from "./registry";
 export type MirrorEncoder = (value: unknown) => string | string[] | null;
 
 // Shared with every copy of the library in the process, see ./registry.
-const customMirrors = sharedStore<Record<string, MirrorEncoder>>("mirror-encoders", () => ({}));
+const customMirrors = sharedStore<Record<string, MirrorEncoder>>(
+  "mirror-encoders",
+  () => ({}),
+);
 
 /**
  * Record a custom mirror encoding for a field kind. Called by `registerFieldType`; not
@@ -43,7 +45,7 @@ const customMirrors = sharedStore<Record<string, MirrorEncoder>>("mirror-encoder
  */
 export const registerFieldTypeMirror = (
   fieldType: string,
-  mirror: MirrorEncoder
+  mirror: MirrorEncoder,
 ): void => {
   customMirrors[fieldType] = mirror;
 };
@@ -58,7 +60,7 @@ const isFileLike = (value: unknown): boolean =>
  */
 export const mirrorWireValues = (
   fieldType: string,
-  value: unknown
+  value: unknown,
 ): string[] | null => {
   const custom = customMirrors[fieldType];
   if (custom) {

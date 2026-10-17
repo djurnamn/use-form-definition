@@ -58,7 +58,7 @@ firstName: {
 firstName: {
   type: 'text',
   label: 'First Name',
-  layout: { xs: 12, sm: 6 }, // Full on mobile, half on tablet+
+  layout: { xs: 12, sm: 6 }, // Full width below sm, half from sm up
 }
 
 // No layout prop = full width (xs: 12 is the default)
@@ -131,7 +131,7 @@ examples/mui/
 │   ├── pages/
 │   │   ├── HomePage.tsx
 │   │   └── ProfilePage.tsx
-│   ├── App.tsx
+│   ├── Application.tsx
 │   └── main.tsx
 └── package.json
 ```

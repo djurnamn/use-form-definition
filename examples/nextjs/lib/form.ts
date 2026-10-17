@@ -7,7 +7,7 @@ import { Input, Select, TextArea, Checkbox, Field } from "@/components/form";
 /**
  * Base hook configuration shared by all form hooks
  */
-const baseConfig = {
+const baseConfiguration = {
   // Let react-hook-form / the server action be the validators - keep the browser's built-in
   // HTML5 constraint bubbles (e.g. on <input type="email">) out of the way.
   noValidate: true,
@@ -60,7 +60,7 @@ const baseConfig = {
  * });
  */
 export const useFormDefinition = createFormDefinitionHook({
-  ...baseConfig,
+  ...baseConfiguration,
   translation: {
     hook: useTranslations, // All categories enabled automatically!
   },
@@ -91,7 +91,7 @@ export const useFormDefinition = createFormDefinitionHook({
  * });
  */
 export const useCustomFormDefinition = createFormDefinitionHook({
-  ...baseConfig,
+  ...baseConfiguration,
   translation: {
     // No hook - requires passing `function: t` at runtime
     placeholders: {

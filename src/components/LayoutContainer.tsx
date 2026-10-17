@@ -7,9 +7,9 @@ export interface LayoutContainerProps {
 
 export function LayoutContainer({ children, className }: LayoutContainerProps) {
   const style: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1rem'
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "1rem",
   };
 
   return (

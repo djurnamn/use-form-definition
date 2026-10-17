@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { HomePage } from '@/pages/HomePage';
 import { UserPage } from '@/pages/UserPage';
 
-function App() {
+function Application() {
   return (
     <BrowserRouter>
       <Routes>
@@ -13,4 +13,4 @@ function App() {
   );
 }
 
-export default App;
+export default Application;
