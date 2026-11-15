@@ -98,16 +98,16 @@ That matters when something other than the repeater's own controls writes into a
 
 ```typescript
 const definition: FormDefinition = {
-  classes: {
+  items: {
     type: 'repeater',
     fields: {
-      key: { type: 'select', label: 'Class', options: classOptions },
-      level: { type: 'select', label: 'Level', options: levelOptions },
+      name: { type: 'text', label: 'Item name' },
+      quantity: { type: 'number', label: 'Quantity' },
     },
     schemaOnlyRowProperties: {
-      subclass: { valueType: 'string' },
-      hasAddedStartingEquipment: { valueType: 'boolean', defaultsTo: false },
-      featureSelections: { validatesAs: 'selectionMap' },
+      note: { valueType: 'string' },
+      isArchived: { valueType: 'boolean', defaultsTo: false },
+      selections: { validatesAs: 'selectionMap' },
     },
   },
 };
@@ -130,7 +130,7 @@ Two of those repay a closer look.
 
 `defaultsTo` is not `defaultValue`, and the difference is the point. A field's `defaultValue` seeds react-hook-form's defaults and never touches the schema. Nothing renders a schema-only property and no repeater seeds one into a new row, so the parse is the only place a value can land: `defaultsTo` becomes a zod default, applied on the client resolver and on `generateDataValidator` alike. That is what gives a freshly added row its stamp.
 
-Errors compose with the rest of the row. A property's issue nests at `[rowIndex][propertyKey]`, the same shape a cell's issue takes, so `getNestedError(error, [rowIndex, 'subclass'])` reaches it (see [Item errors](#item-errors)) even though no cell renders there. A whole-form notice will report the field, and a structured kind can surface the message wherever it does render that state.
+Errors compose with the rest of the row. A property's issue nests at `[rowIndex][propertyKey]`, the same shape a cell's issue takes, so `getNestedError(error, [rowIndex, 'note'])` reaches it (see [Item errors](#item-errors)) even though no cell renders there. A whole-form notice will report the field, and a structured kind can surface the message wherever it does render that state.
 
 A property that collides with a declared cell is an error, not a merge: a row's shape is described once, and `fields` versus `schemaOnlyRowProperties` is the split between what renders and what does not.
 

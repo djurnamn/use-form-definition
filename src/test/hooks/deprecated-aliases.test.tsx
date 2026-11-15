@@ -24,8 +24,8 @@ import { generateSchema } from "../../core/schema/schema-builder";
 import type { FormDefinition } from "../../core/types";
 
 /**
- * The names spelled out in 2.10 keep their old spellings as deprecated aliases until the
- * next major. These tests hold the old spellings working.
+ * The names spelled out in 2.10 keep their old spellings as deprecated aliases until
+ * 3.0.0. These tests hold the old spellings working.
  */
 
 const useFormDefinition = createFormDefinitionHook({});

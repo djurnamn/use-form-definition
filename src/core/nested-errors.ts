@@ -28,13 +28,13 @@ export type NestedFieldError =
  * when there is no error there, or when the node at the path is an intermediate
  * branch (a whole row, say) rather than a leaf error.
  *
- * The path is relative to the field: `getNestedError(error, [0, 'level'])` (or the
- * string form `'0.level'`) answers "what is wrong with row 0's level cell".
+ * The path is relative to the field: `getNestedError(error, [0, 'quantity'])` (or the
+ * string form `'0.quantity'`) answers "what is wrong with row 0's quantity cell".
  *
  * @example
  * ```tsx
  * function MyStructuredField({ error }: { error?: NestedFieldError }) {
- *   const cellError = getNestedError(error, [rowIndex, 'level']);
+ *   const cellError = getNestedError(error, [rowIndex, 'quantity']);
  *   return <span role="alert">{cellError?.message}</span>;
  * }
  * ```

@@ -54,8 +54,7 @@ export interface NormalizedTranslationConfiguration {
 }
 
 /**
- * @deprecated Use `NormalizedTranslationConfiguration` instead. `NormalizedTranslationConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `NormalizedTranslationConfiguration` instead. `NormalizedTranslationConfig` is kept as an alias until 3.0.0.
  */
 export type NormalizedTranslationConfig = NormalizedTranslationConfiguration;
 
@@ -146,8 +145,7 @@ export const normalizeTranslationConfiguration = (
 };
 
 /**
- * @deprecated Use `normalizeTranslationConfiguration` instead. `normalizeTranslationConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `normalizeTranslationConfiguration` instead. `normalizeTranslationConfig` is kept as an alias until 3.0.0.
  */
 export const normalizeTranslationConfig = normalizeTranslationConfiguration;
 

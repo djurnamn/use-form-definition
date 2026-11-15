@@ -20,12 +20,12 @@ const definition: FormDefinition = {
   name: { type: "text", validation: { required: true } },
   slug: { type: "text" },
   summary: { type: "text", validation: { required: true } },
-  motto: { type: "text" },
+  tagline: { type: "text" },
 };
 
 const sections: FormSections<typeof definition> = {
   general: ["name", "slug"],
-  lore: ["summary", "motto"],
+  details: ["summary", "tagline"],
 };
 
 type Action = (
@@ -33,7 +33,7 @@ type Action = (
   fd: FormData,
 ) => Promise<FormActionResult>;
 
-const steps = ["general", "lore"] as const;
+const steps = ["general", "details"] as const;
 
 /** A wizard: Continue validates the current step and refuses to advance. */
 function WizardForm({ serverAction }: { serverAction: Action }) {
@@ -84,12 +84,12 @@ describe("the sections API", () => {
     }
     render(<Probe />);
 
-    expect(captured.fields("lore")).toEqual(["summary", "motto"]);
+    expect(captured.fields("details")).toEqual(["summary", "tagline"]);
     expect(captured.of("slug")).toBe("general");
     expect(captured.of("unknown")).toBeUndefined();
     expect(
       captured.withErrors({ summary: "Required", name: "Required" }),
-    ).toEqual(["general", "lore"]);
+    ).toEqual(["general", "details"]);
   });
 
   it("answers membership from rendering when no map was declared", async () => {
@@ -108,9 +108,9 @@ describe("the sections API", () => {
             <RenderedField name="name" />
             <RenderedField name="slug" />
           </RenderedSection>
-          <RenderedSection name="lore">
+          <RenderedSection name="details">
             <RenderedField name="summary" />
-            <RenderedField name="motto" />
+            <RenderedField name="tagline" />
           </RenderedSection>
         </RenderedForm>
       );
@@ -118,8 +118,8 @@ describe("the sections API", () => {
     render(<Probe />);
 
     // Complete after first paint: mirrors render too, so the inactive section is known.
-    expect(captured.of("summary")).toBe("lore");
-    expect(captured.withErrors({ motto: "bad" })).toEqual(["lore"]);
+    expect(captured.of("summary")).toBe("details");
+    expect(captured.withErrors({ tagline: "bad" })).toEqual(["details"]);
   });
 
   it("validates only the named section", async () => {
@@ -134,10 +134,10 @@ describe("the sections API", () => {
     const user = userEvent.setup();
     const { container } = render(<Probe />);
 
-    // `summary` (required, in `lore`) is empty - but `general`, once filled, validates.
+    // `summary` (required, in `details`) is empty - but `general`, once filled, validates.
     await user.type(control(container, "name"), "Astrid");
     await expect(captured.validate("general")).resolves.toBe(true);
-    await expect(captured.validate("lore")).resolves.toBe(false);
+    await expect(captured.validate("details")).resolves.toBe(false);
   });
 
   it("gates a wizard: Continue refuses to advance until the step validates", async () => {
@@ -152,7 +152,7 @@ describe("the sections API", () => {
     await user.type(control(container, "name"), "Astrid");
     await user.click(screen.getByRole("button", { name: "Continue" }));
     await waitFor(() =>
-      expect(screen.getByTestId("step").textContent).toBe("lore"),
+      expect(screen.getByTestId("step").textContent).toBe("details"),
     );
 
     // Step one's values ride along as mirrors on the final step.
@@ -166,7 +166,9 @@ describe("the sections API", () => {
   });
 
   it("exposes sectionsWithErrors and sectionOf on the server entry", () => {
-    expect(sectionsWithErrors(sections, { motto: "bad" })).toEqual(["lore"]);
+    expect(sectionsWithErrors(sections, { tagline: "bad" })).toEqual([
+      "details",
+    ]);
     expect(sectionsWithErrors(sections, undefined)).toEqual([]);
     expect(sectionOf(sections, "name")).toBe("general");
   });

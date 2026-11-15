@@ -26,8 +26,7 @@ export const defaultFormConfiguration: FormConfiguration = {
 };
 
 /**
- * @deprecated Use `defaultFormConfiguration` instead. `defaultFormConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `defaultFormConfiguration` instead. `defaultFormConfig` is kept as an alias until 3.0.0.
  */
 export const defaultFormConfig = defaultFormConfiguration;
 
@@ -117,7 +116,6 @@ export const createFormConfiguration = (
 };
 
 /**
- * @deprecated Use `createFormConfiguration` instead. `createFormConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `createFormConfiguration` instead. `createFormConfig` is kept as an alias until 3.0.0.
  */
 export const createFormConfig = createFormConfiguration;

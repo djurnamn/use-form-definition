@@ -251,15 +251,41 @@ export const createStringFieldSchema = (
       field.validation.required,
       "required",
     );
-    return absentAs(
-      "",
-      (baseSchema as z.ZodString).min(value ? 1 : 0, { message }),
-    );
+    // A rule above that refines (contains, startsWith, noWhitespace and the like) leaves
+    // a schema without the string checks on Zod 3, so the required rule refines there too.
+    const requiredSchema =
+      typeof (baseSchema as z.ZodString).min === "function"
+        ? (baseSchema as z.ZodString).min(value ? 1 : 0, { message })
+        : baseSchema.refine((input: string) => !value || input.length > 0, {
+            message,
+          });
+    return absentAs("", withEmailFormat(field, requiredSchema));
   } else if (!field.validation?.requiredWhen) {
-    return baseSchema.optional();
+    return withEmailFormat(field, baseSchema).optional();
   }
 
-  return baseSchema;
+  return withEmailFormat(field, baseSchema);
+};
+
+/**
+ * Checks the email format on an `email` field by its type alone. A pattern rule, when the
+ * field declares one, decides the format instead. A blank value passes: whether a value is
+ * needed is the required rule's call, and an optional field may be left empty. Applied
+ * last, since on Zod 3 a refined schema no longer has the string checks the required rule
+ * adds.
+ */
+const withEmailFormat = (
+  field: FormFieldDefinition,
+  schema: AnyZodSchema,
+): AnyZodSchema => {
+  const emailPattern = getPattern("email");
+  if (field.type !== "email" || field.validation?.pattern || !emailPattern) {
+    return schema;
+  }
+  return schema.refine(
+    (input: string) => input === "" || emailPattern.pattern.test(input),
+    { message: createMessage("invalidFormat") },
+  );
 };
 
 /**
@@ -703,7 +729,7 @@ export const createRepeaterFieldSchema = (
   }, z.array(rowSchema));
 
   // Apply row count validations
-  // `minRows` and `maxRows` are the deprecated spellings, read until the next major. The
+  // `minRows` and `maxRows` are the deprecated spellings, read until 3.0.0. The
   // message key follows the spelling the definition used, so existing translations of
   // `minRows` / `maxRows` keep resolving.
   const minimumRowsKey =
@@ -894,7 +920,7 @@ export interface FieldTypeRegistration {
    * @deprecated Renamed to {@link FieldTypeRegistration.validatesAs}, which says what it
    * does (borrow a registered kind's *validator*) and frees the word `schema` to mean a
    * zod schema. Still honored - `validatesAs` wins if both are set - and slated for
-   * removal in the next major.
+   * removal in 3.0.0.
    */
   schema?: string;
   /**

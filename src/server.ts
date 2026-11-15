@@ -56,8 +56,8 @@ export const parseErrorMessage = (
  * Parse all validation errors from a Zod SafeParseError result
  *
  * Nested issue paths - a repeater cell, an item inside a custom structured kind -
- * group under their top-level key: an issue at `classes.0.level` lands in
- * `errors.classes`. This is deliberate, not a limitation to fix: the action envelope
+ * group under their top-level key: an issue at `items.0.quantity` lands in
+ * `errors.items`. This is deliberate, not a limitation to fix: the action envelope
  * stays `Record<string, string[]>`, which is what `sectionsWithErrors` matches on and
  * what the no-JS round trip renders (the field's own message region, plus the
  * whole-form message naming the failing sections). Item *position* is therefore not
@@ -81,7 +81,7 @@ export const parseValidationErrors = (
   translate?: (key: string, options?: Record<string, unknown>) => string,
   /**
    * The fields' display labels, keyed by definition key; an item field inside a
-   * structured kind (a repeater column) by its key path, `classes.level`. Each message
+   * structured kind (a repeater column) by its key path, `items.quantity`. Each message
    * translation receives `{ field, fieldKey }` - the label (the key when none is given)
    * and the key - so a message can read "{field} is required", the same values the
    * client passes.
@@ -95,8 +95,8 @@ export const parseValidationErrors = (
     if (!errors[field]) {
       errors[field] = [];
     }
-    // An item issue inside a structured field (`classes.0.level`) names the item field
-    // by its key path, `classes.level`, the same key the client passes.
+    // An item issue inside a structured field (`items.0.quantity`) names the item field
+    // by its key path, `items.quantity`, the same key the client passes.
     const fieldPath =
       issue.path.filter((segment) => typeof segment === "string").join(".") ||
       field;

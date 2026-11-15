@@ -47,8 +47,7 @@ export interface RepeaterProps extends Partial<InternalComponentProps> {
   /** The most rows the add button allows. */
   maximumRows?: number;
   /**
-   * @deprecated Use `maximumRows` instead. `maxRows` keeps working until the next major
-   * version.
+   * @deprecated Use `maximumRows` instead. `maxRows` keeps working until 3.0.0.
    */
   maxRows?: number;
   className?: string;

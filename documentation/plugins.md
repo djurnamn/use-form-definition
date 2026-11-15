@@ -226,22 +226,22 @@ Read item errors with `getNestedError` - the component never needs to reach into
 import { getNestedError, type NestedFieldError } from 'use-form-definition';
 import type { FieldError } from 'react-hook-form';
 
-interface StatListProps {
+interface EntryListProps {
   name: string;
-  value?: Array<{ key: string; level: string }>;
+  value?: Array<{ name: string; quantity: string }>;
   onChange: (value: unknown) => void;
   error?: FieldError | NestedFieldError;
 }
 
-function StatList({ name, value = [], onChange, error }: StatListProps) {
+function EntryList({ name, value = [], onChange, error }: EntryListProps) {
   return (
     <div>
       {value.map((item, index) => {
-        const levelError = getNestedError(error, [index, 'level']);
+        const quantityError = getNestedError(error, [index, 'quantity']);
         return (
           <div key={index}>
             {/* ...the item's controls... */}
-            {levelError?.message && <span role="alert">{levelError.message}</span>}
+            {quantityError?.message && <span role="alert">{quantityError.message}</span>}
           </div>
         );
       })}
@@ -250,8 +250,8 @@ function StatList({ name, value = [], onChange, error }: StatListProps) {
 }
 ```
 
-The path is relative to the field (`[index, 'level']`, or the string form
-`'0.level'`); the helper returns the leaf `FieldError` there, or `undefined` when
+The path is relative to the field (`[index, 'quantity']`, or the string form
+`'0.quantity'`); the helper returns the leaf `FieldError` there, or `undefined` when
 nothing failed at that path or the path stops at a branch (a whole item's map of
 errors). A whole-value message - a `refine` on the array itself, say - sits on the
 error directly (`error.message` when the error is flat), so a structured kind that

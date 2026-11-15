@@ -115,13 +115,11 @@ export interface BaseValidationRules extends CommonValidationRules {
   /** The most rows a repeater accepts. */
   maximumRows?: ValidationRule<number>;
   /**
-   * @deprecated Use `minimumRows` instead. `minRows` keeps working until the next major
-   * version.
+   * @deprecated Use `minimumRows` instead. `minRows` keeps working until 3.0.0.
    */
   minRows?: ValidationRule<number>;
   /**
-   * @deprecated Use `maximumRows` instead. `maxRows` keeps working until the next major
-   * version.
+   * @deprecated Use `maximumRows` instead. `maxRows` keeps working until 3.0.0.
    */
   maxRows?: ValidationRule<number>;
   mustBeTrue?: boolean;
@@ -146,9 +144,11 @@ export interface FormFieldDefinition {
    *
    * ⚠ **Setting this to anything other than the definition key is broken - do not use
    * it.** Rendering keys by the name while defaults and the generated schema key by the
-   * definition key, so the field ends up with two slots in react-hook-form, client
-   * validation fails with the field filled in, and the server reports it missing. See the
-   * `name` deprecation in the CHANGELOG.
+   * definition key, so the field ends up with two slots in react-hook-form. A required
+   * field fails client validation with the field filled in, and the server reports it
+   * missing. An optional field passes on both, and its value is dropped from the
+   * validated data. On a repeater cell it replaces the cell's own name in the post. See
+   * the `name` deprecation in the CHANGELOG.
    *
    * @deprecated Setting a `name` different from the definition key has never worked and
    * is slated for removal; a development-mode warning fires when a definition does it.
@@ -230,18 +230,18 @@ export interface FormFieldDefinition {
    *
    * Entries speak validation, not rendering (see {@link SchemaOnlyRowProperty}).
    *
-   * @example A class row whose cells are `key` and `level`, carrying game state written elsewhere
+   * @example An item row whose cells are `name` and `quantity`, carrying state written elsewhere
    * ```ts
-   * classes: {
+   * items: {
    *   type: "repeater",
    *   fields: {
-   *     key: { type: "select", label: "labels.class" },
-   *     level: { type: "select", label: "labels.level" },
+   *     name: { type: "text", label: "labels.name" },
+   *     quantity: { type: "number", label: "labels.quantity" },
    *   },
    *   schemaOnlyRowProperties: {
-   *     subclass: { valueType: "string" },
-   *     hasAddedStartingEquipment: { valueType: "boolean", defaultsTo: false },
-   *     feature_selections: { validatesAs: "selectionMap" },
+   *     note: { valueType: "string" },
+   *     isArchived: { valueType: "boolean", defaultsTo: false },
+   *     selections: { validatesAs: "selectionMap" },
    *   },
    * }
    * ```
@@ -310,14 +310,13 @@ export interface ProcessedComponentConfiguration {
   injectFormConfiguration?: boolean;
   /**
    * @deprecated Use `injectFormConfiguration` instead. `injectFormConfig` keeps working
-   * until the next major version.
+   * until 3.0.0.
    */
   injectFormConfig?: boolean;
 }
 
 /**
- * @deprecated Use `ProcessedComponentConfiguration` instead. `ProcessedComponentConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `ProcessedComponentConfiguration` instead. `ProcessedComponentConfig` is kept as an alias until 3.0.0.
  */
 export type ProcessedComponentConfig = ProcessedComponentConfiguration;
 
@@ -372,7 +371,7 @@ export interface InternalComponentProps {
   __formConfiguration: FormConfiguration;
   /**
    * @deprecated Read `__formConfiguration` instead. The same object is still injected as
-   * `__formConfig` until the next major version.
+   * `__formConfig` until 3.0.0.
    */
   __formConfig: FormConfiguration;
   /** Renderer that emits a nested field with the same setup as the parent form. */
@@ -405,8 +404,7 @@ export interface TranslationCategoryConfiguration {
 }
 
 /**
- * @deprecated Use `TranslationCategoryConfiguration` instead. `TranslationCategoryConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `TranslationCategoryConfiguration` instead. `TranslationCategoryConfig` is kept as an alias until 3.0.0.
  */
 export type TranslationCategoryConfig = TranslationCategoryConfiguration;
 
@@ -418,8 +416,7 @@ export interface ValidationTranslationConfiguration {
 }
 
 /**
- * @deprecated Use `ValidationTranslationConfiguration` instead. `ValidationTranslationConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `ValidationTranslationConfiguration` instead. `ValidationTranslationConfig` is kept as an alias until 3.0.0.
  */
 export type ValidationTranslationConfig = ValidationTranslationConfiguration;
 
@@ -511,8 +508,7 @@ export interface TranslationConfigurationObject {
 }
 
 /**
- * @deprecated Use `TranslationConfigurationObject` instead. `TranslationConfigObject` is kept as an alias until the next major
- * version.
+ * @deprecated Use `TranslationConfigurationObject` instead. `TranslationConfigObject` is kept as an alias until 3.0.0.
  */
 export type TranslationConfigObject = TranslationConfigurationObject;
 
@@ -526,8 +522,7 @@ export type TranslationConfigObject = TranslationConfigurationObject;
 export type TranslationConfiguration = true | TranslationConfigurationObject;
 
 /**
- * @deprecated Use `TranslationConfiguration` instead. `TranslationConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `TranslationConfiguration` instead. `TranslationConfig` is kept as an alias until 3.0.0.
  */
 export type TranslationConfig = TranslationConfiguration;
 
@@ -584,8 +579,7 @@ export interface FormConfiguration {
 }
 
 /**
- * @deprecated Use `FormConfiguration` instead. `FormConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `FormConfiguration` instead. `FormConfig` is kept as an alias until 3.0.0.
  */
 export type FormConfig = FormConfiguration;
 
@@ -629,13 +623,11 @@ export interface ArrayValidationRules extends CommonValidationRules {
   /** The most rows a repeater accepts. */
   maximumRows?: ValidationRule<number>;
   /**
-   * @deprecated Use `minimumRows` instead. `minRows` keeps working until the next major
-   * version.
+   * @deprecated Use `minimumRows` instead. `minRows` keeps working until 3.0.0.
    */
   minRows?: ValidationRule<number>;
   /**
-   * @deprecated Use `maximumRows` instead. `maxRows` keeps working until the next major
-   * version.
+   * @deprecated Use `maximumRows` instead. `maxRows` keeps working until 3.0.0.
    */
   maxRows?: ValidationRule<number>;
   minLength?: ValidationRule<number>;

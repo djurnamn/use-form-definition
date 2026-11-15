@@ -26,8 +26,7 @@ export interface AdvancedComponentConfiguration<T = any> {
 }
 
 /**
- * @deprecated Use `AdvancedComponentConfiguration` instead. `AdvancedComponentConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `AdvancedComponentConfiguration` instead. `AdvancedComponentConfig` is kept as an alias until 3.0.0.
  */
 export type AdvancedComponentConfig<T = any> =
   AdvancedComponentConfiguration<T>;
@@ -56,13 +55,12 @@ const INPUT_TYPE_FIELD_TYPES = new Set([
   "hidden",
 ]);
 
-// Simple component (backward compatible) or advanced configuration
+// A component on its own, or an advanced configuration that wraps one
 export type ComponentConfiguration =
   React.ComponentType<any> | AdvancedComponentConfiguration;
 
 /**
- * @deprecated Use `ComponentConfiguration` instead. `ComponentConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `ComponentConfiguration` instead. `ComponentConfig` is kept as an alias until 3.0.0.
  */
 export type ComponentConfig = ComponentConfiguration;
 
@@ -122,8 +120,7 @@ export interface FormDefinitionHookConfiguration {
 }
 
 /**
- * @deprecated Use `FormDefinitionHookConfiguration` instead. `FormDefinitionHookConfig` is kept as an alias until the next major
- * version.
+ * @deprecated Use `FormDefinitionHookConfiguration` instead. `FormDefinitionHookConfig` is kept as an alias until 3.0.0.
  */
 export type FormDefinitionHookConfig = FormDefinitionHookConfiguration;
 
@@ -165,8 +162,7 @@ export interface FormDefinitionHookOptions<
    */
   configuration?: Partial<FormConfiguration>;
   /**
-   * @deprecated Use `configuration` instead. `config` keeps working until the next major
-   * version; when both are given, `configuration` wins.
+   * @deprecated Use `configuration` instead. `config` keeps working until 3.0.0; when both are given, `configuration` wins.
    */
   config?: Partial<FormConfiguration>;
   /**

@@ -28,7 +28,7 @@ import {
   SelectOption,
   NestedFieldRenderer,
 } from "../core/types";
-import { generateSchema, generateOptions } from "../core/schema";
+import { generateSchema, generateOptions } from "../core/schema/";
 import { deriveHtml5Attributes } from "../core/html5-attributes";
 import { resolveDeriveTransform } from "../core/derive";
 import { generateSchema as generateSchemaFromBuilder } from "../core/schema/schema-builder";
@@ -79,8 +79,8 @@ const parseValidationError = (
  * A flat field's error is a single `FieldError`; translating its `message` is the whole
  * job. A structured field's (the repeater, a custom kind whose generator returns an
  * array/object schema) is a nested tree: the resolver roots each item issue under the
- * top-level key, so `errors.classes` is an array of per-item error objects. Walking the
- * tree keeps item errors addressable (`error[0].level.message`) with the same translated
+ * top-level key, so `errors.items` is an array of per-item error objects. Walking the
+ * tree keeps item errors addressable (`error[0].quantity.message`) with the same translated
  * messages a flat field gets.
  *
  * Server-tagged errors (`type: 'server'`) already carry display-ready strings and pass
@@ -105,7 +105,7 @@ interface MessageScope {
  * alongside its own options, so a translation can read "{field} is required"; one
  * that does not use them is unaffected. An item error inside a structured field (a
  * repeater cell) names the item field it belongs to, with its key path as the key
- * (`classes.level`); a nested key that is not a declared item field keeps the parent's.
+ * (`items.quantity`); a nested key that is not a declared item field keeps the parent's.
  */
 const messageScopeFor = (
   translateValidation: (key: string, options?: Record<string, any>) => string,
@@ -491,7 +491,7 @@ interface UseFormDefinitionOptions<T extends FormDefinition> {
    *   tabs and wizard steps post completely, on both the JS and no-JS submit paths,
    *   with no extra mechanism.
    * - the hook's returned `sections` API: per-section validation
-   *   (`sections.validate('lore')` for a wizard's Continue gate), membership lookups,
+   *   (`sections.validate('details')` for a wizard's Continue gate), membership lookups,
    *   and `sections.withErrors(...)` for tab badges.
    *
    * With custom `children`, wrap each region in the returned `RenderedSection` instead of
@@ -509,8 +509,7 @@ interface UseFormDefinitionOptions<T extends FormDefinition> {
    */
   configuration?: Partial<FormConfiguration>;
   /**
-   * @deprecated Use `configuration` instead. `config` keeps working until the next major
-   * version; when both are given, `configuration` wins.
+   * @deprecated Use `configuration` instead. `config` keeps working until 3.0.0; when both are given, `configuration` wins.
    */
   config?: Partial<FormConfiguration>;
   /**
@@ -530,8 +529,8 @@ interface UseFormDefinitionOptions<T extends FormDefinition> {
    * fields on a no-JS validation-error round-trip, also return `values` (e.g.
    * `Object.fromEntries(formData.entries())`).
    *
-   * This is also accepted as a prop on `<RenderedForm>` for backwards compatibility, but
-   * passing it here is preferred - only the hook option exposes `actionState`.
+   * `<RenderedForm>` also takes it as a prop; pass it here instead, since only the hook
+   * option exposes `actionState`.
    */
   serverAction?: ServerAction<z.infer<ReturnType<typeof generateSchema<T>>>>;
 }
@@ -611,7 +610,7 @@ export interface RenderedFormProps<TFormData extends FieldValues> {
    * @deprecated Configure the slot instead: `configuration: { components: { Actions: false } }` on
    * the hook (or a custom component there to replace it). One mechanism, per form, already
    * honored by the renderer - this boolean is a redundant second switch and will be removed
-   * in the next major.
+   * in 3.0.0.
    */
   showActions?: boolean;
   /**
@@ -735,7 +734,7 @@ export interface UseFormDefinitionReturn<
    * always contains the whole form; without it, sections are structural grouping only.
    * Renders the `Section` component slot (a fragment by default) around its children.
    * @example
-   * <RenderedSection name="lore">
+   * <RenderedSection name="details">
    *   <RenderedField name="summary" />
    * </RenderedSection>
    */
@@ -1524,6 +1523,24 @@ function isDevelopment(): boolean {
 }
 
 /**
+ * Every declared field that sets a `name` different from its definition key, repeater
+ * cells included. A cell is listed by its key path (`items.quantity`).
+ */
+function fieldsWithNameOverride(
+  definition: FormDefinition,
+  prefix = "",
+): string[] {
+  const renamed: string[] = [];
+  for (const [key, field] of Object.entries(definition)) {
+    const path = `${prefix}${key}`;
+    if (field.name && field.name !== key) renamed.push(path);
+    if (field.fields)
+      renamed.push(...fieldsWithNameOverride(field.fields, `${path}.`));
+  }
+  return renamed;
+}
+
+/**
  * Every declared field whose kind has no registered component, repeater cells included
  * (as `row.cell` paths). Such a field renders nothing where it is active - its mirror
  * still posts while it is off screen, but the active section, the one being edited, has
@@ -2030,24 +2047,23 @@ export const useFormDefinition = <
 
   // A field-level `name` override is documented-but-broken (see the `name` deprecation in
   // the CHANGELOG:
-  // the field gets two react-hook-form slots, client validation fails with the field
-  // filled in, and the server reports it missing) and is deprecated ahead of removal. The
-  // JSDoc says so; this makes it visible at runtime, since a broken form otherwise reads
-  // as a server bug.
+  // the field gets two react-hook-form slots, a required field fails client validation
+  // filled in and the server reports it missing, and an optional field's value is
+  // dropped) and is deprecated ahead of removal. The JSDoc says so; this makes it visible
+  // at runtime, since a broken form otherwise reads as a server bug.
   const warnedFieldNameOverride = useRef(false);
   if (isDevelopment() && !warnedFieldNameOverride.current) {
-    const renamed = Object.entries(definition)
-      .filter(([key, field]) => field.name && field.name !== key)
-      .map(([key]) => key);
+    const renamed = fieldsWithNameOverride(definition);
     if (renamed.length > 0) {
       warnedFieldNameOverride.current = true;
       console.warn(
         `[use-form-definition] field${renamed.length === 1 ? "" : "s"} ` +
           `${renamed.map((key) => `\`${key}\``).join(", ")} set${renamed.length === 1 ? "s" : ""} ` +
           "a `name` different from the definition key. The `name` override is deprecated: " +
-          "it has never worked (the field cannot pass validation and the server reports " +
-          "it missing) and is slated for removal. Drop the override and use the " +
-          "definition key as the field name.",
+          "it has never worked (a required field cannot pass validation and the server " +
+          "reports it missing, an optional field's value is dropped from the validated " +
+          "data, and a repeater cell posts a stray entry) and is slated for removal. Drop " +
+          "the override and use the definition key as the field name.",
       );
     }
   }

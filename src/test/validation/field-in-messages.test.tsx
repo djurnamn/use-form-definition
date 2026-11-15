@@ -17,13 +17,17 @@ const definition: FormDefinition = {
 };
 
 const nested: FormDefinition = {
-  classes: {
+  items: {
     type: "repeater",
-    label: "Classes",
+    label: "Items",
     fields: {
-      level: { type: "text", label: "Level", validation: { required: true } },
+      quantity: {
+        type: "text",
+        label: "Quantity",
+        validation: { required: true },
+      },
     },
-    defaultValue: [{ level: "" }],
+    defaultValue: [{ quantity: "" }],
   } as FormDefinition[string],
 };
 
@@ -45,17 +49,20 @@ describe("the field in a validation message", () => {
     render(<Form />);
     await userEvent.click(screen.getByRole("button", { name: "Submit" }));
 
-    expect(await screen.findByText("Level is required")).toBeTruthy();
-    expect(screen.queryByText("Classes is required")).toBeNull();
+    expect(await screen.findByText("Quantity is required")).toBeTruthy();
+    expect(screen.queryByText("Items is required")).toBeNull();
     expect(translate).toHaveBeenCalledWith(
       "required",
-      expect.objectContaining({ field: "Level", fieldKey: "classes.level" }),
+      expect.objectContaining({
+        field: "Quantity",
+        fieldKey: "items.quantity",
+      }),
     );
   }, 15000);
 
   it("is passed by parseValidationErrors for an item issue under its key path", () => {
     const result = generateSchema(nested).safeParse({
-      classes: [{ level: "" }],
+      items: [{ quantity: "" }],
     });
     expect(result.success).toBe(false);
     const translate = (key: string, options?: Record<string, unknown>) =>
@@ -63,9 +70,9 @@ describe("the field in a validation message", () => {
     const errors = parseValidationErrors(
       result.success ? [] : result.error.issues,
       translate,
-      { "classes.level": "Level" },
+      { "items.quantity": "Quantity" },
     );
-    expect(errors.classes?.[0]).toBe("required:Level:classes.level");
+    expect(errors.items?.[0]).toBe("required:Quantity:items.quantity");
   });
 
   it("reaches the client translation function with the label and the key", async () => {

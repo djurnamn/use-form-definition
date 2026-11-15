@@ -123,13 +123,13 @@ describe("a whole-list error", () => {
 
 describe("a custom structured kind", () => {
   it("receives the nested error tree on its error prop, messages translated", async () => {
-    registerFieldType("statList", {
+    registerFieldType("entryList", {
       generator: () =>
         z.array(z.object({ title: z.string().min(1, '["required"]') })),
     });
 
     // The kind's own UI decides where item errors render; `getNestedError` is the way in.
-    function StatList({
+    function EntryList({
       value,
       error,
     }: {
@@ -141,24 +141,24 @@ describe("a custom structured kind", () => {
         <div>
           <input
             type="hidden"
-            name="stats"
+            name="entries"
             value={JSON.stringify(value ?? [])}
           />
           {itemError?.message && (
-            <span role="alert">first stat: {itemError.message}</span>
+            <span role="alert">first entry: {itemError.message}</span>
           )}
         </div>
       );
     }
 
     const useCustomForm = createFormDefinitionHook({
-      components: { statList: StatList },
+      components: { entryList: EntryList },
     });
 
     const customDefinition: FormDefinition = {
-      stats: {
-        type: "statList",
-        label: "Stats",
+      entries: {
+        type: "entryList",
+        label: "Entries",
         defaultValue: [{ title: "" }],
       },
     };
@@ -176,7 +176,7 @@ describe("a custom structured kind", () => {
 
     // '["required"]' is the JSON message convention - it reaches the kind translated.
     expect(
-      await screen.findByText("first stat: This field is required"),
+      await screen.findByText("first entry: This field is required"),
     ).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
   });

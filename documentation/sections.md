@@ -30,14 +30,14 @@ Two ways, freely combined:
 **A declared map** (a hook option) - the definition stays untouched:
 
 ```tsx
-const factionSections = {
+const formSections = {
   general: ['name', 'slug'],
-  lore:    ['summary', 'motto'],
-} satisfies FormSections<typeof factionDefinition>;
+  details:    ['summary', 'tagline'],
+} satisfies FormSections<typeof formDefinition>;
 
-const { RenderedForm, sections } = useFormDefinition(factionDefinition, {
+const { RenderedForm, sections } = useFormDefinition(formDefinition, {
   serverAction,
-  sections: factionSections,
+  sections: formSections,
 });
 
 <RenderedForm currentSection={tab} />
@@ -52,7 +52,7 @@ renders its controls: structural grouping on one page.
 
 ```tsx
 const { RenderedForm, RenderedSection, RenderedField } = useFormDefinition(
-  factionDefinition,
+  formDefinition,
   { serverAction }
 );
 
@@ -62,9 +62,9 @@ const { RenderedForm, RenderedSection, RenderedField } = useFormDefinition(
     <RenderedField name="name" />
     <RenderedField name="slug" />
   </RenderedSection>
-  <RenderedSection name="lore">
+  <RenderedSection name="details">
     <RenderedField name="summary" />
-    <RenderedField name="motto" />
+    <RenderedField name="tagline" />
   </RenderedSection>
   <Actions />
 </RenderedForm>
@@ -100,7 +100,7 @@ yours. A wizard's Continue gate is one line:
 
 ```tsx
 const [step, setStep] = useState(0);
-const steps = ['general', 'lore'] as const;
+const steps = ['general', 'details'] as const;
 
 const next = async () => {
   // Validates only this step's fields, focusing the first error.
@@ -126,7 +126,7 @@ if (!result.success) {
     success: false,
     errors,
     values: extractSubmittedValues(formData),
-    message: `There is a problem on: ${sectionsWithErrors(factionSections, errors).join(', ')}`,
+    message: `There is a problem on: ${sectionsWithErrors(formSections, errors).join(', ')}`,
   };
 }
 ```

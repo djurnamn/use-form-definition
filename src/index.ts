@@ -2,7 +2,7 @@
 export * from "./core/types";
 export * from "./core/utilities";
 export * from "./core/validation";
-export { generateSchema, generateOptions } from "./core/schema";
+export { generateSchema, generateOptions } from "./core/schema/";
 export { generateSchemaAsync } from "./core/schema/schema-builder";
 export {
   registerFieldSchemaGenerator,
@@ -32,7 +32,7 @@ export type {
   FormDefinitionHookOptions,
   AdvancedComponentConfiguration,
   ComponentConfiguration,
-  // Deprecated aliases, kept until the next major version
+  // Deprecated aliases, kept until 3.0.0
   FormDefinitionHookConfig,
   AdvancedComponentConfig,
   ComponentConfig,
@@ -104,7 +104,7 @@ export type {
   TranslationCategoryConfiguration,
   ValidationTranslationConfiguration,
   TranslationFunction,
-  // Deprecated aliases, kept until the next major version
+  // Deprecated aliases, kept until 3.0.0
   TranslationConfig,
   TranslationConfigObject,
   TranslationCategoryConfig,

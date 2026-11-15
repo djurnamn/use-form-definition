@@ -1,12 +1,9 @@
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { DefaultValues } from "react-hook-form";
-import { FormDefinition } from "./types";
-import { generateSchema as generateSchemaModular } from "./schema/";
-import { generateDefaultValues } from "./utilities";
-
-// Generate Zod schema from form definition
-export const generateSchema = generateSchemaModular;
+import { FormDefinition } from "../types";
+import { generateDefaultValues } from "../utilities";
+import { generateSchema } from "./schema-builder";
 
 /**
  * Generate form options with automatic type inference
@@ -29,6 +26,3 @@ export const generateOptions = <T extends FormDefinition>(definition: T) => {
     _types: {} as InferredType,
   } as const;
 };
-
-// Generate data validator function
-export { generateDataValidator } from "./schema/data-validator";

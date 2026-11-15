@@ -83,7 +83,7 @@ export const generateFieldSchema = async (
 };
 
 /**
- * Synchronous version of generateFieldSchema for backward compatibility
+ * Synchronous counterpart of generateFieldSchema, without plugins, for generateSchema
  */
 export const generateFieldSchemaSync = (
   key: string,
@@ -228,7 +228,8 @@ export const generateSchemaAsync = async <
 };
 
 /**
- * Main schema generation function - synchronous for backward compatibility
+ * Main schema generation function. Synchronous; generateSchemaAsync is the variant that
+ * applies a plugin registry
  */
 export const generateSchema = <T extends FormDefinition = FormDefinition>(
   definition: T,

@@ -15,13 +15,13 @@ const definition: FormDefinition = {
   name: { type: "text", validation: { required: true } },
   slug: { type: "text" },
   summary: { type: "text" },
-  motto: { type: "text" },
+  tagline: { type: "text" },
   notes: { type: "text" },
 };
 
 const sections: FormSections<typeof definition> = {
   general: ["name", "slug"],
-  lore: ["summary", "motto"],
+  details: ["summary", "tagline"],
 };
 
 const control = (container: HTMLElement, name: string) =>
@@ -45,7 +45,7 @@ describe("zero-configuration sections", () => {
     }
     const { container } = render(<Form />);
 
-    for (const name of ["name", "slug", "summary", "motto", "notes"]) {
+    for (const name of ["name", "slug", "summary", "tagline", "notes"]) {
       expect(control(container, name)).not.toBeNull();
     }
     expect(container.querySelectorAll("[data-ufd-mirror]")).toHaveLength(0);
@@ -84,21 +84,21 @@ describe("zero-configuration sections", () => {
     });
     function Form() {
       const { RenderedForm } = useFormDefinition(definition, { sections });
-      return <RenderedForm currentSection="lore" />;
+      return <RenderedForm currentSection="details" />;
     }
     render(<Form />);
 
     expect([...seen.entries()]).toEqual([
       ["general", { label: "general", active: false }],
-      ["lore", { label: "lore", active: true }],
+      ["details", { label: "details", active: true }],
     ]);
-    expect(screen.getByTestId("section-lore")).toBeTruthy();
+    expect(screen.getByTestId("section-details")).toBeTruthy();
   });
 
   it("resolves the Section label through the sections translation category", () => {
     const translations: Record<string, string> = {
       "form.sections.general": "Allmänt",
-      "form.sections.lore": "Bakgrund",
+      "form.sections.details": "Detaljer",
     };
     const labels = new Set<string>();
     const Section = ({ label, children }: any) => {
@@ -115,7 +115,7 @@ describe("zero-configuration sections", () => {
     }
     render(<Form />);
 
-    expect([...labels]).toEqual(["Allmänt", "Bakgrund"]);
+    expect([...labels]).toEqual(["Allmänt", "Detaljer"]);
   });
 
   it("gives each active section its own LayoutContainer", () => {
@@ -145,7 +145,7 @@ describe("zero-configuration sections", () => {
         <RenderedForm>
           <RenderedSection name="general">
             <RenderedField name="name" />
-            {/* declared in `lore`, rendered in `general` */}
+            {/* declared in `details`, rendered in `general` */}
             <RenderedField name="summary" />
           </RenderedSection>
         </RenderedForm>

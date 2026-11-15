@@ -317,6 +317,8 @@ Use these with `validation: { pattern: 'patternName' }`:
 | `postalCode` | Generic postal code |
 | `hexColor` | Hex color code (#RGB or #RRGGBB) |
 
+A field of type `email` checks the `email` pattern without a `pattern` rule, raising `invalidFormat`. A `pattern` rule on the field replaces that check.
+
 ---
 
 ## Components
@@ -474,12 +476,12 @@ whole form on both submit paths. The surface, in brief; the full contract is in
 ```tsx
 const { RenderedForm, RenderedSection, RenderedField, sections } = useFormDefinition(
   definition,
-  { sections: { general: ['name', 'email'], lore: ['bio'] } } // optional declared map
+  { sections: { general: ['name', 'email'], details: ['bio'] } } // optional declared map
 );
 
 <RenderedForm currentSection={tab}>
   <RenderedSection name="general">...</RenderedSection>
-  <RenderedSection name="lore">...</RenderedSection>
+  <RenderedSection name="details">...</RenderedSection>
 </RenderedForm>
 ```
 
@@ -629,9 +631,9 @@ if (result.success) {
 
 Some keys carry interpolation values. The count-based keys (`minLength`, `maxLength`, `min`, `max`, `minimumRows`, `maximumRows`) pass a `{count}`, and the string keys `contains`, `startsWith`, and `endsWith` pass a `{value}` holding the constraint string - so a translation can read `Must contain "{value}"`. See the Next.js example's `messages/*.json` for the full set. A definition still using the deprecated `minRows` or `maxRows` rule raises the `minRows` or `maxRows` key, so existing translations keep resolving; add `minimumRows` and `maximumRows` translations when you switch a definition to the new names.
 
-Every message also receives `{field}` and `{fieldKey}`: the field's resolved label (the definition key when it has none) and the key itself, so a message can read `{field} is required`. On the client the label is the one the form renders; on the server pass the labels as the third argument, `parseValidationErrors(issues, t, { name: 'Your name' })`, and the key stands in for a field without one. A translation that does not use them is unaffected. An error inside a structured field names the item field it belongs to: a repeater cell's message receives the column's label, and its key path (`classes.level`) as `{fieldKey}`; on the server, key the label by that path (`{ 'classes.level': 'Level' }`).
+Every message also receives `{field}` and `{fieldKey}`: the field's resolved label (the definition key when it has none) and the key itself, so a message can read `{field} is required`. On the client the label is the one the form renders; on the server pass the labels as the third argument, `parseValidationErrors(issues, t, { name: 'Your name' })`, and the key stands in for a field without one. A translation that does not use them is unaffected. An error inside a structured field names the item field it belongs to: a repeater cell's message receives the column's label, and its key path (`items.quantity`) as `{fieldKey}`; on the server, key the label by that path (`{ 'items.quantity': 'Quantity' }`).
 
-Nested issue paths (a repeater cell, an item inside a custom structured kind) group under their top-level key: an issue at `classes.0.level` lands in `errors.classes`. The envelope stays flat and top-level-keyed by design - it is what `sectionsWithErrors` matches on and what the no-JS round trip renders. Item errors render at the item on the client, where validation re-runs with the same schema; see [Repeater fields](./repeaters.md#item-errors).
+Nested issue paths (a repeater cell, an item inside a custom structured kind) group under their top-level key: an issue at `items.0.quantity` lands in `errors.items`. The envelope stays flat and top-level-keyed by design - it is what `sectionsWithErrors` matches on and what the no-JS round trip renders. Item errors render at the item on the client, where validation re-runs with the same schema; see [Repeater fields](./repeaters.md#item-errors).
 
 ### getNestedError
 
@@ -641,9 +643,9 @@ Read one item's error out of a structured field's error tree. A structured field
 import { getNestedError, type NestedFieldError } from 'use-form-definition';
 
 // Inside a custom structured field component:
-const cellError = getNestedError(error, [rowIndex, 'level']);
+const cellError = getNestedError(error, [rowIndex, 'quantity']);
 // or the string form:
-const cellError2 = getNestedError(error, '0.level');
+const cellError2 = getNestedError(error, '0.quantity');
 
 cellError?.message; // display-ready, same translation as a top-level field
 ```

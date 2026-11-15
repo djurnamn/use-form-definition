@@ -16,8 +16,8 @@ export {
   generateFieldSchemaWithCustomValidators,
 } from "./schema-builder";
 
-// Re-export utilities from parent module
-export { generateOptions, generateDataValidator } from "../schema";
+export { generateOptions } from "./options";
+export { generateDataValidator } from "./data-validator";
 
 export type { CustomFieldValidator, ValidationContext } from "./schema-builder";
 
